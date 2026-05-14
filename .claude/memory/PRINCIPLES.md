@@ -90,3 +90,22 @@
 - TaskList 是 in-session 即時狀態
 - `_STATUS.md` 是 user-facing 進度
 - `.claude/memory/STATUS.md` 是 next-Claude-session handoff
+
+### 2026-05-14: Cycle 流程 = `/water-loop` skill
+
+- 所有資料 / 視覺迭代走 5 階段：Discovery → Plan → Execute → Verify → Commit/Push
+- 半自動為預設（3 checkpoint：apply migration 前 / 視覺化拍板 / commit-push 顆粒度）
+- 不自動 apply migration、不自動 push、不自動 amend commit
+- 詳見 `.claude/skills/water-loop/SKILL.md`
+- 觸發詞：`/water-loop`、「跑下一輪」、「接下個資料」、「修一輪 P0」
+
+### 2026-05-14: Secret 永遠走 .env
+
+- 不在 prototype / mockup / chat log / commit message 內留任何 token / API key
+- commit 前若不確定，跑 grep：
+  ```bash
+  grep -rn "pk\.eyJ\|sk_\|AKIA\|ghp_\|gho_" \
+    --include="*.{js,jsx,ts,tsx,md,yaml,json}" .
+  ```
+- 已 commit 進歷史的 secret，走 PB-07 `git filter-repo --replace-text` 移除
+- placeholder 慣例：`__MAPBOX_TOKEN_PLACEHOLDER__` / `__SUPABASE_ANON_KEY_PLACEHOLDER__` 等（GLOSSARY 收錄）
