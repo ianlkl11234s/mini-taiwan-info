@@ -108,3 +108,80 @@ User 喊「試跑一次 /wrap-up」— 在剛建立 framework 後立即測試 SK
 - Stage 1: 加 git reflog hash whitelist 寫法
 
 → 這就是 SKILL **自我演進**機制驗證成功（從本次體驗回頭改 skill 自己）。
+
+---
+
+## 2026-05-14 · Session 3 · Cycle 1（3 P0 fix）+ /water-loop skill 固化
+
+### 本 session 做了什麼
+
+User 問「確認進度 + 規劃水資源循環 + 是否可自循環不介入」。流程：
+
+1. Discovery 三 agent 並行（截圖 / 資料候選 / gap 分析）
+2. 拍板「先修 P0 bug」+「半自動 3 checkpoint」
+3. 改 3 個 P0（explode 22 / PointProfile drill / theme-aware headline）
+4. 拆 3 atomic commit
+5. Push 被 GitHub secret scanning 擋 → `git filter-repo --replace-text` rewrite 27 commits → force push 成功
+6. 處理 gis-platform 落後（pull --rebase 8 commits 在 origin/main 3 auto-sync 之上）+ push
+7. 寫 `.claude/skills/water-loop/SKILL.md`（半自動 5 階段 + 3 checkpoint）+ 加入 CLAUDE.md skills table
+
+最終 5 commit on mini-taiwan-info（3 fix + 1 secrets + 1 skill）+ 三 repo 全 push。
+
+### What worked
+
+1. **三個 Discovery agent 並行**省時間。截圖 / 資料候選 / gap 分析平行進行，~ 4 min 拿到全貌
+2. **AskUserQuestion 在關鍵分歧拍板**（路線 A / 自動化程度 / commit 顆粒度 / push 目的地 / token 處理 / revoke 與否）— 6 次 ask，每次都減少猜測成本
+3. **半自動 3 checkpoint 結構穩**：cycle 1 純前端沒用到 Checkpoint A（apply migration），但 B + C 都派上用場
+4. **filter-repo 一次性解 secret scanning**：backup → working tree placeholder → commit → replace-text → force push，整套 5 min 內跑完
+5. **拆 atomic commit 用「git restore + redo Edit」**：3 個 hunk on ViewA.tsx 拆 3 commit 順利，比 `git add -p` 在 Bash 工具下穩
+6. **/water-loop skill 寫成後立刻被系統 auto-load 進 skills list**（看 system-reminder skills 區）— 不用手動註冊，CLAUDE.md skills table 只是 user-facing 文件
+
+### What didn't / 失誤
+
+1. **P0-2 誤判 30min**：Discovery 截圖 agent 報「桃園 ViewB = 0 座水庫」，列為 P0；實際走過去看是 fetch 時序假象。**自循環設計必須包含 sanity-check 環節**（手動 click 驗證一次）— 已寫進 /water-loop SKILL Stage 1
+2. **mini-taiwan-info 沒設 remote 才發現**：第一次 push 才 error。下次新 repo 第一個 commit 後就 `git remote -v` 確認
+3. **Mapbox token 進 history 不是本 session 造成**（是 Phase 0a designs 階段留的），但本 session 第一次 push 才爆出來。教訓：每次新 push remote 之前 grep 一次 token pattern
+4. **Bash cwd 持久跨命令**踩了一次：跑完 `cd ../gis-platform` 後下一條 git commit 還在那邊 → no changes added。要回 `cd /full/path/to/mini-taiwan-info` 重做。INCIDENTS-worthy 但不收錄（一次性 confusion，不是 rework）
+5. **/wrap-up 觸發後沒先 read 完整 9 個 memory 就動手**：第一次只 read 6 個（前 cycle 1 已讀），補讀 3 個（INCIDENTS / PLAYBOOKS / GLOSSARY）。下次 wrap-up 進 Stage 1 一律並行 read 全 9 個檔
+
+### Next-time rules
+
+- **每次 cycle Discovery 截圖 agent 回報「N=0 / ━ / 全 None」結論**：自動觸發 sanity-check（手動 click 驗證一次，或更長 wait + re-screenshot）
+- **新 push 到 remote 前**：grep 一次 secret pattern + `git remote -v` 確認 remote 設了
+- **Bash 工具跨命令注意 cwd 持久**：跑 cd 跨 repo 後，每個 commit 操作前用絕對路徑 cd 回來
+- **/wrap-up Stage 1**：強制並行 read 全 9 個檔（含 INCIDENTS / PLAYBOOKS / GLOSSARY），不要因為「上次讀過」就略過 — REFLECTIONS / INCIDENTS 是 append-only，上次讀的可能已過期
+
+### Memory 產出（本 session）
+
+新增：
+- `.claude/skills/water-loop/SKILL.md`（半自動 5 階段 + 3 checkpoint SOP）
+
+更新 8 個 memory 檔：
+- STATUS rewrite（Session 3 結束狀態）
+- BACKLOG 加 B021-028（cycle 2 候選 + ViewB 視覺缺口）+ 移完成項
+- PRINCIPLES append（Cycle 流程 / Secret 永遠走 .env）
+- PLAYBOOKS append PB-07/08/09（filter-repo / atomic commit 拆 hunk / 三 repo push）
+- INCIDENTS append（Mapbox secret scanning / agent fetch 時序假象）
+- REFLECTIONS append（本條）
+- CROSS_REPO update（三 repo 全 push 完成）
+- GLOSSARY append（Cycle / Mode / placeholder / 時序假象）
+
+### 對 /water-loop skill 本身的反省（首次定義）
+
+Skill 寫完只是 v1.0，**未跑過第 2 cycle 驗證**。預期下次 cycle 2（接 BOD/DO 或 45136）會發現：
+- Stage 3 Mode D（資料整合）的細節是否真夠用
+- Checkpoint A 給 user 看 sample rows 的 UX 怎麼設計最直觀
+- 視覺化拍板（Checkpoint B）若有 2-3 個視覺化選項要怎麼 preview
+
+第 2 cycle 跑完一定回頭修 SKILL.md。**Skill 自演進機制** 第二次驗證。
+
+### 對 Mode B Incremental /wrap-up 的反省
+
+第一次正式跑 Mode B（非 init）/wrap-up：
+- 本 session commit 範圍用「上次最後 commit hash + ..HEAD」精準鎖定 ✅
+- 每檔事件分類清晰，沒重複 / 沒漏 ✅
+- User 信任「直接下 commit 不細 review」— Mode B 在 user trust 建立後可省 confirm 步驟，比 Mode A 快 50%
+- 但仍需 Stage 3 給用戶看「總表」（檔/動作/摘要）讓 user 一眼決定 batch confirm vs 逐個 review
+
+下次 /wrap-up 若 Mode B：直接列總表 + 一個 yes/no question（「直接下 commit 還是逐個 review」），不要再列 8 個 option。
+
