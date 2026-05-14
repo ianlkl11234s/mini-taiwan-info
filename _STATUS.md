@@ -3,9 +3,9 @@
 > **Living document**。每完成一個 task / 做一個決定 / 發現新 backlog，就更新這份檔。
 > 一日一次同步：每天結束時對齊 TaskList tool 與本檔。
 
-**最後更新**：2026-05-14 (Session 2，下午 · A-4 完成 + atomic commits)
-**當前 Phase**：Phase 0b+ A-4 ✅ ViewC 完整版（阿公店 1 年 trend LIVE）
-**當前 Focus**：📍 阿公店整年沒高過 30%。剩 A-5 View D / Phase 0d
+**最後更新**：2026-05-14 (Session 2，傍晚 · Phase 0d 完成 · 6/6 LIVE)
+**當前 Phase**：Phase 0d ✅ 淹水 MV LIVE
+**當前 Focus**：📍 6/6 KPI 全 LIVE！只剩 A-5 View D（你說先不要）+ 月雨量 MV（Backlog）
 
 ---
 
@@ -23,8 +23,8 @@
 | └ A-3 | View B 縣市儀錶板（7 tabs，4 real + 3 placeholder） | 1 天 | ✅ 完成 2026-05-14 |
 | └ A-4 | View C 水庫詳情頁（1 年 trend + 自動跌破標記） | 0.5 天 | ✅ 完成 2026-05-14 |
 | └ A-5 | View D 比較模式 | 0.5 天 | ⬜ 待開工 |
-| **0d** | Flood + Rain materialized views | 0.5 天 | ⬜ 待開工 |
-| **0e** | 「View A 全跑通真實資料」驗收 | 0.5 天 | ⬜ 待開工 |
+| **0d** | Flood MV ✅ + Rain monthly MV (Backlog) | 0.5 天 | ✅ 完成 — 6/6 KPI LIVE |
+| **0e** | 「6/6 KPI 全跑通真實資料」驗收 | 0.5 天 | ✅ 達成 |
 
 **Phase 0 預估總工期**：5-6 天（單人）
 
@@ -239,6 +239,9 @@ python3 pipelines/infrastructure/datagov_26815_sewage.py --full  # 接管率 22 
 - **`view-d.jsx` 比較模式 `LPCD_COMPARE` 是 mock**：要接真實縣市 × 年 LPCD。Phase 0c LPCD pipeline 跑完後可接
 - **`KHH_WWTP` 12 座座標是「示意」**：(data.js:147) 要走 TGOS 反查。Phase 0c 末
 - **`KHH_DISTRICTS_LPCD` 38 區僅前 8 名 mock**：(data.js:364) 鄉鎮 LPCD 來源不明，可能 not feasible。Backlog
+
+### 🟢 Phase 0d 延伸（已主動延後）
+- **月雨量 MV** (`rain_gauge_monthly_by_county`)：原 Phase 0d 規劃，但目前無 view 使用（ViewB 用 LPCD/接管率歷年；ViewC 用 reservoir timeseries）。月雨量是 nice-to-have，待 Phase 1 月雨量 trend UI 上線時再做。
 
 ### 🔵 規格延伸（未來主題）
 - 5-8 主題：fire / medical / transport / population / environment / realestate — 都還 `disabled: true`
