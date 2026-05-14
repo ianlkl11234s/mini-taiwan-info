@@ -177,7 +177,7 @@ export async function fetchLpcdLatest(): Promise<LpcdRow[]> {
 }
 
 /**
- * 取單一縣市 LPCD 歷年（給 ViewC 時序圖）。
+ * 取單一縣市 LPCD 歷年（給 ViewB / ViewC 時序圖）。
  */
 export async function fetchLpcdHistory(countyId: string): Promise<LpcdRow[]> {
   const { data, error } = await supabase
@@ -187,6 +187,19 @@ export async function fetchLpcdHistory(countyId: string): Promise<LpcdRow[]> {
     .order("year", { ascending: true });
   if (error) return [];
   return (data ?? []) as LpcdRow[];
+}
+
+/**
+ * 取單一縣市接管率歷年。
+ */
+export async function fetchSewageHistory(countyId: string): Promise<SewageRow[]> {
+  const { data, error } = await supabase
+    .from("sewage_coverage_yearly")
+    .select("county_id, year, coverage_pct")
+    .eq("county_id", countyId)
+    .order("year", { ascending: true });
+  if (error) return [];
+  return (data ?? []) as SewageRow[];
 }
 
 /**
