@@ -24,6 +24,36 @@
 | **Cycle Mode P/D/V** | P = 純前端 fix；D = 資料整合（含 migration）；V = 視覺重做。決定 cycle 走哪個分支 |
 | **`__MAPBOX_TOKEN_PLACEHOLDER__`** | Mapbox token 取代慣例。其他 token 比照辦理（`__SUPABASE_ANON_KEY_PLACEHOLDER__` 等）。實際值放 .env / .env.local |
 | **fetch 時序假象** | agent-browser headless 截圖時 SPA 尚未 hydrate 完成，KPI 顯示 ━ 但實際非 0。Cycle 1 P0-2 誤判由此而來；Discovery 截圖須 wait 3500ms+ 再 eval value 非 ━ 才當有效樣本 |
+| **ViewB IA v2** | 2026-05-14 Cycle B 拍板：7 tabs 依水循環層重組（概覽/水庫/河川/地下水/防洪/用水與配送/排名）；取消「水質」「基礎設施」獨立 tab；水質拆解到對應水體 |
+| **WaterQualitySection** | 共用 helper component (frontend/src/components/views/ViewB.tsx)：stationType 由 prop 鎖定，給 ReservoirsTab / RiverTab / GroundwaterTab 三 tab 共用 |
+| **DataAgeBadge** | 替代 LIVE badge 用於非 collector cron 資料。6 級 freshness 自動分類（fresh/recent/month/year/stale/none），hover tooltip 顯示精確時間。位置 frontend/src/components/DataAgeBadge.tsx |
+| **data-collectors** | sibling repo `/GIS/data-collectors/`，部署在 Zeabur 自動跑 cron 的 collector pipelines。LIVE 嚴格定義依據「collector 是否在這 repo 內有對應 cron」判定 |
+
+## Supabase 水資源新 RPC（Cycle A 加）
+
+| RPC | 簽名 | 用途 |
+|---|---|---|
+| `get_water_quality_county_summary(p_param, p_days, p_station_type)` | (TEXT, INT default 365, TEXT) | 22 縣市 × 該參數平均 + 站數 + reading 數 + 最新時間 |
+| `get_water_quality_station_latest(p_station_type, p_county_id)` | (TEXT, VARCHAR) | 測站清單 + 每站最新 reading jsonb |
+| `jq_extract_numeric(p_params, p_keys)` | (JSONB, TEXT[]) | jsonb 從多 key alias 取第一個非 null numeric。給水質 jsonb case mix 用（DO/do / NH3N/NH3-N/NH3_N）|
+
+## Supabase 水資源新表（已建未接 Cycle Roadmap 對應）
+
+| 表 | 列數 | 對應 Cycle | 用途 |
+|---|---|---|---|
+| `water_quality_stations` | 2,449 | A | epa_river/reservoir/gw + wra_gw |
+| `water_quality_readings` | 8,775 | A | jsonb parameters，最新 epa_reservoir 2026-05-11 |
+| `river_flow_stations` | 188 | E | 河川流量站 |
+| `river_lines` | 2,015 | E | 河川 polyline |
+| `river_basins` | 116 | E | 集水區 polygon |
+| `reservoir_polygons` | 80 | G | 水庫範圍 polygon |
+| `detention_basins` | 140 | I | 滯洪池 polygon |
+| `groundwater_zones` | 21 | F | 地下水分區（西部 9 區 only） |
+| `realtime.groundwater_level_readings` | 2,075,470 | F | 地下水位 realtime（collector cron） |
+| `sewage_treatment_plants` | 82 | D | 汙水廠（lat/lng NULL 待 TGOS） |
+| `storm_drainage_pipes` | 26,652 | I | 雨水下水道（3 縣市 only） |
+| `storm_drainage_manholes` | 28,609 | I | 雨水下水道人孔 |
+| `water_facilities` | 609 | D2 | 給水設施 |
 
 ## 縣市代碼三軌
 
