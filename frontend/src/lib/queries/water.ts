@@ -44,6 +44,41 @@ export async function fetchReservoirStatusLatest(): Promise<ReservoirStatusRow[]
 }
 
 // ─────────────────────────────────────────────────
+// 1b. 單一水庫歷史時序（RPC: get_reservoir_timeseries）
+// ─────────────────────────────────────────────────
+
+export interface ReservoirTimeseriesRow {
+  snapshot_at: string;
+  water_level_m: number | null;
+  effective_storage_wan_m3: number | null;
+  storage_ratio_pct: number | null;
+  inflow_cms: number | null;
+  total_outflow_cms: number | null;
+  basin_rainfall_mm: number | null;
+}
+
+/**
+ * 取單一水庫指定區間時序（給 ViewC 1 年蓄水率折線）。
+ */
+export async function fetchReservoirTimeseries(
+  reservoirId: string,
+  from: Date,
+  to: Date
+): Promise<ReservoirTimeseriesRow[]> {
+  const { data, error } = await supabase.rpc("get_reservoir_timeseries", {
+    p_reservoir_id: reservoirId,
+    p_from: from.toISOString(),
+    p_to: to.toISOString(),
+  });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn("[query] get_reservoir_timeseries failed:", error.message);
+    return [];
+  }
+  return (data ?? []) as ReservoirTimeseriesRow[];
+}
+
+// ─────────────────────────────────────────────────
 // 2. 全國雨量（RPC: get_rain_gauge_latest）
 // ─────────────────────────────────────────────────
 
