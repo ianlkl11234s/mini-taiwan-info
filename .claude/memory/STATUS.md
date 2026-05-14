@@ -9,14 +9,14 @@
 
 ## 一句話現況
 
-Phase 0 全完成 6/6 KPI LIVE 已穩定；Session 3 跑完 Cycle 1（3 P0 fix） + 寫成 `/water-loop` skill 把整個半自動迭代流程固化。**三個 repo 全 push 同步 origin**。下個 session 可直接 `/water-loop` 跑 Cycle 2。
+Phase 0 全完成 **6/6 KPI 接通真實資料**（真 LIVE 只 2 個：蓄水率 / 雨量；其他 4 個是月/年/靜態 batch）；Session 3 跑完 Cycle 1（3 P0 fix） + 寫成 `/water-loop` skill 把整個半自動迭代流程固化。**三個 repo 全 push 同步 origin**。下個 session 可直接 `/water-loop` 跑 Cycle 2。
 
 ## 跑得起來的東西
 
 `cd frontend && pnpm dev` → http://localhost:5173
 
-- **View A**：6 KPI 全 LIVE（蓄水率 56.8% / 雨量 21mm / 警戒 11 座 / 淹水 0.4% / LPCD 273L / 接管率 52.8%）；爆炸圖**顯示全 22 縣市**（Cycle 1 fix）；切換主題 hero hook 走 manifest tagline（Cycle 1 fix）
-- **View B**：縣市儀錶板 7 tabs（4 LIVE + 3 placeholder）
+- **View A**：6 KPI 接通真實資料 — 真 LIVE：蓄水率 56.8%（collector cron）/ 雨量 21mm（cron）/ 警戒 11 座（cron 派生）；月/年/靜態：淹水 0.4%（NLDCB 靜態）/ LPCD 273L（年度）/ 接管率 52.8%（年度）；爆炸圖**顯示全 22 縣市**（Cycle 1 fix）；切換主題 hero hook 走 manifest tagline（Cycle 1 fix）
+- **View B**：縣市儀錶板 7 tabs（4 接通真實資料 + 3 placeholder；其中水質 tab 為 Cycle A 新接，月度採樣非 LIVE）
 - **View C**：水庫詳情頁，**PointProfile chip 可 drill 進來**（Cycle 1 fix）
 
 ## 下一個 session 的合理開頭

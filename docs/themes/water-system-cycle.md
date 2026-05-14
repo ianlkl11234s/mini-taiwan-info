@@ -8,7 +8,7 @@
 
 ## TL;DR
 
-- **前端**：6/6 KPI LIVE（蓄水率 / 雨量 / 警戒 / 淹水 / LPCD / 接管率）+ Cycle 1 已修 3 個 P0 視覺 bug
+- **前端**：6/6 KPI 接通真實資料 — 真 LIVE 2 個（蓄水率 / 雨量，collector cron）+ 派生 1 個（高警戒水庫，從 reservoir 即時派生）+ 月/年/靜態 3 個（淹水 NLDCB 靜態 / LPCD 年度 / 接管率年度）。Cycle 1 已修 3 個 P0 視覺 bug
 - **後端資料**：**~78% 已就緒**（比想像好很多）
   - 14 個水資源相關表已 ingest 進 Supabase（含 8 個前端沒接的 polygon/point layer）
   - 缺 4 個 datagov pipeline（水污染稽查/罰鍰 3 個 + 灌溉 1 個 + RPI 1 個）
@@ -81,9 +81,11 @@
 ```
 
 **圖示**：
-- ✅ 已 LIVE（前端 + 資料都 OK）
+- ✅ 已接通真實資料（前端 + 資料都 OK，其中標 LIVE 者為 collector cron 真跑）
 - ⚠️ 資料就緒但前端未接（**多數情況**）
 - ❌ 資料端缺（pipeline 未寫 / 表未建）
+
+**LIVE 用詞守則**（PRINCIPLES 拍板）：LIVE = collector cron + 上游 realtime；其他寫「接通真實資料」+ DataAgeBadge 顯示 staleness
 
 ---
 
@@ -413,7 +415,7 @@
 | 資料 ingest 完整度 | ~78%（14 表已建，4 個 datagov pipeline 未寫）|
 | 前端 KPI 接通率 | ~43%（6/14 主要指標）|
 | Map layer 接通率 | ~15%（1 個 choropleth + 1 個點位 / 8 個未接）|
-| View tab 完整度 | ~57%（ViewB 7 tabs 中 4 LIVE）|
+| View tab 完整度 | ~71%（ViewB 7 tabs 中 5 接通真實資料：概覽 / 水庫 / 水質 / 用水 / 排名）|
 
 完成全 Roadmap 後：
 - 資料 ingest → ~95%（剩工業 / 漏水 coverage 不全項）

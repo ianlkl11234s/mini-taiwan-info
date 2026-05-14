@@ -52,5 +52,5 @@
 | 2026-05-14 | A-3 | View B 縣市儀錶板 7 tabs |
 | 2026-05-14 | A-2 | TwoSectionLayers 收合控制 |
 | 2026-05-14 | A-1 | PointProfile 三模式（bucket / region / scatter） |
-| 2026-05-14 | 0d | flood_hazard_pct_by_county MV + 6/6 KPI LIVE |
-| 2026-05-14 | 0c-C | 22 縣市 ranking + choropleth + hero + explode 全 LIVE |
+| 2026-05-14 | 0d | flood_hazard_pct_by_county MV + 6/6 KPI 接通真實資料 |
+| 2026-05-14 | 0c-C | 22 縣市 ranking + choropleth + hero + explode 全接通真實資料 |

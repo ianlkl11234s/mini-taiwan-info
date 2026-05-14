@@ -3,9 +3,10 @@
 > **Living document**。每完成一個 task / 做一個決定 / 發現新 backlog，就更新這份檔。
 > 一日一次同步：每天結束時對齊 TaskList tool 與本檔。
 
-**最後更新**：2026-05-14 (Session 2，傍晚 · Phase 0d 完成 · 6/6 LIVE)
-**當前 Phase**：Phase 0d ✅ 淹水 MV LIVE
-**當前 Focus**：📍 6/6 KPI 全 LIVE！只剩 A-5 View D（你說先不要）+ 月雨量 MV（Backlog）
+**最後更新**：2026-05-14 (Session 3 · Cycle A 完成 · 6/6 KPI 接通真實資料 + 水質 tab 接通)
+**當前 Phase**：Phase 0 已收尾、進入 Cycle Roadmap（見 docs/themes/water-system-cycle.md）
+**當前 Focus**：📍 6/6 KPI 接通真實資料！真 LIVE 2 個（蓄水率 / 雨量 / 派生警戒，collector cron）+ 4 個月/年/靜態 batch
+**用詞守則**：「LIVE」嚴格定義為 collector cron + 上游 realtime；其他用「接通真實資料」
 
 ---
 
@@ -16,14 +17,14 @@
 | **0a** | Foundation refactor（manifest + SSOT） | 1 天 | ✅ 完成 2026-05-14 |
 | **0b** | Frontend Vite SPA 骨架（核心） | 1 天 | ✅ 完成（dev server 已啟動驗證） |
 | **0c** | View A 真實資料接入（含 2 ETL） | 2-3 天 | ✅ 完成 |
-| **0c-C** | 22 縣市 ranking + choropleth + explode + hero LIVE | 30 min | ✅ 完成 |
+| **0c-C** | 22 縣市 ranking + choropleth + explode + hero 接通真實資料 | 30 min | ✅ 完成 |
 | **0b+** | 補完 PointProfile / Charts / View B-D 元件 | 1-2 天 | 🟡 2/5 完成（A-1, A-2 ✅） |
 | └ A-1 | PointProfile 三模式 | 0.5 天 | ✅ 完成 |
 | └ A-2 | TwoSectionLayers 控制 | 0.5 天 | ✅ 完成 |
 | └ A-3 | View B 縣市儀錶板（7 tabs，4 real + 3 placeholder） | 1 天 | ✅ 完成 2026-05-14 |
 | └ A-4 | View C 水庫詳情頁（1 年 trend + 自動跌破標記） | 0.5 天 | ✅ 完成 2026-05-14 |
 | └ A-5 | View D 比較模式 | 0.5 天 | ⬜ 待開工 |
-| **0d** | Flood MV ✅ + Rain monthly MV (Backlog) | 0.5 天 | ✅ 完成 — 6/6 KPI LIVE |
+| **0d** | Flood MV ✅ + Rain monthly MV (Backlog) | 0.5 天 | ✅ 完成 — 6/6 KPI 接通真實資料 |
 | **0e** | 「6/6 KPI 全跑通真實資料」驗收 | 0.5 天 | ✅ 達成 |
 
 **Phase 0 預估總工期**：5-6 天（單人）
@@ -134,11 +135,11 @@ pnpm dev         # 開 http://localhost:5173
 | 0c-1 | 接 4 個 ready KPI 真實資料 | ✅ 2026-05-14 | `frontend/src/lib/queries/water.ts` + `hooks/useWaterKpis.ts` + ViewA LIVE badge |
 | 0c-2 | LPCD pipeline (datagov_8316) | ✅ 2026-05-14（檔案已寫，待 apply + run） | pipeline + migration 094 + registry |
 | 0c-3 | 接管率 pipeline (datagov_26815) | ✅ 2026-05-14（檔案已寫，待 apply + run） | pipeline + migration 095 + registry |
-| 0c-4 | LPCD + 接管率 查詢預先寫好（ETL 跑完自動 LIVE） | ✅ 2026-05-14 | `fetchLpcdLatest` / `fetchSewageCoverageLatest` / `fetchGovernanceSummary` |
+| 0c-4 | LPCD + 接管率 查詢預先寫好（ETL 跑完自動接通真實資料） | ✅ 2026-05-14 | `fetchLpcdLatest` / `fetchSewageCoverageLatest` / `fetchGovernanceSummary` |
 
 **Phase 0c 完整執行結果**（截圖 `/tmp/miniti-5live.png`，2026-05-14 12:25）：
 
-| KPI | 數字 | LIVE | 比對 mock |
+| KPI | 數字 | 接通真實資料 | 比對 mock |
 |---|---|---|---|
 | 全國蓄水率 | **56.7%** | ✅ | mock 72.3% — 真實偏低 |
 | 24hr 全國均雨量 | **18.7mm** | ✅ | mock 12.4mm |
@@ -169,7 +170,7 @@ cd /Users/migu/Desktop/資料庫/gen_ai_try/ichef_工作用/GIS/taipei-gis-analy
 python3 pipelines/socioeconomic/datagov_8316_lpcd.py --full      # 374 列：22 縣市 × 17 年 LPCD
 python3 pipelines/infrastructure/datagov_26815_sewage.py --full  # 接管率 22 縣市 × 多年
 
-# 3) 重新整理瀏覽器 → 全部 6 KPI 應該都標 LIVE
+# 3) 重新整理瀏覽器 → 全部 6 KPI 應該都接通真實資料（其中 2 個 collector cron 真 LIVE）
 ```
 
 **Pipeline 階段發現**（小驚喜）：
@@ -288,13 +289,13 @@ python3 pipelines/infrastructure/datagov_26815_sewage.py --full  # 接管率 22 
 完整 roadmap 看 **[docs/themes/water-system-cycle.md](docs/themes/water-system-cycle.md)**。
 
 **TL;DR**：
-- Phase 0 已收尾，6/6 KPI LIVE
+- Phase 0 已收尾，6/6 KPI 接通真實資料（真 LIVE 只 2-3 個 collector cron）
 - 後端水資源資料 ~78% 已就緒（14 表已 ingest，11 個前端未接）
 - 接下來 11 個 cycle（A-L）按 Tier 1-5 排序依「補弱層 + ROI」推進
 
 ### First Move — 推薦從 **Cycle A 水質測站 BOD/DO** 開始
 
-理由：資料完全就緒（2449 站 + 8775 reading）、pipeline 已存在、ViewB 河川水質 tab 從 placeholder 變 LIVE 解鎖感最強。
+理由：資料完全就緒（2449 站 + 8775 reading）、pipeline 已存在、ViewB 河川水質 tab 從 placeholder 接通真實資料解鎖感最強。
 
 ```
 > /water-loop 跑 Cycle A 水質測站 BOD/DO
