@@ -48,6 +48,11 @@ interface ViewAProps {
   realRain24ByCode3?: Record<CountyCode3, number> | null;
   /** Phase 0b+ A-1：水庫清單給 PointProfile */
   realReservoirs?: ReservoirStatusRow[];
+  /** Phase 0d：淹水高潛勢 %（350mm/24hr 預設） */
+  realFloodPct?: {
+    national_avg_pct: number | null;
+    by_county_idmoi: Record<string, number>;
+  } | null;
   realLoading?: boolean;
   realError?: Error | null;
 }
@@ -67,7 +72,8 @@ const ICON_FOR_KPI: Record<string, JSX.Element> = {
 function getKpiValue(
   kpiId: string,
   realSummary?: ViewAProps["realSummary"],
-  realGovernance?: ViewAProps["realGovernance"]
+  realGovernance?: ViewAProps["realGovernance"],
+  realFloodPct?: ViewAProps["realFloodPct"]
 ): { value: number; delta?: number; isReal: boolean } {
   // 真實 realtime 資料能服務的 3 個 KPI（Phase 0c-1）
   if (realSummary) {
@@ -89,6 +95,10 @@ function getKpiValue(
     if (kpiId === "sewage_coverage" && realGovernance.sewage_national_avg != null) {
       return { value: realGovernance.sewage_national_avg, isReal: true };
     }
+  }
+  // Phase 0d：淹水高潛勢面積佔比
+  if (realFloodPct && kpiId === "flood_high_risk_pct" && realFloodPct.national_avg_pct != null) {
+    return { value: realFloodPct.national_avg_pct, isReal: true };
   }
   // 其餘 fallback mock
   const N = WATER_NATIONAL_MOCK;
@@ -130,6 +140,7 @@ export function ViewA({
   realGovernance,
   realRain24ByCode3,
   realReservoirs,
+  realFloodPct,
   realLoading,
   realError,
 }: ViewAProps) {
@@ -206,7 +217,7 @@ export function ViewA({
       {/* KPI grid — driven by manifest.overview.kpis */}
       <div className="kpi-grid">
         {overview.kpis.map((kpi) => {
-          const { value, delta, isReal } = getKpiValue(kpi.id, realSummary, realGovernance);
+          const { value, delta, isReal } = getKpiValue(kpi.id, realSummary, realGovernance, realFloodPct);
           const trend = {
             delta: deltaToString(delta, kpi.unit) || "—",
             direction: deltaDir(delta),

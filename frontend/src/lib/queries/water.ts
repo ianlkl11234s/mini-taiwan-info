@@ -162,6 +162,58 @@ export function aggregateWaterKpis(
 }
 
 // ─────────────────────────────────────────────────
+// 3b. 淹水高潛勢 % by 縣市（RPC: get_flood_pct_by_county）
+// ─────────────────────────────────────────────────
+
+export interface FloodPctRow {
+  county_id: string;
+  county_name: string;
+  pct_of_county: number;
+  hazard_km2: number;
+}
+
+/**
+ * 取指定情境（雨量/時長）的縣市淹水高潛勢面積 %。
+ * Phase 0d migration 096 後可用；表不存在時回傳空陣列。
+ *
+ * @param rainfallMm 雨量情境 (預設 350)
+ * @param durationHr 時長 (預設 24)
+ */
+export async function fetchFloodPctByCounty(
+  rainfallMm = 350,
+  durationHr = 24
+): Promise<FloodPctRow[]> {
+  const { data, error } = await supabase.rpc("get_flood_pct_by_county", {
+    p_rainfall_mm: rainfallMm,
+    p_duration_hr: durationHr,
+  });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn("[query] flood pct not available yet:", error.message);
+    return [];
+  }
+  return (data ?? []) as FloodPctRow[];
+}
+
+/**
+ * 從 FloodPctRow[] 聚合出全國平均 + by-county lookup
+ */
+export interface FloodSummary {
+  national_avg_pct: number | null;
+  by_county_idmoi: Record<string, number>;  // id_moi → pct
+}
+
+export function aggregateFloodPct(rows: FloodPctRow[]): FloodSummary {
+  if (rows.length === 0) {
+    return { national_avg_pct: null, by_county_idmoi: {} };
+  }
+  const avg = rows.reduce((s, r) => s + r.pct_of_county, 0) / rows.length;
+  const by: Record<string, number> = {};
+  for (const r of rows) by[r.county_id] = r.pct_of_county;
+  return { national_avg_pct: avg, by_county_idmoi: by };
+}
+
+// ─────────────────────────────────────────────────
 // 4. Region → 中文 + 對應到 PointProfile 的 region 桶
 // ─────────────────────────────────────────────────
 

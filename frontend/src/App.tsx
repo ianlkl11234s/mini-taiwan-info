@@ -292,6 +292,7 @@ export default function App() {
                 realGovernance={useRealData ? water.governance : null}
                 realRain24ByCode3={useRealData ? rain24ByCode3 : null}
                 realReservoirs={useRealData ? water.reservoirs : []}
+                realFloodPct={useRealData ? water.flood : null}
                 realLoading={useRealData ? water.loading : false}
                 realError={useRealData ? water.error : null}
               />

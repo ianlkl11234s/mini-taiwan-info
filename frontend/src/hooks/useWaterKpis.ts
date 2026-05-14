@@ -10,11 +10,14 @@ import {
   fetchReservoirStatusLatest,
   fetchRainGaugeLatest,
   fetchGovernanceSummary,
+  fetchFloodPctByCounty,
   aggregateWaterKpis,
+  aggregateFloodPct,
   type ReservoirStatusRow,
   type RainGaugeRow,
   type WaterKpiSummary,
   type GovernanceSummary,
+  type FloodSummary,
 } from "@/lib/queries/water";
 
 export interface WaterKpisState {
@@ -25,6 +28,8 @@ export interface WaterKpisState {
   rainStations: RainGaugeRow[];
   /** Phase 0c-2/0c-3：LPCD + 接管率（表存在才有資料；空表 fallback 為 null） */
   governance: GovernanceSummary | null;
+  /** Phase 0d：淹水高潛勢 % by 縣市（350mm/24hr 預設情境） */
+  flood: FloodSummary | null;
 }
 
 export function useWaterKpis(): WaterKpisState {
@@ -35,19 +40,22 @@ export function useWaterKpis(): WaterKpisState {
     reservoirs: [],
     rainStations: [],
     governance: null,
+    flood: null,
   });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [reservoirs, rainStations, governance] = await Promise.all([
+        const [reservoirs, rainStations, governance, floodRows] = await Promise.all([
           fetchReservoirStatusLatest(),
           fetchRainGaugeLatest(),
           fetchGovernanceSummary(),
+          fetchFloodPctByCounty(350, 24),
         ]);
         if (cancelled) return;
         const summary = aggregateWaterKpis(reservoirs, rainStations);
+        const flood = aggregateFloodPct(floodRows);
         setState({
           loading: false,
           error: null,
@@ -55,6 +63,7 @@ export function useWaterKpis(): WaterKpisState {
           reservoirs,
           rainStations,
           governance,
+          flood,
         });
       } catch (e) {
         if (cancelled) return;
@@ -75,6 +84,7 @@ export function useWaterKpis(): WaterKpisState {
           reservoirs: [],
           rainStations: [],
           governance: null,
+          flood: null,
         });
       }
     })();
