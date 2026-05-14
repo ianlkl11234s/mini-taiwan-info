@@ -185,3 +185,97 @@ Skill 寫完只是 v1.0，**未跑過第 2 cycle 驗證**。預期下次 cycle 2
 
 下次 /wrap-up 若 Mode B：直接列總表 + 一個 yes/no question（「直接下 commit 還是逐個 review」），不要再列 8 個 option。
 
+---
+
+## 2026-05-14 · Session 4 · Cycle A (水質) + Cycle B (IA 重組) + LIVE 用詞嚴守
+
+### 本 session 做了什麼
+
+從 user「請以此來訂定目前的 info 水資源體系的 status，讓我可以開始試著實作」開始：
+
+1. 寫水循環體系 status doc (`docs/themes/water-system-cycle.md`)，盤點 6 層 11 個 cycle
+2. 觸發 /water-loop Cycle A：水質測站 BOD/DO
+   - Stage 1 Discovery 發現 epa_river 站表存在但 reading 0 筆（pipeline 漏抓）
+   - Stage 2 Plan 拍板 A3 (A1 主線 + A2 補河川 pipeline 並行)
+   - Stage 3 Execute: migration 097 (2 RPC + jq_extract_numeric helper) + frontend (query/hook/WaterQualityTab) + spawn agent 寫 A2 pipeline
+   - Stage 4 Verify: ViewB「河川水質」tab 顯示新北市翡翠水庫 20 測點 DO 8.83
+   - Stage 5 Commit: 3 atomic commit 跨 3 repo
+3. **user 抓 LIVE 用詞濫用** → 大轉折
+   - 拍板 LIVE 嚴格定義（collector cron 才叫 LIVE）+ 用詞嚴守
+   - 建 DataAgeBadge component 6 級 freshness 自動分類
+   - audit data-collectors/ 確認真 LIVE 只有 water_reservoir / rain_gauge_realtime / 地下水位
+   - 改 WaterQualityTab 3 處 LIVE → DataAgeBadge
+   - patch _STATUS/STATUS/BACKLOG/water-system-cycle 舊 LIVE 錯字
+4. **user 觀察「水質都是水庫的為何不在水庫 tab」** → Cycle B IA 重組
+   - 拍板「依水循環層」7 tabs（取消「水質」「基礎設施」獨立 tab）
+   - manifest water.yaml v1.2 重編 tabs[]
+   - ViewB.tsx 大改：WaterQualityTab → WaterQualitySection 共用 helper / 新建 RiverTab/GroundwaterTab/FloodTab/SuppliesTab
+   - typecheck pass + agent-browser 截 7 tabs 全驗證
+   - 25 分鐘完成（超快）
+
+最終 8 個 commit on mini-taiwan-info + 1 個 gis-platform + 1 個 taipei-gis = 10 commit 跨 3 repo。
+
+### What worked
+
+1. **/water-loop skill 第 2 次正式跑（Cycle A）流程順暢**：5 階段 + 3 checkpoint 都 fire；agent 並行寫 A2 pipeline + 主線跑 frontend 完全並行
+2. **Discovery agent 並行 3 個**（screenshot / 資料候選 / gap 分析）省時，但**要 drill SQL 驗證**才能對抗 agent 報告失準
+3. **Cycle B IA 重組 25 分鐘做完**：拆 WaterQualitySection 共用 helper 比拆三邊小元件容易；7 tabs 一次拍板 + typecheck + 截圖一次過
+4. **incremental commit 救命**：user 提醒「持續 commit 假設壞掉能回」之後改變策略，Cycle A 每階段都 commit 一個，Cycle B 也是
+5. **AskUserQuestion 在 LIVE 拍板處**：「collector 持續跑哪些 dataset」用 multiSelect 讓 user 一次拍板多個資料源
+6. **去 data-collectors/ 自己看** 比問 user 「你 collector 跑啥」更快又準確（user 也提示「請直接去 data-collector/ 確認」）
+
+### What didn't / 失誤
+
+1. **LIVE 用詞濫用 30 分鐘**：之前 cycle 1 + wrap-up 一直寫「6/6 KPI 全 LIVE」「LIVE 接好」沒 user 抓我就一直犯。**新原則寫進 CLAUDE.md（全域可見）+ PRINCIPLES**
+2. **Discovery agent 報告失準**：「water_quality_stations 2449 + readings 8775」沒拆 source 看，差點直接做「河川水質」tab 但實際 0 reading。**SKILL Stage 1 已加「by source freshness 驗證」**
+3. **Migration dry-run 用 transaction rollback 失效**：migration 內有 COMMIT 提前結束我的 outer BEGIN，function 不小心被 apply 進 DB。下次 dry-run 要拿掉 migration 內 COMMIT 或用其他方式
+4. **dev server 中途死掉沒發現**：跑 typecheck pass 跑 agent-browser 截全白才知道。SKILL Stage 4 加 curl health check
+5. **commit message 內 LIVE 錯字已 immutable**：5075b87 / 95bc30e 標題寫 LIVE，git history 動不了。下次嚴守用詞，commit 前再讀一遍 message
+6. **WWTP 圖示換錯**：lucide-react 沒有 Pipette/Pipe icon，用 Recycle 替代 supplies tab — 不完全直觀但夠用
+
+### Next-time rules
+
+- **接新資料 cycle 起手**：先 `SELECT count + by source` drill 真實 freshness，不單信 agent 「N 站 + N reading」報告
+- **migration dry-run**：拿掉 COMMIT 或用 `psql -c "ROLLBACK; BEGIN; ..."` 包，避免 accidentally apply
+- **dev server health check**：agent-browser 截圖前 `curl -s -o /dev/null -w "%{http_code}" http://localhost:5173` 確認 200
+- **「LIVE」字嚴守**：commit / docs / 對話一律 collector cron 才能用；其他用「接通真實資料」（CLAUDE.md 第 9 條）
+- **IA 重組（Mode V）SOP**：依 PB-10 走 — manifest 先動 / ViewB 結構 / typecheck loop / 截圖驗證 / atomic 拆 commit
+- **跨 4 repo 不是 3**：data-collectors/ 也算 GIS 部曲，未來 cycle 涉及 collector cron 設定要去這個 repo
+
+### Memory 產出（本 session）
+
+新建/更新：
+- `frontend/src/components/DataAgeBadge.tsx`（新 component，6 級 freshness）
+- `frontend/src/components/views/ViewB.tsx`（IA 重組 + 4 新 tab component + WaterQualitySection 共用 helper）
+- `frontend/src/lib/queries/water.ts`（+2 fetch + 4 types）
+- `frontend/src/hooks/useWaterQuality.ts`（新 hook）
+- `gis-platform/migrations/097_water_quality_rpcs.sql`（2 RPC + helper function）
+- `taipei-gis/pipelines/water_resources/extensions/03_load_water_quality.py`（+118 行 wqx_p_01 endpoint）
+- `themes/water.yaml` v1.2 county_dashboard.tabs[] 重編
+- `docs/themes/water-system-cycle.md`（新 doc，468 行 roadmap）
+
+PRINCIPLES append 2 條：LIVE 嚴格定義 + 用詞嚴守
+CLAUDE.md append 1 規範：LIVE 用詞守則（全域可見）
+INCIDENTS append 3 條：river reading 漏 / LIVE 用詞濫用 / dev server 中途死
+PLAYBOOKS append PB-10 ViewB IA 重組 SOP
+GLOSSARY append: ViewB IA v2 / WaterQualitySection / DataAgeBadge / data-collectors / 新 RPC + 13 個表清單
+BACKLOG: 移完成項 + B029-B040 共 12 個新項
+
+### Cycle 模式驗證
+
+第二次正式跑 /water-loop（Cycle A）+ 第一次 Mode V（Cycle B）：
+- Cycle A 是 Mode D（資料整合）→ Checkpoint A migration apply 前停 + Checkpoint C commit 顆粒度都跑了
+- Cycle B 是 Mode V（視覺重做）→ 強化 Checkpoint B 視覺拍板（給 user 選 7/8 tab + IA 結構）
+- **SKILL.md 雙模式都驗證**
+
+### 對 /water-loop skill 本身的反省
+
+需回頭修 SKILL.md：
+1. Stage 1 Discovery agent 報告**必須加 SQL drill 驗證**（這次 epa_river reading 0 筆教訓）
+2. Stage 4 Verify 前**加 dev server health check**
+3. Stage 3 Mode D 加「migration dry-run 拿掉 COMMIT」hint
+4. Mode V 強化 Checkpoint B：給 user 看 ASCII layout preview（這次拍板 7 tab 用 ASCII 結構列就有效）
+
+留下個 cycle 或 wrap-up 後回頭改 SKILL.md。
+
+
