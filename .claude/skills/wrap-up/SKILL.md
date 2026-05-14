@@ -1,0 +1,126 @@
+---
+name: wrap-up
+description: Session 結束後收尾 + 更新 .claude/memory/ 的 skill。當使用者說 /wrap-up、「收工」、「收尾」、「session 結束」、「做完了」、「commit memory」、「整理記憶」時觸發。讀本 session 脈絡 + git log + 現有 memory → 對應更新 9 個 memory 檔 → 產出 diff 給用戶 review → 每檔 atomic commit（prefix memory:）→ 不自動 push。mini-taiwan-info 客製：(1) 偵測跨 3 repo 變動 → 更新 CROSS_REPO.md；(2) 偵測 manifest / SSOT 變動 → 觸發 typecheck 驗證；(3) 完成後提示是否同步全域 memory。
+user_invocable: true
+---
+
+# /wrap-up — Session 收尾 SOP（mini-taiwan-info 客製版）
+
+## 目的
+
+- 分析本 session 做了什麼、學到什麼、失誤什麼
+- 寫回 `.claude/memory/` 9 個檔
+- 每檔 atomic commit（prefix `memory:`），git log 可追記憶演進
+- 不 push，保留用戶最後 review 機會
+- mini-taiwan-info 客製三規則：跨 3 repo 同步、manifest 變動驗證、全域同步提示
+
+---
+
+## 5 階段流程
+
+### Stage 1: Gather
+
+**平行發**：
+
+- Read `.claude/memory/` 9 個檔（除 README）
+- `git log --oneline HEAD~20..HEAD`
+- `git status` + 檢查 `../gis-platform/` `../taipei-gis-analytics/` 有無變動
+- Read root `_STATUS.md` 看 user-facing Phase 進度（不重寫，只取摘要參考）
+
+**接著回顧本 session**：
+- 用戶要求什麼？
+- 做了什麼（新 component / new query / new migration / new pipeline）？
+- 哪裡卡住、有 typecheck error / runtime error？
+- 用戶糾正幾次、哪些 feedback？
+- agent-browser 抓到的視覺問題？
+
+### Stage 2: Analyze
+
+事件分類表（mini-taiwan-info 客製）：
+
+| 事件 | 寫到哪 |
+|---|---|
+| 做完某 view / KPI / component | STATUS（rewrite）+ 若大里程碑也寫 `_STATUS.md` (root) |
+| 新 idea | BACKLOG（P0/P1/P2/P3）|
+| 關閉舊待辦 | BACKLOG「已完成」區 |
+| 新決策 / 預設 / 架構選擇 | PRINCIPLES |
+| 重複性流程（做過 ≥2 次）| PLAYBOOKS |
+| 新術語 / 縣市代碼 / 規格詞 | GLOSSARY |
+| Bug 修好**且造成 rework** | INCIDENTS（append；長篇另放 `.claude/pitfalls/`）|
+| 「下次怎麼改」/「以後要先 X」| REFLECTIONS（append）|
+| **跨 repo 變動**（改 `../gis-platform/migrations/` 或 `../taipei-gis-analytics/pipelines/`）| **CROSS_REPO pending 區** |
+| **manifest / SSOT 變動**（`themes/*.yaml` / `data/counties.yaml` / `docs/04-*.md`）| **stage 3 前先跑 `pnpm typecheck`，fail 則阻止 commit** |
+| 新學到跨專案事實（如 Mapbox / Supabase / Vite 行為）| Stage 5 後提示同步到 `~/.claude/.../memory/` |
+| 視覺 UX bug（agent-browser 截到）| INCIDENTS + 寫進 REFLECTIONS「下次預先檢核」 |
+
+**寫回規則**：
+
+- `INCIDENTS` / `REFLECTIONS` 只 append，不改舊條目
+- `INCIDENTS` 收錄門檻：至少造成一次 rework 或靜默錯誤
+- `PRINCIPLES` 衝突：新覆蓋舊，舊搬進 `INCIDENTS`
+- `STATUS` 每次 rewrite（只留當下）
+- `CROSS_REPO` 同步完成項從 pending 移除（交 git log 保歷史）
+- 數字改動前 `wc -l` / `git log --oneline | wc -l` / Supabase count 驗證，不單信對話摘要
+
+### Stage 3: Draft
+
+- 產出**總表**（檔名 / 動作 / 摘要）給用戶一眼看全
+- 逐條 show diff 草稿（Edit old/new string 或 Write 全文）
+- **若偵測到 manifest / counties.yaml / docs/04 變動** → Draft 前先跑：
+  ```bash
+  cd frontend && pnpm typecheck
+  ```
+  TypeScript error 則提示用戶先修 frontend 再 commit memory
+
+### Stage 4: Confirm
+
+問用戶：
+
+- 全部採用？
+- 要改哪幾個？
+- Skip 哪幾個？
+
+**等用戶回覆才進 Stage 5**，不自作主張。
+
+### Stage 5: Atomic Commit
+
+- 每檔一個 commit，訊息格式：`memory: <動詞> <檔名> (<1 句摘要>)`
+- 非 memory 檔（如 frontend bug 修、新 migration）用對應 `fix:` / `feat:` / `docs:` prefix
+- commit 順序：**STATUS 最後**（避免引用尚未 commit 的變動）
+- Co-Authored-By line 仍保留
+- Pre-commit hook 失敗 → fix 後開新 commit，**不 amend**
+- 完成後 `git status` 確認 tree clean
+
+**完成後客製提示**：
+
+- 「要 push 嗎？`git push origin main`」（不自己 push）
+- Stage 2 若標記跨專案事實，列清單問「要同步到全域 memory 嗎？」（等 yes 才寫）
+- 若 CROSS_REPO 有 pending 跨 repo 變動：提醒去對應 repo（gis-platform / taipei-gis-analytics）也跑 wrap-up
+
+---
+
+## 注意事項
+
+- **Read first**：Edit 前先 Read 避免 old_string 不精確
+- **驗證數字**：STATUS / BACKLOG 的數字用 `wc -l` / `git log | grep -c` / Supabase count 確認
+- **不修**：root `CLAUDE.md`（規則層）、`docs/00-10*.md`（規劃 SSOT，各自有更新流程）、`themes/_template.yaml`（規格 SSOT）
+- **不跨 session 臆測**：只信「本 session 對話 + git log + 現有 memory + 現有 docs」四者交叉驗證
+- **跨 repo 誤報**：若其他 repo 有變動但非本 session 改的（其他終端 / session），**不寫入** CROSS_REPO，只提示用戶
+- **沒什麼好記**：純閒聊 / 純 read 的 session，問用戶「要強制留紀錄嗎？」
+- **agent-browser 視覺驗證**：每次大改 view 後跑 agent-browser screenshot，截圖路徑記在 REFLECTIONS
+
+---
+
+## 客製三規則的目的
+
+1. **跨 3 repo 追蹤** — 防 GIS 三部曲漏同步（mini-taiwan-info / gis-platform / taipei-gis-analytics）
+2. **Manifest / SSOT 變動觸發 typecheck** — 防 yaml 改錯但 frontend 沒對齊，到下次 session 才爆
+3. **全域同步提示** — 跨專案事實沉澱，避免別的 GIS 子專案重蹈覆轍
+
+---
+
+## Skill 自身反省
+
+- 每次 `/wrap-up` 若漏抓重要事件、或 commit 訊息風格失誤 → 在本次 REFLECTIONS 記下 → 回頭修本 SKILL.md → 下次按新規則執行
+- **Skill 自我優化 = 記憶系統持續進化的核心**
+- 第 10 次 `/wrap-up` 後檢視 PLAYBOOKS 是否過期
