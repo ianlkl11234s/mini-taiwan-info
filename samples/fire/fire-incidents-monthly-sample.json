@@ -1,0 +1,104 @@
+{
+  "_meta": {
+    "source": "各縣市消防局月報 + datagov:11953 (全國)",
+    "title": "火警事件月度統計（縣市 × 起火原因）",
+    "license": "OGDL-Taiwan-1.0",
+    "fetched_at": "2026-05-13",
+    "spatial": "county_22",
+    "temporal": "monthly",
+    "note": "no_spatial — 縣市總數，無鄉鎮粒度。22 大原因類別跨縣市定義不一，ETL 對映 5 大類"
+  },
+  "schema": {
+    "county_id": "string",
+    "county_name": "string",
+    "stat_month": "ISO-YYYY-MM",
+    "total_incidents": "integer",
+    "by_cause_5class": {
+      "electrical": "integer  電氣設備",
+      "arson": "integer  縱火",
+      "gas_lpg": "integer  瓦斯/LPG",
+      "smoking": "integer  菸蒂",
+      "other": "integer  其他"
+    },
+    "by_cause_22class": "object  完整 22 類（選填，視縣市格式）",
+    "casualties": {
+      "deaths": "integer",
+      "injuries": "integer",
+      "property_loss_ntd": "integer"
+    },
+    "response_time": {
+      "avg_minutes": "number",
+      "median_minutes": "number"
+    },
+    "by_building_type": {
+      "residential": "integer",
+      "commercial": "integer",
+      "industrial": "integer",
+      "vehicle": "integer",
+      "other": "integer"
+    }
+  },
+  "sample_rows": [
+    {
+      "county_id": "E",
+      "county_name": "高雄市",
+      "stat_month": "2026-04",
+      "total_incidents": 38,
+      "by_cause_5class": {
+        "electrical": 15,
+        "arson": 4,
+        "gas_lpg": 3,
+        "smoking": 2,
+        "other": 14
+      },
+      "casualties": { "deaths": 1, "injuries": 6, "property_loss_ntd": 4350000 },
+      "response_time": { "avg_minutes": 4.8, "median_minutes": 4.2 },
+      "by_building_type": { "residential": 22, "commercial": 8, "industrial": 3, "vehicle": 3, "other": 2 }
+    },
+    {
+      "county_id": "F",
+      "county_name": "新北市",
+      "stat_month": "2026-04",
+      "total_incidents": 52,
+      "by_cause_5class": {
+        "electrical": 21,
+        "arson": 6,
+        "gas_lpg": 4,
+        "smoking": 3,
+        "other": 18
+      },
+      "casualties": { "deaths": 2, "injuries": 8, "property_loss_ntd": 6820000 },
+      "response_time": { "avg_minutes": 4.1, "median_minutes": 3.8 },
+      "by_building_type": { "residential": 31, "commercial": 11, "industrial": 5, "vehicle": 4, "other": 1 }
+    },
+    {
+      "county_id": "M",
+      "county_name": "雲林縣",
+      "stat_month": "2026-04",
+      "total_incidents": 8,
+      "by_cause_5class": { "electrical": 3, "arson": 1, "gas_lpg": 1, "smoking": 0, "other": 3 },
+      "casualties": { "deaths": 0, "injuries": 2, "property_loss_ntd": 580000 },
+      "response_time": { "avg_minutes": 6.2, "median_minutes": 5.8 },
+      "by_building_type": { "residential": 5, "commercial": 1, "industrial": 1, "vehicle": 1, "other": 0 }
+    }
+  ],
+  "_usage_in_frontend": {
+    "view_a_kpi_fire_count": "SUM(total_incidents) over last 12 months",
+    "view_a_explode_by_cause": "SUM by_cause_5class.* over last 12 months",
+    "view_a_explode_by_county": "SUM(total_incidents) GROUP BY county_id",
+    "view_b_overview_pie": "by_cause_5class for selected county, latest year",
+    "view_b_trend": "trend chart total_incidents over time, stack by cause",
+    "view_d_compare": "fire_per_10k = total_incidents / county_population * 10000"
+  },
+  "_etl_notes": {
+    "cause_class_mapping": "22 大類降到 5 大類的對映表需另存 (`safety.fire_cause_mapping`)",
+    "format_variations": {
+      "taipei": "datagov:133055 — 含起火處所、年度",
+      "new_taipei": "datagov:125215 — 月度 + 22 類",
+      "taoyuan": "datagov:168073 — 月度 + 22 類 + 損失金額",
+      "yunlin": "datagov:168369 — 月度但欄位簡略",
+      "kaohsiung": "datagov:124525 — 年度起火建築物"
+    },
+    "death_definition": "「死亡」=現場死 vs 送醫不治，跨縣市口徑略異"
+  }
+}

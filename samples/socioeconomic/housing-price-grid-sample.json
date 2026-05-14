@@ -1,0 +1,114 @@
+{
+  "_meta": {
+    "source": "taipei-gis-analytics 實價登錄 pipeline (本專案內部)",
+    "title": "實價登錄 150m grid 統計",
+    "license": "OGDL-Taiwan-1.0",
+    "fetched_at": "2026-05-13",
+    "spatial": "grid_150m_TWD97",
+    "temporal": "quarterly",
+    "note": "本專案已有 150m grid pipeline，全台統一網格。grid_id 格式 TW_{col:04d}_{row:04d}",
+    "grid_config": {
+      "grid_size_m": 150,
+      "crs_projected": "EPSG:3826",
+      "crs_output": "EPSG:4326",
+      "origin_x": 145000,
+      "origin_y": 2420000
+    }
+  },
+  "schema": {
+    "grid_id": "string  e.g. 'TW_2580_3120'",
+    "county_id": "string",
+    "town_name": "string",
+    "centroid_lng": "number",
+    "centroid_lat": "number",
+    "stat_quarter": "string  e.g. '2025Q1'",
+    "tx_count": "integer  該季成交筆數",
+    "tx_count_3y": "integer  最近 3 年成交筆數",
+    "median_price_per_ping_wan": "number  萬元/坪",
+    "mean_price_per_ping_wan": "number",
+    "min_price_per_ping_wan": "number",
+    "max_price_per_ping_wan": "number",
+    "median_total_price_wan": "number  萬元",
+    "median_floor_area_ping": "number  坪",
+    "median_building_age_years": "number",
+    "building_types": "object  { residential, commercial, industrial }",
+    "transactions": "object[]  最多 10 筆代表交易（去識別化）"
+  },
+  "sample_rows": [
+    {
+      "grid_id": "TW_2580_3120",
+      "county_id": "A",
+      "town_name": "信義區",
+      "centroid_lng": 121.567,
+      "centroid_lat": 25.034,
+      "stat_quarter": "2025Q1",
+      "tx_count": 8,
+      "tx_count_3y": 87,
+      "median_price_per_ping_wan": 138.5,
+      "mean_price_per_ping_wan": 142.3,
+      "min_price_per_ping_wan": 98.2,
+      "max_price_per_ping_wan": 215.8,
+      "median_total_price_wan": 5240,
+      "median_floor_area_ping": 38.2,
+      "median_building_age_years": 12,
+      "building_types": { "residential": 7, "commercial": 1, "industrial": 0 },
+      "transactions_sample": [
+        { "month": "2025-01", "price_per_ping": 142.0, "floor_area_ping": 32.5, "building_age": 8 },
+        { "month": "2025-02", "price_per_ping": 138.5, "floor_area_ping": 45.8, "building_age": 15 }
+      ]
+    },
+    {
+      "grid_id": "TW_2152_2510",
+      "county_id": "E",
+      "town_name": "三民區",
+      "centroid_lng": 120.302,
+      "centroid_lat": 22.658,
+      "stat_quarter": "2025Q1",
+      "tx_count": 12,
+      "tx_count_3y": 115,
+      "median_price_per_ping_wan": 28.5,
+      "mean_price_per_ping_wan": 30.2,
+      "min_price_per_ping_wan": 18.3,
+      "max_price_per_ping_wan": 52.5,
+      "median_total_price_wan": 985,
+      "median_floor_area_ping": 35.6,
+      "median_building_age_years": 22,
+      "building_types": { "residential": 11, "commercial": 1, "industrial": 0 }
+    },
+    {
+      "grid_id": "TW_1890_2210",
+      "county_id": "V",
+      "town_name": "台東市",
+      "centroid_lng": 121.144,
+      "centroid_lat": 22.755,
+      "stat_quarter": "2025Q1",
+      "tx_count": 2,
+      "tx_count_3y": 18,
+      "median_price_per_ping_wan": 12.8,
+      "mean_price_per_ping_wan": 13.5,
+      "min_price_per_ping_wan": 8.5,
+      "max_price_per_ping_wan": 22.5,
+      "median_total_price_wan": 480,
+      "median_floor_area_ping": 38.5,
+      "median_building_age_years": 28,
+      "building_types": { "residential": 2, "commercial": 0, "industrial": 0 }
+    }
+  ],
+  "_usage_in_frontend": {
+    "view_a_kpi_housing_median": "weighted median across all grids in 22 counties",
+    "view_b_housing_tab_heatmap": "render 150m grid layer, color by median_price_per_ping_wan",
+    "view_b_township_ranking": "GROUP BY town_name, AVG(median_price_per_ping_wan)",
+    "view_c_demo_explode_grid": "click grid → show transactions_sample + price trend",
+    "view_d_compare_county": "GROUP BY county_id, MEDIAN(median_price_per_ping_wan)"
+  },
+  "_privacy_notes": {
+    "de_identification": "transactions_sample 移除門牌號 + 隨機抽 10 筆，不會被反推具體地址",
+    "minimum_tx_threshold": "tx_count < 3 的 grid 不顯示中位數（隱私 + 樣本不足）",
+    "edge_grids": "邊界 grid（落在多個鄉鎮）以 centroid 所在鄉鎮歸類"
+  },
+  "_caveats": {
+    "rural_sparse": "鄉村區域 tx_count 低，可改用更大 grid (300m 或 600m) 增強樣本",
+    "luxury_skew": "豪宅單筆會拉高 mean，故主用 median",
+    "land_only_excluded": "純土地交易已排除，只計算建物交易"
+  }
+}

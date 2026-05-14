@@ -1,0 +1,330 @@
+# Mini Taiwan Info · Fire / Public Safety Theme Manifest
+# 詳規見 docs/themes/fire.md
+
+theme:
+  id: fire
+  name: 消防
+  name_en: Fire & Public Safety
+  emoji: 🚒
+  color_accent: "#DC2626"        # red-600
+  color_ramp: reds
+  description: 縣市消防量能、火警事件、災時應變。
+  tagline: 5 分鐘命運線
+  priority: 30
+  status: production
+
+overview:
+  default_choropleth_metric: station_density_per_10k
+
+  kpis:
+    - id: station_density_per_10k
+      label: 消防分隊密度
+      unit: 隊/萬人
+      source: safety_fire_stations
+      query: aggregate_national_station_density
+      group: capacity
+      format: { precision: 2 }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+
+    - id: hydrant_density_per_km2
+      label: 消防栓密度
+      unit: 個/km²
+      source: safety_fire_hydrants
+      query: aggregate_national_hydrant_density
+      group: capacity
+      format: { precision: 1 }
+      coverage_note: "限北/中/高/竹 4 縣市"
+      explode:
+        - mode: dimension
+          by: county_available
+          default: true
+
+    - id: avg_response_time
+      label: 平均到場時間
+      unit: 分鐘
+      source: county_fire_yearbooks
+      query: aggregate_avg_response_time
+      group: capacity
+      format: { precision: 1, compare_to: previous_year }
+      explode:
+        - mode: dimension
+          by: county
+        - mode: time
+          windows: [5y]
+
+    - id: fire_count_yearly
+      label: 年度火警件數
+      unit: 件
+      source: datagov_11953
+      query: aggregate_national_fire_count
+      group: events
+      format: { precision: 0, compare_to: previous_year, compact: true }
+      explode:
+        - mode: dimension
+          by: cause
+          default: true
+        - mode: dimension
+          by: county
+        - mode: time
+          windows: [5y, all]
+
+    - id: ems_count_yearly
+      label: 年度救護出勤
+      unit: 件
+      source: county_ems_monthly
+      query: aggregate_national_ems_count
+      group: events
+      format: { precision: 0, compare_to: previous_year, compact: true }
+      explode:
+        - mode: dimension
+          by: case_type
+        - mode: dimension
+          by: county
+          default: true
+
+    - id: shelter_coverage_pct
+      label: 避難容量覆蓋率
+      unit: "%"
+      source: shelters_combined
+      query: aggregate_national_shelter_coverage
+      group: resilience
+      format: { precision: 1 }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: geo
+          level: township
+
+  hook_rules:
+    - condition: "max_county_station_density / min_county_station_density > 3"
+      text: "消防分隊密度縣市差達 {ratio} 倍 — 最高 {max} 隊/萬人 vs 最低 {min}"
+    - condition: "shelter_coverage_min < 50"
+      text: "{n} 個縣市避難容量不足戶籍人口 50%"
+    - default:
+      text: "全國 {station_total} 個消防分隊 · 年度火警 {fire_count} 件 · 救護 {ems}"
+
+  ranking_metrics:
+    - station_density_per_10k
+    - fire_per_10k
+    - ems_per_10k
+    - shelter_coverage_pct
+    - avg_response_time
+
+county_dashboard:
+  tabs:
+    - id: overview
+      label: 概況
+      icon: alert-triangle
+      type: charts
+      kpis: [county_fire_count, county_ems_count, county_fire_deaths]
+      charts:
+        - id: cause_pie
+          type: pie
+          source: datagov_125215
+        - id: monthly_trend
+          type: trend
+          source: county_fire_monthly
+          x: stat_month
+          y: count
+          group_by: cause_category
+          windows: [3y]
+
+    - id: capacity_map
+      label: 量能地圖
+      icon: shield
+      type: charts
+      layers: [fire_stations_point, fire_hydrants_heat, township_population_density]
+      kpis: [stations_count, out_of_5min_radius_pct]
+      meta:
+        service_circle_radii: [3000, 6000]  # 3km / 6km
+      explore_links:
+        - to: "dataset/fire_station/:id"
+          when: click_point_on_map
+
+    - id: ems
+      label: 救護
+      icon: ambulance
+      type: charts
+      kpis: [ems_count, ems_per_capita, ohca_survival_rate]
+      charts:
+        - id: ems_monthly
+          type: trend
+          source: county_ems_monthly
+        - id: case_type_pie
+          type: pie
+          source: county_ems_monthly
+
+    - id: risk_facilities
+      label: 風險場所
+      icon: flame
+      type: charts
+      layers: [lpg_facilities, hazmat_facilities]
+      kpis: [lpg_count, hazmat_count, inspection_violation_rate]
+
+    - id: emergency_response
+      label: 災時應變
+      icon: home
+      type: charts
+      layers: [emergency_shelters, air_raid_shelters, disaster_parks]
+      kpis: [shelter_capacity, shelter_coverage_pct]
+      coverage_warning:
+        - dataset: air_raid_shelters
+          provider: police_dept
+          fallback: data_partial_state
+          reason: "防空避難主辦警察局非消防局，欄位獨立"
+
+    - id: education
+      label: 防災教育
+      icon: book
+      type: charts
+      kpis: [outreach_events, ems_training_hours, attendees]
+
+    - id: ranking
+      label: 排名
+      icon: trending-up
+      type: ranking_panel
+      metrics: [station_density_per_10k, fire_per_10k, ems_per_10k, avg_response_time, shelter_coverage_pct]
+
+datasets:
+  - id: fire_station
+    label: 消防分隊
+    layer: point
+    source_table: safety.fire_stations
+    detail_fields:
+      - { key: name, label: 分隊名稱 }
+      - { key: type, label: 類型 }  # 大隊/分隊/外勤所
+      - { key: address, label: 地址 }
+      - { key: phone, label: 聯絡電話 }
+      - { key: staff_count, label: 編制人數 }
+      - { key: vehicles, label: 配置車輛 }
+    related_data:
+      - { type: service_circle, radius_m: 3000, label: 5min 服務圈 }
+      - { type: service_circle, radius_m: 6000, label: 10min 服務圈 }
+    download:
+      csv: "/api/dataset/fire_station/:id/csv"
+
+  - id: fire_hydrant
+    label: 消防栓
+    layer: point
+    source_table: safety.fire_hydrants
+    detail_fields:
+      - { key: hydrant_id, label: 編號 }
+      - { key: type, label: 型式 }  # 地上式 / 地下式
+      - { key: address, label: 地址 }
+      - { key: water_pressure, label: 水壓 }
+    coverage_note: "限北/中/高/竹"
+
+  - id: emergency_shelter
+    label: 避難收容處所
+    layer: point
+    source_table: safety.emergency_shelters
+    detail_fields:
+      - { key: name, label: 名稱 }
+      - { key: type, label: 類型 }  # 室內 / 室外 / 防空
+      - { key: capacity, label: 容納人數 }
+      - { key: area_m2, label: 面積, unit: m² }
+      - { key: address, label: 地址 }
+
+compare:
+  comparable_metrics:
+    - id: station_density_per_10k
+      label: 消防分隊密度 / 萬人
+      unit: 隊
+      ranking_better: higher
+    - id: avg_response_time_min
+      label: 平均到場時間
+      unit: 分鐘
+      ranking_better: lower
+    - id: fire_per_10k
+      label: 火警件數 / 萬人
+      unit: 件
+      ranking_better: lower
+    - id: ems_per_10k
+      label: 救護出勤 / 萬人
+      unit: 件
+      ranking_better: neutral
+    - id: shelter_coverage_pct
+      label: 避難容量覆蓋率
+      unit: "%"
+      ranking_better: higher
+    - id: out_of_5min_radius_pct
+      label: 5 分鐘圈外人口比
+      unit: "%"
+      ranking_better: lower
+
+crosslink:
+  - with: demographics
+    metric_pair: [out_of_5min_radius_pct, aging_index]
+    trigger: always
+    text: "{county} 高齡 {aging}% · 5min 圈外人口比 {gap}% — 弱勢長者風險"
+  - with: demographics
+    metric_pair: [fire_per_10k, aging_index]
+    trigger: "abs(corr(fire_per_10k, aging_index)) > 0.3"
+    text: "老化 vs 火警相關性 {corr}"
+  - with: real_estate
+    metric_pair: [fire_per_10k, building_age_median]
+    trigger: always
+    text: "老舊建物（{age}+ 年）佔 {pct}% · 火警 {fire}"
+  - with: water
+    metric_pair: [fire_hydrant_density, water_supply_coverage]
+    trigger: always
+    text: "消防栓密度 {hydrant} 個/km² · 給水普及 {water}%"
+
+data_sources:
+  - id: safety_fire_stations
+    title: 各縣市消防分隊位置（六都各自）
+    license: OGDL-Taiwan-1.0
+    aggregated_from:
+      - "MCP twinkle-hub: 128008 (北市) / 99643 (中市) / 43828 (高雄) / 128700 (桃園) / 67693 (新竹市) / 146697 (屏東)"
+  - id: safety_fire_hydrants
+    title: 消防栓清冊（北/中/高/竹）
+    license: OGDL-Taiwan-1.0
+    aggregated_from:
+      - "MCP twinkle-hub: 128639 (北水處) / 87042 (中市) / 160481/86391/86395 (高雄) / 67704/109269 (竹)"
+  - id: shelters_combined
+    title: 避難收容處所（消防署 + 警察局）
+    license: OGDL-Taiwan-1.0
+    aggregated_from:
+      - "MCP twinkle-hub: 73242 (消防署全國) + 31979 (KML 中東澎) + 151681/151677/151769/151751/150913 (各市警察)"
+  - id: datagov_11953
+    title: 火災起火原因—按區域別分
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/11953
+  - id: county_fire_monthly
+    title: 各縣市火災月報
+    license: OGDL-Taiwan-1.0
+    aggregated_from:
+      - datagov:125215 (新北)
+      - datagov:168073 (桃園)
+      - datagov:133055 (北市)
+      - datagov:124525 (高雄)
+  - id: county_ems_monthly
+    title: 各縣市救護月報
+    license: OGDL-Taiwan-1.0
+    aggregated_from:
+      - datagov:176367 (台南)
+      - datagov:173725 (彰化)
+      - "MCP: 123498 (新北) / 156879 (澎湖)"
+
+meta:
+  version: "1.0.0"
+  last_reviewed: "2026-05-13"
+  reviewer: migu
+  coverage_notes:
+    - dataset: fire_hydrants
+      counties: [taipei, taichung, kaohsiung, hsinchu_city]
+      reason: "消防栓全台對齊只有 4 縣市完整，其他縣市顯示資料未開放"
+    - dataset: county_fire_monthly
+      counties: ["partial_22"]
+      reason: "各縣市格式不一，欄位定義不同，需 ETL 對映"
+    - dataset: county_ems_monthly
+      counties: ["partial_22"]
+      reason: "救護分母不同，跨縣市可比性需注意"
+    - metric: forest_fire
+      reason: "山林火災 catalog 命中極少，要外掛林務局 / NCDR"
+    - metric: per_dispatch_event
+      reason: "1999/119 派遣事件級資料隱私法規不釋出"

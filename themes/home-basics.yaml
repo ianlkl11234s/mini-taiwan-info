@@ -1,0 +1,307 @@
+# Mini Taiwan Info · Home Basics Theme Manifest
+# 首頁主題：人口、行政區、年齡組成、生老病死
+# 詳規見 docs/themes/home-basics.md
+
+theme:
+  id: home-basics
+  name: 基礎統計
+  name_en: Home Basics
+  emoji: 🏠
+  color_accent: "#475569"        # slate-600（中性色）
+  color_ramp: grays
+  description: 全台基礎人口、行政區、年齡組成。
+  tagline: 認識你的台灣 vital signs
+  priority: 1                    # 排第一，首頁主題
+  status: production
+
+# ─────────────────────────────────────────────────
+# View A 全國概覽（首頁）
+# ─────────────────────────────────────────────────
+overview:
+  default_choropleth_metric: aging_index
+
+  kpis:
+    - id: national_population
+      label: 全國人口
+      unit: 人
+      source: moi_household_monthly
+      query: aggregate_national_population
+      format: { precision: 0, compare_to: previous_year, compact: true }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: time
+          windows: [10y, all]
+
+    - id: county_count
+      label: 縣市數
+      unit: 個
+      source: admin_static
+      query: count_counties
+      explode: []   # 固定值不爆炸
+
+    - id: township_count
+      label: 鄉鎮市區數
+      unit: 個
+      source: admin_static
+      query: count_townships
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+
+    - id: village_count
+      label: 村里數
+      unit: 個
+      source: segis
+      query: count_villages
+      explode:
+        - mode: dimension
+          by: county
+
+    - id: birth_death_rate
+      label: 出生 / 死亡率
+      unit: ‰
+      source: moi_household_monthly
+      query: aggregate_birth_death_rate
+      format: { precision: 1, compare_to: previous_year }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: time
+          windows: [10y, all]
+
+    - id: aging_index
+      label: 老化指數
+      unit: "%"
+      source: segis_aging
+      query: aggregate_national_aging_index
+      format: { precision: 1, compare_to: previous_year }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: time
+          windows: [30y, all]
+        - mode: geo
+          level: township
+
+  hook_rules:
+    - condition: "max_county_aging / min_county_aging > 2"
+      text: "全台老化指數縣市差距達 {ratio} 倍 — 從 {min_county}（{min_value}%）到 {max_county}（{max_value}%）"
+    - condition: "national_population_yoy < 0"
+      text: "全國人口連續 {n} 個月負成長，{death_minus_birth} 人自然減少"
+    - default:
+      text: "全國 {total} 人 · 22 縣市 · {town_count} 鄉鎮市區 · {village_count} 村里"
+
+  ranking_metrics:
+    - aging_index
+    - birth_rate
+    - natural_increase_rate
+    - population_density
+
+# ─────────────────────────────────────────────────
+# View B 縣市儀錶板
+# ─────────────────────────────────────────────────
+county_dashboard:
+  tabs:
+    - id: population
+      label: 人口
+      icon: users
+      type: charts
+      kpis: [county_population, county_density, county_aging_index]
+      charts:
+        - id: population_pyramid
+          type: pyramid
+          source: moi_population_pyramid
+          x_male: -male_pop
+          x_female: female_pop
+          y: age_band
+        - id: population_history
+          type: trend
+          source: moi_household_monthly
+          x: stat_month
+          y: total_population
+          windows: [10y, all]
+          overlay: national_average
+
+    - id: admin_districts
+      label: 行政區
+      icon: map
+      type: charts
+      layers: [townships]
+      charts:
+        - id: township_population_rank
+          type: ranking_panel
+          source: moi_population_by_township
+          metric: population
+      explore_links:
+        - to: "drill/township/:id"
+          when: click_township_on_map
+
+    - id: dynamics
+      label: 人口動態
+      icon: trending-up
+      type: charts
+      kpis: [county_birth_rate, county_death_rate, county_marriage_rate]
+      charts:
+        - id: birth_death_yearly
+          type: trend
+          source: moi_household_monthly
+          x: stat_year
+          y_series: [birth_rate, death_rate, natural_increase_rate]
+        - id: migration_balance
+          type: bar
+          source: moi_migration
+          x: year
+          y: net_migration
+
+    - id: poi_distribution
+      label: POI 分布
+      icon: pin
+      type: charts
+      meta:
+        poi_picker: [school, hospital, police, fire, gas_station, park, post_office]
+      layers: [township_choropleth_density, points]
+      data_source: tgos_moi_theme
+      explore_links:
+        - to: "dataset/poi/:id"
+          when: click_point_on_map
+
+# ─────────────────────────────────────────────────
+# View C 資料集詳情
+# ─────────────────────────────────────────────────
+datasets:
+  - id: poi
+    label: POI（點位）
+    layer: point
+    source: tgos_moi_theme_query
+    detail_fields:
+      - { key: name, label: 名稱 }
+      - { key: address, label: 地址 }
+      - { key: zip33, label: 郵遞區號 }
+      - { key: nearby_pois, label: 周邊 1km POI }
+
+  - id: county_population
+    label: 縣市人口時序
+    layer: choropleth
+    source_table: demographics.population_by_county_monthly
+    detail_fields:
+      - { key: county, label: 縣市 }
+      - { key: total_population, label: 總人口 }
+      - { key: density, label: 人口密度, unit: 人/km² }
+    timeseries:
+      - source: moi_household_monthly
+        x: stat_month
+        y: total_population
+
+# ─────────────────────────────────────────────────
+# View D 比較模式
+# ─────────────────────────────────────────────────
+compare:
+  comparable_metrics:
+    - id: population
+      label: 總人口
+      unit: 人
+      ranking_better: neutral
+    - id: density
+      label: 人口密度
+      unit: 人/km²
+      ranking_better: neutral
+    - id: aging_index
+      label: 老化指數
+      unit: "%"
+      ranking_better: lower
+    - id: birth_rate
+      label: 出生率
+      unit: ‰
+      ranking_better: higher
+    - id: natural_increase_rate
+      label: 自然增加率
+      unit: ‰
+      ranking_better: higher
+    - id: youth_share
+      label: 0-14 歲人口比
+      unit: "%"
+      ranking_better: higher
+
+# ─────────────────────────────────────────────────
+# 跨主題聯動
+# ─────────────────────────────────────────────────
+crosslink:
+  - with: medical
+    metric_pair: [aging_index, hospital_bed_per_capita]
+    trigger: "always"
+    text: "高齡 {aging}% · 醫療床位 {beds}/萬人 — 老人 vs 醫療"
+
+  - with: water
+    metric_pair: [aging_index, lpcd]
+    trigger: "abs(corr(aging_index, lpcd)) > 0.3"
+    text: "老化 vs 用水：{interpretation}"
+
+  - with: real_estate
+    metric_pair: [population_growth, housing_transaction_count]
+    trigger: "always"
+    text: "人口成長 {growth}% · 房屋交易量 {tx} 件"
+
+# ─────────────────────────────────────────────────
+# 資料來源
+# ─────────────────────────────────────────────────
+data_sources:
+  - id: moi_household_monthly
+    title: 內政部戶政司月報
+    license: OGDL-Taiwan-1.0
+    url: https://www.ris.gov.tw/app/portal/346
+    updated_field: stat_month
+
+  - id: moi_population_pyramid
+    title: 縣市別年齡組成（衍生自戶政月報）
+    license: OGDL-Taiwan-1.0
+    url: https://www.ris.gov.tw/
+
+  - id: segis_aging
+    title: segis 行政區人口指標（老化指數村里級）
+    license: OGDL-Taiwan-1.0
+    url: https://segis.moi.gov.tw/
+    updated_field: stat_year
+
+  - id: admin_static
+    title: 行政區清冊（內政部 / NLSC）
+    license: OGDL-Taiwan-1.0
+    url: https://www.land.moi.gov.tw/
+
+  - id: tgos_moi_theme
+    title: TGOS 內政主題 API（POI 主題 + 行政區反查）
+    license: OGDL-Taiwan-1.0
+    url: https://data.tgos.tw/MOIDataThemeAPIMgr
+    auth: { type: api_key, env: TGOS_MOI_API_KEY }
+    rate_limit_note: 「未公開，需實打驗證；建議走後端代理快取」
+
+  - id: tgos_moi_theme_query
+    title: TGOS Theme/Query 端點
+    license: OGDL-Taiwan-1.0
+    url: https://data.tgos.tw/MOIDataThemeAPIMgr/swagger/index.html
+
+  - id: moi_migration
+    title: 內政部戶政司遷徙統計
+    license: OGDL-Taiwan-1.0
+    url: https://www.ris.gov.tw/
+
+# ─────────────────────────────────────────────────
+# Meta
+# ─────────────────────────────────────────────────
+meta:
+  version: "1.0.0"
+  last_reviewed: "2026-05-13"
+  reviewer: migu
+  coverage_notes:
+    - dataset: tgos_moi_theme
+      note: 「TGOS 不提供人口統計，只提供 POI 主題 + 邊界反查」
+    - dataset: moi_household_monthly
+      counties: ["all_22"]
+      reason: 「戶政月報 22 縣市全覆蓋，月頻更新」
+    - dataset: segis_aging
+      level: village
+      note: 「segis 提供村里級老化指數，但 temporal 標 static 需修」

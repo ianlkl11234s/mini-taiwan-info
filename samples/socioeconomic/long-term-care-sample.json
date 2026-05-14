@@ -1,0 +1,161 @@
+{
+  "_meta": {
+    "source": "datagov:173368 (照服員) + datagov:161624 (機構)",
+    "title": "長期照顧 2.0 縣市別服務量",
+    "provider": "衛福部",
+    "license": "OGDL-Taiwan-1.0",
+    "fetched_at": "2026-05-13",
+    "spatial": "county_22",
+    "temporal": "yearly",
+    "note": "縣市對齊。需與 home-basics 的「65+ 人口」聯動才能算覆蓋率"
+  },
+  "schema": {
+    "county_id": "string",
+    "county_name": "string",
+    "stat_year": "integer",
+    "personnel": {
+      "care_workers_total": "integer  照服員人數",
+      "care_workers_per_10k_seniors": "number  /萬老人",
+      "case_managers": "integer  個案管理師",
+      "evaluators": "integer  評估專員"
+    },
+    "facilities": {
+      "senior_homes_count": "integer  養老/長照機構數",
+      "senior_homes_beds": "integer  床位數",
+      "day_care_centers": "integer  日照中心",
+      "respite_centers": "integer  失智症據點"
+    },
+    "service_volume": {
+      "service_recipients": "integer  服務人次",
+      "home_service_hours": "integer  居家服務時數"
+    },
+    "demand_proxy": {
+      "seniors_65_plus": "integer  65+ 人口（來自 home-basics）",
+      "estimated_disabled_seniors": "integer  推估失能老人（× 12.4% 全國均失能率）",
+      "coverage_ratio": "number  service_recipients / estimated_disabled_seniors"
+    }
+  },
+  "sample_rows": [
+    {
+      "county_id": "A",
+      "county_name": "臺北市",
+      "stat_year": 2023,
+      "personnel": {
+        "care_workers_total": 8542,
+        "care_workers_per_10k_seniors": 168.3,
+        "case_managers": 412,
+        "evaluators": 158
+      },
+      "facilities": {
+        "senior_homes_count": 412,
+        "senior_homes_beds": 12450,
+        "day_care_centers": 88,
+        "respite_centers": 24
+      },
+      "service_volume": {
+        "service_recipients": 42180,
+        "home_service_hours": 3850000
+      },
+      "demand_proxy": {
+        "seniors_65_plus": 507800,
+        "estimated_disabled_seniors": 62967,
+        "coverage_ratio": 0.67
+      }
+    },
+    {
+      "county_id": "F",
+      "county_name": "新北市",
+      "stat_year": 2023,
+      "personnel": {
+        "care_workers_total": 11234,
+        "care_workers_per_10k_seniors": 142.5,
+        "case_managers": 528,
+        "evaluators": 198
+      },
+      "facilities": {
+        "senior_homes_count": 568,
+        "senior_homes_beds": 18230,
+        "day_care_centers": 124,
+        "respite_centers": 35
+      },
+      "service_volume": {
+        "service_recipients": 58420,
+        "home_service_hours": 5320000
+      },
+      "demand_proxy": {
+        "seniors_65_plus": 788400,
+        "estimated_disabled_seniors": 97762,
+        "coverage_ratio": 0.60
+      }
+    },
+    {
+      "county_id": "M",
+      "county_name": "雲林縣",
+      "stat_year": 2023,
+      "personnel": {
+        "care_workers_total": 1842,
+        "care_workers_per_10k_seniors": 132.7,
+        "case_managers": 82,
+        "evaluators": 34
+      },
+      "facilities": {
+        "senior_homes_count": 92,
+        "senior_homes_beds": 2840,
+        "day_care_centers": 28,
+        "respite_centers": 12
+      },
+      "service_volume": {
+        "service_recipients": 7820,
+        "home_service_hours": 685000
+      },
+      "demand_proxy": {
+        "seniors_65_plus": 138800,
+        "estimated_disabled_seniors": 17211,
+        "coverage_ratio": 0.45
+      }
+    },
+    {
+      "county_id": "V",
+      "county_name": "臺東縣",
+      "stat_year": 2023,
+      "personnel": {
+        "care_workers_total": 482,
+        "care_workers_per_10k_seniors": 142.1,
+        "case_managers": 28,
+        "evaluators": 12
+      },
+      "facilities": {
+        "senior_homes_count": 24,
+        "senior_homes_beds": 752,
+        "day_care_centers": 12,
+        "respite_centers": 4
+      },
+      "service_volume": {
+        "service_recipients": 2160,
+        "home_service_hours": 198000
+      },
+      "demand_proxy": {
+        "seniors_65_plus": 33920,
+        "estimated_disabled_seniors": 4206,
+        "coverage_ratio": 0.51
+      }
+    }
+  ],
+  "_usage_in_frontend": {
+    "view_a_kpi_long_term_care_coverage": "weighted avg of coverage_ratio by population",
+    "view_b_welfare_tab_kpi": "single row by county_id",
+    "view_b_demand_supply_chart": "bar chart: demand_proxy.estimated_disabled_seniors vs personnel.care_workers_total",
+    "view_c_demo3_demand_vs_supply": "22 counties side-by-side, color by coverage_ratio (red < 0.5, green > 0.7)",
+    "view_d_compare": "long_term_care_coverage per county, ranking_better: higher"
+  },
+  "_caveats": {
+    "disability_rate_proxy": "estimated_disabled_seniors 用全國均失能率 12.4% 推估，實際各縣市失能率差異未公布",
+    "service_recipients_double_count": "同一人接受多項服務會重複計算，service_recipients 是「人次」非「人數」",
+    "private_sector_gap": "本資料只含長照2.0 政策服務量，自費照護（外籍移工）不在內，實際照顧涵蓋更高",
+    "coverage_ratio_ceiling": "coverage_ratio > 1 可能是低估失能率或重複服務；謹慎解讀"
+  },
+  "_etl_notes": {
+    "join_with_home_basics": "本資料需 join `demographics.population_by_county` 取 seniors_65_plus",
+    "yearly_to_quarterly": "原始資料年度發布，若要做月度/季度需用前一年資料 forward fill"
+  }
+}

@@ -1,0 +1,391 @@
+# Mini Taiwan Info · Water Resources Theme Manifest
+# 詳規見 docs/themes/water.md
+# 資料端 SSOT: taipei-gis-analytics/docs/systems/water_tic.md
+
+theme:
+  id: water
+  name: 水資源
+  name_en: Water Resources
+  emoji: 💧
+  color_accent: "#0EA5E9"        # sky-500
+  color_ramp: blues
+  description: 縣市水資源狀況：水庫、河川、用水、污水、防洪、地下水。
+  tagline: 南北分裂的島嶼水帳
+  priority: 10
+  status: production
+
+# ─────────────────────────────────────────────────
+# View A 全國概覽
+# ─────────────────────────────────────────────────
+overview:
+  default_choropleth_metric: lpcd
+
+  kpis:
+    # 即時排（4 個藍卡）
+    - id: total_reservoir_rate
+      label: 全國蓄水率
+      unit: "%"
+      source: wra_reservoir_realtime
+      query: aggregate_national_reservoir_rate
+      group: realtime
+      format: { precision: 1, compare_to: previous_week }
+      explode:
+        - mode: dimension
+          by: reservoir   # 40 座
+          default: true
+        - mode: time
+          windows: [30d, 1y, all]
+
+    - id: rain_24hr_avg
+      label: 24hr 全國均雨量
+      unit: mm
+      source: wra_rain_gauge
+      query: aggregate_national_rain_24hr
+      group: realtime
+      format: { precision: 1, compare_to: previous_day }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: time
+          windows: [7d]
+
+    - id: high_alert_reservoirs
+      label: 高警戒水庫數
+      unit: 座
+      source: wra_reservoir_realtime
+      query: count_reservoirs_below_30pct
+      group: realtime
+      explode:
+        - mode: dimension
+          by: reservoir
+          default: true
+
+    - id: flood_high_risk_pct
+      label: 淹水高潛勢面積佔比
+      unit: "%"
+      source: nldcb_flood_hazard
+      query: aggregate_national_flood_pct
+      group: realtime
+      format: { precision: 1 }
+      meta: { scenario_switcher: ["200mm/24hr", "350mm/24hr", "500mm/24hr"] }
+      explode:
+        - mode: dimension
+          by: county
+        - mode: geo
+          level: township
+
+    # 治理排（2 個綠卡）
+    - id: lpcd
+      label: 全國平均 LPCD
+      unit: L
+      source: datagov_8316
+      query: aggregate_national_lpcd
+      group: governance
+      format: { precision: 0, compare_to: previous_year }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: time
+          windows: [10y, all]
+
+    - id: sewage_coverage
+      label: 全國接管率
+      unit: "%"
+      source: datagov_26815
+      query: aggregate_national_sewage_coverage
+      group: governance
+      format: { precision: 1, compare_to: previous_year }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: time
+          windows: [10y, all]
+
+  hook_rules:
+    - condition: "max_county_lpcd / min_county_lpcd > 1.5"
+      text: "用水量縣市差異 {ratio} 倍 · 最高 {max_county} {max_value}L · 最低 {min_county} {min_value}L"
+    - condition: "reservoir_count_below_30pct > 3"
+      text: "全國 {n} 座水庫跌破 30% 紅線（南部 {south_n} 座）"
+    - default:
+      text: "全國蓄水率 {total}% · 平均日用水 {lpcd}L · 接管率 {coverage}%"
+
+  ranking_metrics:
+    - lpcd
+    - sewage_coverage
+    - water_pollution_fines_per_capita
+    - flood_high_risk_pct
+
+# ─────────────────────────────────────────────────
+# View B 縣市儀錶板
+# ─────────────────────────────────────────────────
+county_dashboard:
+  tabs:
+    - id: overview
+      label: 概覽
+      icon: globe
+      type: charts
+      layers: [river_basins, river_lines, reservoirs_point]
+      kpis: [county_reservoir_count, county_wastewater_count, county_lpcd, county_sewage_coverage]
+      charts:
+        - id: county_reservoir_30d
+          type: trend
+          source: wra_reservoir_realtime
+          x: observed_at
+          y: storage_rate_pct
+          windows: [30d]
+
+    - id: reservoirs
+      label: 水庫
+      icon: droplet
+      type: charts
+      layers: [reservoirs_point, reservoir_polygons]
+      kpis: [county_reservoir_rate]
+      charts:
+        - id: reservoirs_individual_30d
+          type: trend
+          source: wra_reservoir_realtime
+          x: observed_at
+          y: storage_rate_pct
+          group_by: reservoir_id
+          windows: [30d, 1y]
+      explore_links:
+        - to: "dataset/reservoir/:id"
+          when: click_point_on_map
+
+    - id: water_quality
+      label: 河川水質
+      icon: flask
+      type: charts
+      layers: [water_quality_stations, water_pollution_entities]
+      kpis: [county_severe_pollution_pct, county_pollution_fines]
+      charts:
+        - id: rpi_yearly
+          type: trend
+          source: env_rpi
+          x: year
+          y: severe_pct
+        - id: pollution_fines_compare
+          type: bar
+          source: datagov_45136
+          comparison: national_average
+
+    - id: flood
+      label: 防洪
+      icon: cloud-rain
+      type: charts
+      layers: [flood_hazard_zones, detention_basins, rain_gauges]
+      kpis: [county_flood_high_risk_pct]
+      meta: { scenario_switcher: ["200mm", "350mm", "500mm"] }
+
+    - id: infrastructure
+      label: 基礎設施
+      icon: pipe
+      type: charts
+      layers: [water_facilities, sewage_treatment_plants]
+      kpis: [county_water_penetration]
+      coverage_warning:
+        - dataset: storm_drainage
+          counties: [taipei, taoyuan, chiayi]
+          fallback: data_missing_state
+
+    - id: water_usage
+      label: 用水 & 衛生
+      icon: gauge
+      type: charts
+      kpis: [county_lpcd, county_sewage_coverage, county_irrigation_water_proxy]
+      charts:
+        - id: lpcd_history
+          type: trend
+          source: datagov_8316
+          x: year
+          y: lpcd
+          windows: [10y, all]
+        - id: sewage_history
+          type: trend
+          source: datagov_26815
+          x: year
+          y: coverage_pct
+          windows: [10y]
+
+    - id: ranking
+      label: 排名
+      icon: trending-up
+      type: ranking_panel
+      metrics: [lpcd, sewage_coverage, water_pollution_fines_per_capita, flood_high_risk_pct]
+
+# ─────────────────────────────────────────────────
+# View C 資料集詳情
+# ─────────────────────────────────────────────────
+datasets:
+  - id: reservoir
+    label: 水庫
+    layer: point
+    source_table: reservoirs
+    detail_fields:
+      - { key: name, label: 水庫名稱 }
+      - { key: built_year, label: 啟用年 }
+      - { key: full_water_level_m, label: 滿水位, unit: m }
+      - { key: total_capacity_million_m3, label: 總容量, unit: 萬 m³ }
+      - { key: effective_capacity_million_m3, label: 有效容量, unit: 萬 m³ }
+      - { key: catchment_area_km2, label: 集水區面積, unit: km² }
+    timeseries:
+      - source: wra_reservoir_realtime
+        x: observed_at
+        y: storage_rate_pct
+        label: 蓄水率
+      - source: wra_reservoir_realtime
+        x: observed_at
+        y: water_level_m
+        label: 水位
+    download:
+      csv: "/api/dataset/reservoir/:id/csv"
+      api: "/api/dataset/reservoir/:id"
+
+  - id: water_quality_station
+    label: 水質測站
+    layer: point
+    source_table: water_quality_stations
+    detail_fields:
+      - { key: station_name, label: 測站名稱 }
+      - { key: river_name, label: 所在河川 }
+    timeseries:
+      - source: water_quality_readings
+        x: sample_date
+        y: bod_mgl
+        label: BOD
+      - source: water_quality_readings
+        x: sample_date
+        y: do_mgl
+        label: DO
+
+# ─────────────────────────────────────────────────
+# View D 比較模式
+# ─────────────────────────────────────────────────
+compare:
+  comparable_metrics:
+    - id: lpcd
+      label: 人均日用水量
+      unit: L
+      ranking_better: lower
+    - id: sewage_coverage
+      label: 污水接管率
+      unit: "%"
+      ranking_better: higher
+    - id: water_pollution_fines_per_capita
+      label: 水污染罰鍰實收 / 萬人
+      unit: 元
+      ranking_better: higher
+    - id: flood_high_risk_pct
+      label: 淹水高潛勢面積佔比
+      unit: "%"
+      ranking_better: lower
+    - id: realtime_reservoir_rate
+      label: 即時蓄水率
+      unit: "%"
+      ranking_better: higher
+      coverage_note: 限有水庫的縣市
+
+# ─────────────────────────────────────────────────
+# 跨主題聯動
+# ─────────────────────────────────────────────────
+crosslink:
+  - with: demographics
+    metric_pair: [lpcd, aging_index]
+    trigger: "abs(corr(lpcd, aging_index)) > 0.3"
+    text: "{county} 高齡 {aging}% vs 全國 {national_aging}% · LPCD {lpcd}L"
+
+  - with: demographics
+    metric_pair: [sewage_coverage, urbanization_rate]
+    trigger: "always"
+    text: "接管率 {coverage}% · 都市化率 {urban}% · 差距反映建設滯後"
+
+# ─────────────────────────────────────────────────
+# 資料來源
+# ─────────────────────────────────────────────────
+data_sources:
+  - id: wra_reservoir_realtime
+    title: 即時水庫蓄水
+    license: OGDL-Taiwan-1.0
+    url: https://fhy.wra.gov.tw/ReservoirPage_2011/StorageCapacity.aspx
+    updated_field: observed_at
+
+  - id: wra_rain_gauge
+    title: 即時雨量站
+    license: OGDL-Taiwan-1.0
+    url: https://fhy.wra.gov.tw/fhy/Monitor/Rainfall
+    updated_field: observed_at
+
+  - id: datagov_8316
+    title: 自來水生活用水量統計（縣市 × 年 LPCD）
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/8316
+    updated_field: stat_year
+
+  - id: datagov_26815
+    title: 污水下水道用戶接管普及率（22 縣市）
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/26815
+    updated_field: stat_year
+
+  - id: datagov_45134
+    title: 水污染稽查次數（22 縣市）
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/45134
+    updated_field: stat_year
+
+  - id: datagov_45135
+    title: 水污染罰鍰次數（22 縣市）
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/45135
+    updated_field: stat_year
+
+  - id: datagov_45136
+    title: 水污染實收罰鍰（22 縣市）
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/45136
+    updated_field: stat_year
+
+  - id: datagov_35644
+    title: 農田水利署各管理處實際灌溉用水量（18 處）
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/35644
+    updated_field: stat_year
+    note: 18 水利會處別 → 縣市 proxy
+
+  - id: env_rpi
+    title: 重要河川污染情形 RPI
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/89034
+
+  - id: nldcb_flood_hazard
+    title: 淹水潛勢圖（10 情境）
+    license: OGDL-Taiwan-1.0
+    url: https://dpp.nldcb.gov.tw/
+    note: 內政部國土署、水利署聯合
+
+# ─────────────────────────────────────────────────
+# Meta
+# ─────────────────────────────────────────────────
+meta:
+  version: "1.0.0"
+  last_reviewed: "2026-05-13"
+  reviewer: migu
+  coverage_notes:
+    - dataset: storm_drainage_pipes
+      counties: [taipei, taoyuan, chiayi]
+      reason: 「雨水下水道僅 3 縣市開放，餘 19 縣市顯示資料未開放」
+    - dataset: detention_basins
+      counties: [taipei_partial, taoyuan_partial]
+      reason: 「滯洪池 132 筆只涵蓋 5 縣市 + 3 科學園區」
+    - dataset: groundwater_zones
+      counties: [west_taiwan_9]
+      reason: 「地下水分區僅西部 9 區」
+    - metric: water_loss_rate
+      counties: ["national_only", taipei]
+      reason: 「漏水率無 22 縣市對齊版（台水全國 + 北水單市）」
+    - metric: industrial_water_usage
+      counties: ["region_4"]
+      reason: 「工業用水量只到北/中/南/東 4 區」

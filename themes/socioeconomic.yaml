@@ -1,0 +1,357 @@
+# Mini Taiwan Info · Socioeconomic Theme Manifest
+# 詳規見 docs/themes/socioeconomic.md
+# 本主題承接 home-basics（人口基礎），延伸到所得/住宅/經濟力/福利
+
+theme:
+  id: socioeconomic
+  name: 社會經濟
+  name_en: Socioeconomic
+  emoji: 💼
+  color_accent: "#8B5CF6"        # violet-500
+  color_ramp: purples
+  description: 縣市所得、住宅、經濟、教育、福利。
+  tagline: 縣市的生活與口袋
+  priority: 20
+  status: production
+
+overview:
+  default_choropleth_metric: median_disposable_income
+
+  kpis:
+    - id: median_disposable_income
+      label: 戶可支配所得中位數
+      unit: 元
+      source: datagov_144527
+      query: aggregate_national_income_median
+      group: income
+      format: { precision: 0, compare_to: previous_year, compact: true }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: time
+          windows: [10y, all]
+
+    - id: gini_quintile_ratio
+      label: 五等分位倍數
+      unit: 倍
+      source: datagov_132285
+      query: aggregate_national_quintile_ratio
+      group: income
+      format: { precision: 2 }
+      explode:
+        - mode: dimension
+          by: quintile_band
+          default: true
+
+    - id: low_income_share
+      label: 低收入戶比例
+      unit: "%"
+      source: datagov_160963
+      query: aggregate_national_low_income
+      group: income
+      format: { precision: 2, compare_to: previous_year }
+      explode:
+        - mode: dimension
+          by: county
+        - mode: time
+          windows: [10y]
+
+    - id: housing_median_per_ping
+      label: 房屋實價中位 /坪
+      unit: 萬元
+      source: real_estate_transactions_grid
+      query: aggregate_national_housing_median
+      group: housing_economy
+      format: { precision: 1 }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: geo
+          level: grid_150m
+        - mode: time
+          windows: [3y]
+
+    - id: home_ownership_rate
+      label: 自有住宅率
+      unit: "%"
+      source: dgbas_household
+      query: aggregate_national_ownership
+      group: housing_economy
+      format: { precision: 1 }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+
+    - id: companies_per_10k
+      label: 公司家數 /萬人
+      unit: 家
+      source: datagov_173818
+      query: aggregate_national_companies_per_10k
+      group: housing_economy
+      format: { precision: 0 }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+        - mode: dimension
+          by: industry_class
+        - mode: time
+          windows: [5y]
+
+  hook_rules:
+    - condition: "max_county_income / min_county_income > 2"
+      text: "縣市所得中位數差 {ratio} 倍 — {max_county} {max} 元 vs {min_county} {min} 元"
+    - condition: "max_county_housing / min_county_housing > 4"
+      text: "房價區域落差 {ratio} 倍 — 都會 vs 鄉村結構性分裂"
+    - default:
+      text: "全國戶所得中位數 {income} 元 · 自有住宅率 {own}% · 公司 {firms} /萬人"
+
+  ranking_metrics:
+    - median_disposable_income
+    - gini_quintile_ratio
+    - housing_median_per_ping
+    - companies_per_10k
+    - long_term_care_coverage
+    - low_income_share
+
+county_dashboard:
+  tabs:
+    - id: income
+      label: 所得分配
+      icon: dollar
+      type: charts
+      kpis: [county_income_median, county_quintile_ratio, county_low_income]
+      charts:
+        - id: quintile_bar
+          type: bar_stacked
+          source: datagov_132285
+        - id: income_trend
+          type: trend
+          source: datagov_144527
+          windows: [10y]
+
+    - id: housing
+      label: 住宅市場
+      icon: home
+      type: charts
+      kpis: [county_housing_median, county_housing_volume, county_ownership_rate, county_subsidy_count]
+      layers: [grid_150m_housing_heat]
+      charts:
+        - id: housing_index_trend
+          type: trend
+          source: real_estate_transactions_grid
+      explore_links:
+        - to: "dataset/housing_grid/:id"
+          when: click_grid_on_map
+
+    - id: economy
+      label: 經濟活力
+      icon: briefcase
+      type: charts
+      kpis: [county_companies, new_companies_monthly, unemployment_rate]
+      charts:
+        - id: industry_pie
+          type: pie
+          source: datagov_173818
+        - id: new_companies_trend
+          type: trend
+      coverage_warning:
+        - metric: unemployment_rate
+          fallback: external_api_required
+          reason: "失業率需外接主計總處統計資料庫"
+
+    - id: education
+      label: 教育
+      icon: graduation-cap
+      type: charts
+      kpis: [education_level_dist, school_count, cram_school_per_10k]
+      layers: [school_locations_point]
+      coverage_warning:
+        - metric: education_level
+          fallback: census_only
+          reason: "教育程度跨縣市對齊只有 5 年一次普查"
+
+    - id: welfare
+      label: 社會福利
+      icon: heart
+      type: charts
+      kpis: [long_term_care_coverage, care_workers_per_10k_seniors, childcare_facilities]
+      layers: [senior_facilities, childcare_facilities]
+      charts:
+        - id: care_demand_supply
+          type: bar_compare
+          source: welfare_long_term_care_personnel
+
+    - id: cpi
+      label: 物價
+      icon: trending-up
+      type: charts
+      kpis: [county_cpi_monthly, food_cpi, housing_cpi]
+      coverage_warning:
+        - metric: cpi
+          counties: [taipei, taichung, kaohsiung]
+          fallback: data_missing_state
+          reason: "CPI 主計處只發都會區，22 縣市對齊不存在"
+
+    - id: ranking
+      label: 排名
+      icon: trending-up
+      type: ranking_panel
+      metrics: [median_disposable_income, gini_quintile_ratio, housing_median_per_ping, companies_per_10k, long_term_care_coverage, low_income_share]
+
+datasets:
+  - id: income_county_yearly
+    label: 縣市年度所得
+    layer: choropleth
+    source_table: socioeconomic.income_tax_county_yearly
+    detail_fields:
+      - { key: county, label: 縣市 }
+      - { key: filed_households, label: 申報戶數 }
+      - { key: total_income_per_household, label: 戶均所得 }
+      - { key: median_income, label: 中位數 }
+      - { key: q1_q5_ratio, label: 五等分位倍數 }
+    timeseries:
+      - source: datagov_144527
+        x: stat_year
+        y: median_income
+
+  - id: housing_grid
+    label: 實價登錄 150m grid
+    layer: grid
+    source_table: real_estate.transactions_grid
+    detail_fields:
+      - { key: grid_id, label: 網格 ID, e.g.: "TW_2580_3120" }
+      - { key: tx_count_3y, label: 3 年成交筆數 }
+      - { key: median_price_per_ping, label: 中位 /坪, unit: 萬元 }
+      - { key: building_age_median, label: 中位屋齡 }
+
+  - id: senior_facility
+    label: 老人長照安養機構
+    layer: point
+    source_table: welfare.senior_care_facilities
+    detail_fields:
+      - { key: name, label: 機構名稱 }
+      - { key: type, label: 類型 }
+      - { key: capacity, label: 床位數 }
+      - { key: address, label: 地址 }
+
+compare:
+  comparable_metrics:
+    - id: median_disposable_income
+      label: 戶可支配所得中位數
+      unit: 元
+      ranking_better: higher
+    - id: gini_quintile_ratio
+      label: 五等分位倍數
+      unit: 倍
+      ranking_better: lower
+    - id: housing_median_per_ping
+      label: 房屋實價中位 /坪
+      unit: 萬元
+      ranking_better: neutral
+    - id: home_ownership_rate
+      label: 自有住宅率
+      unit: "%"
+      ranking_better: higher
+    - id: companies_per_10k
+      label: 公司家數 /萬人
+      unit: 家
+      ranking_better: higher
+    - id: long_term_care_coverage
+      label: 長照覆蓋率
+      unit: "%"
+      ranking_better: higher
+    - id: low_income_share
+      label: 低收入戶比例
+      unit: "%"
+      ranking_better: lower
+
+crosslink:
+  - with: home-basics
+    metric_pair: [median_disposable_income, aging_index]
+    trigger: always
+    text: "{county} 老化 {aging}% · 戶所得中位 {income}"
+  - with: water
+    metric_pair: [median_disposable_income, lpcd]
+    trigger: "abs(corr) > 0.3"
+    text: "所得 vs 用水：富裕縣市 LPCD {pattern}"
+  - with: water
+    metric_pair: [companies_per_10k, water_pollution_fines]
+    trigger: always
+    text: "{county} 公司密度 {firms}/萬人 · 水污染裁罰 {fines}"
+  - with: fire
+    metric_pair: [low_income_share, fire_per_10k]
+    trigger: "abs(corr) > 0.3"
+    text: "貧困 vs 火警相關性 {corr}"
+  - with: real_estate
+    metric_pair: [median_disposable_income, housing_median_per_ping]
+    trigger: always
+    text: "{county} 戶所得 {income} · 房價 /坪 {price} · 房價所得比 {ratio} 年"
+
+data_sources:
+  - id: datagov_144527
+    title: 綜稅總所得各縣市申報統計
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/144527
+    provider: 財政部財政資訊中心
+  - id: datagov_132285
+    title: 家庭收支調查-每人可支配所得五等分位
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/132285
+    provider: 行政院主計總處
+  - id: datagov_160963
+    title: 低收入戶及中低收入戶之戶數及人數
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/160963
+    provider: 衛福部
+  - id: datagov_173818
+    title: 公司登記資料 (按行業)
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/173818
+    provider: 經濟部商業司
+  - id: datagov_173368
+    title: 113 年長期照顧十年計畫2.0-照服員人數
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/173368
+    provider: 衛福部
+  - id: datagov_161624
+    title: 老人長照、安養機構
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/161624
+    provider: 衛福部社家署
+  - id: real_estate_transactions_grid
+    title: 實價登錄 150m grid（本專案 pipeline）
+    license: OGDL-Taiwan-1.0
+    note: "taipei-gis-analytics 已有 pipeline，跨縣市 grid 統一"
+  - id: datagov_174605
+    title: 各級學校範圍圖
+    license: OGDL-Taiwan-1.0
+    url: https://data.gov.tw/dataset/174605
+  - id: dgbas_household
+    title: 家戶調查（自有住宅率）
+    license: OGDL-Taiwan-1.0
+    url: https://www.dgbas.gov.tw/
+    provider: 行政院主計總處
+
+meta:
+  version: "1.0.0"
+  last_reviewed: "2026-05-13"
+  reviewer: migu
+  coverage_notes:
+    - metric: county_gdp
+      reason: "縣市 GDP 不存在，主計處只發全國"
+    - metric: unemployment_rate
+      reason: "失業率 catalog 只碎片，需外接主計處統計資料庫 API"
+    - metric: cpi
+      counties: [taipei, taichung, kaohsiung]
+      reason: "CPI 主計處只發都會區（北/中/南），其他 19 縣市無對齊版"
+    - dataset: household_survey
+      counties: ["6_metro_better_sample"]
+      reason: "家庭收支調查非六都樣本小，可比性低"
+    - dataset: education_attainment
+      reason: "教育程度跨縣市對齊只有 5 年一次普查"
+    - dataset: childcare
+      reason: "托嬰中心部分縣市結構化資料缺"

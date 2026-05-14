@@ -1,0 +1,114 @@
+# Mini Taiwan Info · Theme Manifest 範本
+# 複製此檔到 themes/{theme-id}.yaml 開始
+
+# === 基本資訊（必填） ===
+theme:
+  id: ""                       # 唯一 slug，[a-z-]+，例：water / fire / demographics
+  name: ""                     # 中文顯示名
+  name_en: ""                  # 英文顯示名（embed / SEO 用）
+  emoji: ""                    # 主題切換器顯示
+  color_accent: "#0EA5E9"      # accent color (hex)
+  color_ramp: blues            # blues / reds / greens / purples / oranges / grays
+  description: ""              # 一句話介紹
+  tagline: ""                  # hero 副標
+  priority: 100                # 主題列排序（小的在前）
+  status: draft                # production / beta / draft / archived
+
+# === View A 全國概覽（必填） ===
+overview:
+  default_choropleth_metric: ""  # 預設 choropleth 指標 id（須對應下面某 kpi.id）
+  kpis:
+    - id: ""
+      label: ""                # 顯示名
+      unit: ""                 # 單位（"%"、"L"、"件"、""）
+      source: ""               # data_sources 內的 id
+      query: ""                # 後端 view 名稱
+      format:
+        precision: 1
+        compare_to: previous_week  # previous_day / previous_week / previous_year / none
+      explode:
+        - mode: dimension      # dimension / time / geo
+          by: ""               # 拆分鍵（如 county / cause / reservoir）
+          default: true
+        - mode: time
+          windows: [30d, 1y, all]
+  hook_rules:                  # 自動產出的敘事文案
+    - condition: ""            # JS-like 條件
+      text: ""                 # 模板含 {var}
+    - default: ""
+  ranking_metrics:             # TOP/BOTTOM 排名可選的指標 id
+    - ""
+
+# === View B 縣市儀錶板（必填） ===
+county_dashboard:
+  tabs:
+    - id: overview
+      label: 概覽
+      icon: ""                 # icon name（lucide-react 等）
+      type: charts             # charts / ranking_panel / map_only / custom
+      layers:                  # 地圖圖層 ids
+        - ""
+      kpis: [""]               # 該 Tab 顯示哪些 kpi
+      charts:
+        - id: ""
+          type: trend          # trend / sparkline / bar / pie / pyramid / heatmap
+          source: ""
+          x: ""
+          y: ""
+          windows: [30d, 1y]
+      explore_links:           # 點互動進 View C
+        - to: "dataset/:type/:id"
+          when: click_point_on_map
+
+# === View C 資料集詳情（選填，依主題） ===
+datasets:
+  - id: ""                     # 例：reservoir / fire_station
+    label: ""
+    layer: point               # point / polygon / line
+    source_table: ""
+    detail_fields:
+      - key: ""
+        label: ""
+        unit: ""
+    timeseries:
+      - source: ""
+        x: ""
+        y: ""
+        label: ""
+    download:
+      csv: "/api/dataset/:id/csv"
+      api: "/api/dataset/:id"
+
+# === View D 比較模式（選填） ===
+compare:
+  comparable_metrics:
+    - id: ""
+      label: ""
+      unit: ""
+      ranking_better: higher   # higher / lower（決定色階方向）
+      coverage_note: ""        # 例：「限有水庫的縣市」
+
+# === 跨主題聯動（選填） ===
+crosslink:
+  - with: ""                   # 另一 theme.id
+    metric_pair: ["", ""]
+    trigger: ""                # 例："abs(corr(a, b)) > 0.3"
+    text: ""
+
+# === 資料來源（必填，列出本主題用到的所有來源） ===
+data_sources:
+  - id: ""                     # 在上面 kpis[].source 引用的 id
+    title: ""
+    license: OGDL-Taiwan-1.0
+    url: ""
+    updated_field: ""          # 哪個欄位是 updated_at
+
+# === 元資料 ===
+meta:
+  version: "1.0.0"
+  last_reviewed: ""            # YYYY-MM-DD
+  reviewer: ""
+  coverage_notes:              # 縣市覆蓋特殊狀況
+    - dataset: ""
+      counties: [""]
+      reason: ""

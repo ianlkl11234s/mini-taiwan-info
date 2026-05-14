@@ -1,0 +1,75 @@
+{
+  "_meta": {
+    "source": "data.gov.tw/dataset/8316",
+    "title": "自來水生活用水量統計（縣市 × 年 LPCD）",
+    "provider": "經濟部水利署",
+    "license": "OGDL-Taiwan-1.0",
+    "fetched_at": "2026-05-13",
+    "spatial": "county_22",
+    "temporal": "yearly",
+    "unit": {
+      "lpcd": "公升/人/日",
+      "total_consumption": "千 m³"
+    },
+    "note": "縣市對齊 22 筆 × 16+ 年，是水資源主題唯一即拉即用的白金資料集"
+  },
+  "schema": {
+    "county_id": "string  e.g. 'A' 台北、'F' 新北、'E' 高雄...",
+    "county_name": "string  e.g. '臺北市'",
+    "stat_year": "integer  例 2023",
+    "lpcd": "number  公升/人/日",
+    "served_population": "integer  供水人口",
+    "total_consumption_thousand_m3": "number",
+    "domestic_consumption_thousand_m3": "number",
+    "business_consumption_thousand_m3": "number"
+  },
+  "sample_rows": [
+    {
+      "county_id": "A",
+      "county_name": "臺北市",
+      "stat_year": 2023,
+      "lpcd": 348.2,
+      "served_population": 2488000,
+      "total_consumption_thousand_m3": 316200,
+      "domestic_consumption_thousand_m3": 252500,
+      "business_consumption_thousand_m3": 63700
+    },
+    {
+      "county_id": "K",
+      "county_name": "苗栗縣",
+      "stat_year": 2023,
+      "lpcd": 312.1,
+      "served_population": 521000,
+      "total_consumption_thousand_m3": 59300,
+      "domestic_consumption_thousand_m3": 47200,
+      "business_consumption_thousand_m3": 12100
+    },
+    {
+      "county_id": "E",
+      "county_name": "高雄市",
+      "stat_year": 2023,
+      "lpcd": 285.3,
+      "served_population": 2734000,
+      "total_consumption_thousand_m3": 284800,
+      "domestic_consumption_thousand_m3": 218400,
+      "business_consumption_thousand_m3": 66400
+    },
+    {
+      "county_id": "I",
+      "county_name": "嘉義市",
+      "stat_year": 2023,
+      "lpcd": 186.4,
+      "served_population": 265000,
+      "total_consumption_thousand_m3": 18000,
+      "domestic_consumption_thousand_m3": 14100,
+      "business_consumption_thousand_m3": 3900
+    }
+  ],
+  "_usage_in_frontend": {
+    "view_a_kpi": "全國 LPCD = SUM(domestic_consumption) / SUM(served_population) / 365",
+    "view_a_choropleth": "依 lpcd 著色 22 縣市",
+    "view_b_kpi": "該縣市 lpcd",
+    "view_b_history_chart": "trend chart 該縣市 stat_year vs lpcd",
+    "ranking": "ranking_better: lower（用水少視為效率高）"
+  }
+}

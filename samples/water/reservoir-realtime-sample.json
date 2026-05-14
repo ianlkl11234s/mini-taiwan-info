@@ -1,0 +1,116 @@
+{
+  "_meta": {
+    "source": "Supabase realtime.reservoir_status",
+    "collector": "data-collectors/collectors/reservoir.py",
+    "upstream": "經濟部水利署 ReservoirPage",
+    "license": "OGDL-Taiwan-1.0",
+    "spatial": "point_40_reservoirs",
+    "temporal": "hourly",
+    "unit": {
+      "storage_rate_pct": "%",
+      "water_level_m": "m",
+      "effective_storage_million_m3": "萬 m³",
+      "total_capacity_million_m3": "萬 m³"
+    },
+    "note": "全台 40 座主要水庫 1 小時更新一次；reservoir_situation_v VIEW 已預先聚合"
+  },
+  "schema": {
+    "reservoir_id": "string  e.g. 'feitsui'",
+    "name_zh": "string  e.g. '翡翠水庫'",
+    "county_id": "string  e.g. 'F'",
+    "lat": "number",
+    "lng": "number",
+    "observed_at": "ISO8601",
+    "water_level_m": "number",
+    "effective_storage_million_m3": "number",
+    "total_capacity_million_m3": "number",
+    "storage_rate_pct": "number",
+    "inflow_m3s": "number",
+    "release_m3s": "number"
+  },
+  "sample_rows": [
+    {
+      "reservoir_id": "feitsui",
+      "name_zh": "翡翠水庫",
+      "county_id": "F",
+      "lat": 24.9131,
+      "lng": 121.5853,
+      "observed_at": "2026-05-13T10:00:00+08:00",
+      "water_level_m": 165.32,
+      "effective_storage_million_m3": 311.5,
+      "total_capacity_million_m3": 327.0,
+      "storage_rate_pct": 95.3,
+      "inflow_m3s": 2.4,
+      "release_m3s": 8.1
+    },
+    {
+      "reservoir_id": "shimen",
+      "name_zh": "石門水庫",
+      "county_id": "H",
+      "lat": 24.81,
+      "lng": 121.23,
+      "observed_at": "2026-05-13T10:00:00+08:00",
+      "water_level_m": 240.5,
+      "effective_storage_million_m3": 175.2,
+      "total_capacity_million_m3": 198.9,
+      "storage_rate_pct": 88.1,
+      "inflow_m3s": 5.3,
+      "release_m3s": 12.4
+    },
+    {
+      "reservoir_id": "tsengwen",
+      "name_zh": "曾文水庫",
+      "county_id": "D",
+      "lat": 23.22,
+      "lng": 120.55,
+      "observed_at": "2026-05-13T10:00:00+08:00",
+      "water_level_m": 195.4,
+      "effective_storage_million_m3": 198.3,
+      "total_capacity_million_m3": 595.0,
+      "storage_rate_pct": 33.3,
+      "inflow_m3s": 1.2,
+      "release_m3s": 18.5
+    },
+    {
+      "reservoir_id": "agongdian",
+      "name_zh": "阿公店水庫",
+      "county_id": "E",
+      "lat": 22.81,
+      "lng": 120.39,
+      "observed_at": "2026-05-13T10:00:00+08:00",
+      "water_level_m": 31.2,
+      "effective_storage_million_m3": 5.2,
+      "total_capacity_million_m3": 18.4,
+      "storage_rate_pct": 28.3,
+      "inflow_m3s": 0.1,
+      "release_m3s": 1.8
+    },
+    {
+      "reservoir_id": "wushantou",
+      "name_zh": "烏山頭水庫",
+      "county_id": "D",
+      "lat": 23.20,
+      "lng": 120.31,
+      "observed_at": "2026-05-13T10:00:00+08:00",
+      "water_level_m": 53.7,
+      "effective_storage_million_m3": 19.1,
+      "total_capacity_million_m3": 73.6,
+      "storage_rate_pct": 25.9,
+      "inflow_m3s": 0.0,
+      "release_m3s": 6.2
+    }
+  ],
+  "_usage_in_frontend": {
+    "view_a_kpi_total_reservoir_rate": "SUM(effective_storage) / SUM(total_capacity) * 100 across 40 reservoirs at MAX(observed_at)",
+    "view_a_kpi_high_alert_count": "COUNT(WHERE storage_rate_pct < 30) at MAX(observed_at)",
+    "view_a_explode_by_reservoir": "list 40 reservoirs sorted by storage_rate_pct",
+    "view_b_county_reservoirs": "WHERE county_id = :county_id",
+    "view_c_demo1_north_vs_south": "duo time-series: feitsui vs tsengwen WHERE observed_at >= NOW()-30d",
+    "annotations": "storage_rate_pct < 30 → red marker; storage_rate_pct > 90 → blue marker"
+  },
+  "_color_thresholds": {
+    "green": ">= 60",
+    "yellow": "30 ~ 60",
+    "red": "< 30"
+  }
+}

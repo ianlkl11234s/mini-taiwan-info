@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "source": "data.gov.tw/dataset/26815",
+    "title": "污水下水道用戶接管普及率（22 縣市 × 年）",
+    "provider": "內政部國土管理署",
+    "license": "OGDL-Taiwan-1.0",
+    "fetched_at": "2026-05-13",
+    "spatial": "county_22",
+    "temporal": "yearly",
+    "unit": {
+      "pubsewer_pct": "%",
+      "specializedsewer_pct": "%",
+      "buildingfacilities_pct": "%",
+      "total_pct": "%"
+    },
+    "note": "白金級 22 縣市對齊；最新 113 年（2024）資料齊全"
+  },
+  "schema": {
+    "county_id": "string",
+    "county_name": "string",
+    "stat_year": "integer",
+    "pubsewer_pct": "number  公共污水下水道接管率",
+    "specializedsewer_pct": "number  專用下水道",
+    "buildingfacilities_pct": "number  建築物污水處理設施",
+    "total_pct": "number  總接管率（前三項加總）"
+  },
+  "sample_rows": [
+    {
+      "county_id": "A",
+      "county_name": "臺北市",
+      "stat_year": 2024,
+      "pubsewer_pct": 97.2,
+      "specializedsewer_pct": 0.4,
+      "buildingfacilities_pct": 1.8,
+      "total_pct": 99.4
+    },
+    {
+      "county_id": "F",
+      "county_name": "新北市",
+      "stat_year": 2024,
+      "pubsewer_pct": 71.5,
+      "specializedsewer_pct": 1.2,
+      "buildingfacilities_pct": 4.3,
+      "total_pct": 77.0
+    },
+    {
+      "county_id": "E",
+      "county_name": "高雄市",
+      "stat_year": 2024,
+      "pubsewer_pct": 78.3,
+      "specializedsewer_pct": 0.8,
+      "buildingfacilities_pct": 5.2,
+      "total_pct": 84.3
+    },
+    {
+      "county_id": "P",
+      "county_name": "雲林縣",
+      "stat_year": 2024,
+      "pubsewer_pct": 12.8,
+      "specializedsewer_pct": 0.1,
+      "buildingfacilities_pct": 8.4,
+      "total_pct": 21.3
+    },
+    {
+      "county_id": "W",
+      "county_name": "金門縣",
+      "stat_year": 2024,
+      "pubsewer_pct": 28.6,
+      "specializedsewer_pct": 0,
+      "buildingfacilities_pct": 5.1,
+      "total_pct": 33.7
+    }
+  ],
+  "_usage_in_frontend": {
+    "view_a_kpi": "全國接管率 = AVG(total_pct) 加權",
+    "view_a_explode_dimension": "22 縣市 ranking",
+    "view_b_kpi": "該縣市 total_pct",
+    "view_b_chart": "該縣市 total_pct 歷年趨勢（往年資料併歷年表）",
+    "crosslink_with_demographics": "接管率 × 都市化率：相關性分析"
+  }
+}

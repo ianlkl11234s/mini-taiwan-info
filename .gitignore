@@ -1,0 +1,96 @@
+# ───────────────────────────────────────
+# OS / Editor
+# ───────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ───────────────────────────────────────
+# Frontend (Next.js / Node)
+# ───────────────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/.env.local
+frontend/.env*.local
+
+# Top-level node_modules just in case
+node_modules/
+
+# ───────────────────────────────────────
+# Backend (Python / FastAPI)
+# ───────────────────────────────────────
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/.venv/
+backend/venv/
+backend/env/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.coverage
+backend/htmlcov/
+backend/dist/
+backend/*.egg-info/
+backend/.env
+
+# ───────────────────────────────────────
+# Secrets / Environment
+# ───────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# ───────────────────────────────────────
+# Data
+# ───────────────────────────────────────
+# 範例資料 samples/ 是設計用，要 commit
+# 但任何下載的真實資料、暫存資料不要 commit
+*.parquet
+*.csv.gz
+*.sqlite
+*.sqlite-journal
+*.db
+data/
+cache/
+
+# ───────────────────────────────────────
+# Logs
+# ───────────────────────────────────────
+*.log
+logs/
+
+# ───────────────────────────────────────
+# Designs（設計師可能會丟大檔）
+# ───────────────────────────────────────
+# .psd / .sketch / .fig 不要進 git
+designs/**/*.psd
+designs/**/*.sketch
+designs/**/*.fig
+designs/**/*.afdesign
+designs/**/*.afphoto
+# 但 PNG / SVG / md 都 OK，會 commit
+
+# 大型 PDF（簡報之類）建議走 git-lfs 或外連
+designs/**/*.pdf
+
+# ───────────────────────────────────────
+# Misc
+# ───────────────────────────────────────
+*.tmp
+.cache/
+coverage/
+.nyc_output/

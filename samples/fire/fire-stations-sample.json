@@ -1,0 +1,89 @@
+{
+  "_meta": {
+    "source": "各縣市消防局公開資料彙整",
+    "title": "消防分隊點位（22 縣市彙整版）",
+    "license": "OGDL-Taiwan-1.0",
+    "fetched_at": "2026-05-13",
+    "spatial": "point",
+    "temporal": "static",
+    "note": "六都格式不一，欄位透過 ETL 對映成統一 schema；外勤所 = 第一線出勤點"
+  },
+  "schema": {
+    "station_id": "string  e.g. 'KHH-FENG-01'",
+    "name": "string  e.g. '鳳山分隊'",
+    "type": "string  brigade | branch | substation",
+    "county_id": "string",
+    "county_name": "string",
+    "town_name": "string",
+    "address": "string",
+    "lng": "number",
+    "lat": "number",
+    "phone": "string",
+    "staff_count": "integer",
+    "vehicles": "object  { fire_engine, ambulance, ladder, rescue }",
+    "service_area_villages": "string[]",
+    "active": "boolean"
+  },
+  "sample_rows": [
+    {
+      "station_id": "KHH-FENG-01",
+      "name": "鳳山分隊",
+      "type": "branch",
+      "county_id": "E",
+      "county_name": "高雄市",
+      "town_name": "鳳山區",
+      "address": "高雄市鳳山區光遠路 235 號",
+      "lng": 120.357,
+      "lat": 22.625,
+      "phone": "07-7466119",
+      "staff_count": 24,
+      "vehicles": { "fire_engine": 2, "ambulance": 1, "ladder": 1, "rescue": 0 },
+      "service_area_villages": ["光遠里", "新富里", "...等 8 里"],
+      "active": true
+    },
+    {
+      "station_id": "TPE-XYI-01",
+      "name": "信義分隊",
+      "type": "branch",
+      "county_id": "A",
+      "county_name": "臺北市",
+      "town_name": "信義區",
+      "address": "臺北市信義區莊敬路 305 號",
+      "lng": 121.567,
+      "lat": 25.034,
+      "phone": "02-27295147",
+      "staff_count": 32,
+      "vehicles": { "fire_engine": 3, "ambulance": 2, "ladder": 1, "rescue": 1 },
+      "service_area_villages": ["...23 里"],
+      "active": true
+    },
+    {
+      "station_id": "TPE-MAOLIN-01",
+      "name": "茂林分隊（山地）",
+      "type": "substation",
+      "county_id": "E",
+      "county_name": "高雄市",
+      "town_name": "茂林區",
+      "address": "高雄市茂林區茂林里...",
+      "lng": 120.659,
+      "lat": 22.886,
+      "phone": "07-6802211",
+      "staff_count": 8,
+      "vehicles": { "fire_engine": 1, "ambulance": 1, "ladder": 0, "rescue": 0 },
+      "service_area_villages": ["茂林里", "萬山里", "多納里"],
+      "active": true,
+      "note": "山地分隊，服務面積大但人口少；萬山里距分隊 18km"
+    }
+  ],
+  "_usage_in_frontend": {
+    "view_a_kpi": "全國 station_density_per_10k = COUNT(stations) / national_population * 10000",
+    "view_b_capacity_map": "WHERE county_id = :county_id, 加 3km/6km buffer 圈",
+    "view_b_kpi_stations_count": "COUNT WHERE county_id = :county_id",
+    "view_c_demo1_service_circle": "對每分隊 ST_Buffer(geom, 3000), 與村里 polygon ST_Difference 找盲區",
+    "explode_by_county": "GROUP BY county_id"
+  },
+  "_etl_notes": {
+    "six_metro_format_diff": "六都欄位不同：北市有 'staff_count' 但桃園叫 'personnel'，需建對映表",
+    "missing_county_fix": "非六都的縣市（如連江、澎湖）可能只有大隊層級，外勤所要另抓"
+  }
+}

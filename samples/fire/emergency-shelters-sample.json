@@ -1,0 +1,100 @@
+{
+  "_meta": {
+    "source": "消防署 datagov:73242 + 警察局防空避難各縣市彙整",
+    "title": "避難收容處所點位（全國）",
+    "license": "OGDL-Taiwan-1.0",
+    "fetched_at": "2026-05-13",
+    "spatial": "point",
+    "temporal": "static",
+    "note": "整合消防署主辦的「避難收容」+ 警察局主辦的「防空避難」+ 各縣市的「防災公園」"
+  },
+  "schema": {
+    "shelter_id": "string",
+    "name": "string",
+    "type": "string  emergency | air_raid | disaster_park",
+    "managing_agency": "string  fire_dept | police_dept | city_gov",
+    "county_id": "string",
+    "town_name": "string",
+    "village_name": "string",
+    "address": "string",
+    "lng": "number",
+    "lat": "number",
+    "capacity_person": "integer  容納人數",
+    "area_m2": "number  面積",
+    "indoor": "boolean  室內 vs 室外",
+    "facilities": "string[]  [\"廁所\", \"電力\", \"飲水\", \"無障礙\"]",
+    "barrier_free": "boolean",
+    "active": "boolean"
+  },
+  "sample_rows": [
+    {
+      "shelter_id": "EM-KHH-001",
+      "name": "高雄市立鳳山國小",
+      "type": "emergency",
+      "managing_agency": "fire_dept",
+      "county_id": "E",
+      "town_name": "鳳山區",
+      "village_name": "光遠里",
+      "address": "高雄市鳳山區光遠路 240 號",
+      "lng": 120.357,
+      "lat": 22.626,
+      "capacity_person": 800,
+      "area_m2": 3200,
+      "indoor": true,
+      "facilities": ["廁所", "電力", "飲水", "無障礙"],
+      "barrier_free": true,
+      "active": true
+    },
+    {
+      "shelter_id": "AR-TPE-088",
+      "name": "信義國中地下室",
+      "type": "air_raid",
+      "managing_agency": "police_dept",
+      "county_id": "A",
+      "town_name": "信義區",
+      "village_name": "莊敬里",
+      "address": "臺北市信義區莊敬路 178 號 B1",
+      "lng": 121.5658,
+      "lat": 25.0331,
+      "capacity_person": 1200,
+      "area_m2": 1500,
+      "indoor": true,
+      "facilities": ["電力"],
+      "barrier_free": false,
+      "active": true,
+      "note": "防空避難規格：依坪/人計，與消防避難不可直接合計"
+    },
+    {
+      "shelter_id": "DP-TCH-005",
+      "name": "豐樂雕塑公園防災區",
+      "type": "disaster_park",
+      "managing_agency": "city_gov",
+      "county_id": "B",
+      "town_name": "南屯區",
+      "village_name": "豐樂里",
+      "address": "臺中市南屯區文心南五路 ...",
+      "lng": 120.628,
+      "lat": 24.135,
+      "capacity_person": 5000,
+      "area_m2": 38000,
+      "indoor": false,
+      "facilities": ["飲水", "電力", "廁所", "緊急避難帳篷", "停機坪"],
+      "barrier_free": true,
+      "active": true,
+      "note": "防災公園：颱風/地震/海嘯多功能，戶外大型"
+    }
+  ],
+  "_usage_in_frontend": {
+    "view_a_kpi_shelter_coverage": "SUM(capacity_person) / national_population * 100",
+    "view_a_choropleth": "依各縣市 (SUM(capacity) / 該縣人口) 著色",
+    "view_b_emergency_response_tab": "WHERE county_id = :county_id, 點位 + 圖層 toggle (3 type)",
+    "view_b_township_shelter_density": "GROUP BY village/town: 該村避難容量 / 該村人口",
+    "view_c_demo_coverage_gaps": "ST_Buffer(shelter, 500m) → 找出未被覆蓋的村里",
+    "explode_by_type": "GROUP BY type (emergency / air_raid / disaster_park)"
+  },
+  "_etl_notes": {
+    "agency_diff": "消防 vs 警察主辦的避難所，欄位定義不同（容納人數計算口徑也異）",
+    "capacity_caveat": "「容納人數」有的計人有的計坪（3.3 m²/人推算），需標準化",
+    "incomplete_data": "離島部分縣市資料稀疏，避難容量覆蓋率可能虛低"
+  }
+}
