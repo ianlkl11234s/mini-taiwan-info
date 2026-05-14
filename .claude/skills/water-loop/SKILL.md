@@ -79,7 +79,35 @@ User 拍板後：
 3. 跑 `cd frontend && pnpm typecheck`
 4. typecheck pass 才進 Stage 4
 
-#### Mode D（資料整合）— 含 **Checkpoint A: apply migration 前**
+#### Mode D（資料整合）— 含 **Checkpoint A: apply migration 前** + **Checkpoint A0: freshness 判定**
+
+**Checkpoint A0（新，2026-05-14 拍板）— freshness / LIVE 判定**：
+
+每接一個新資料集，先判斷 freshness 級別 + 與 user 討論是否加進 collector cron。
+
+| 上游性質 | freshness 級別 | UI 標示 | collector 動作 |
+|---|---|---|---|
+| Realtime API（如雨量 / 蓄水率）| 即時 | 🟢 LIVE | **必跟 user 討論加 cron** |
+| 日 / 週度更新 | 日 | 「資料時間 YYYY-MM-DD」 | 可選加 cron |
+| 月 / 季度採樣（如水質）| 月 | 「資料時間 YYYY-MM-DD」 | 一次性 backfill，可選排程 |
+| 年度報告（如 LPCD）| 年 | 「資料時間 YYYY 年度」 | 一次性 backfill |
+| 半年以上未更新 | 已停 | 「資料時間 YYYY-MM-DD（已停採）」 | 不加 cron |
+
+**「LIVE」嚴格定義**：collector 設 cron 自動持續抓 + 上游有 realtime / 高頻 update。**不是「DB 真資料」就叫 LIVE**（PRINCIPLES）。
+
+**Cycle Discovery 階段必做**：
+```sql
+-- 看新接資料的真實 freshness
+SELECT MAX(sampled_at) AS latest, AGE(NOW(), MAX(sampled_at)) AS staleness
+FROM public.{new_table};
+```
+- staleness < 24h → 可能是 LIVE，但要再確認 collector 是否有 cron
+- staleness > 30d → 不是 LIVE，標資料時間
+- 不同 source 在同表內 freshness 可能差很多（如 epa_reservoir 月度 vs wra_gw 已停）→ UI 要 by source 標
+
+**Stage 2 Plan 時跟 user 討論**：
+- 「這 dataset 上游是 realtime？要加進 collector cron 嗎？」
+- 「該 source 已停採，要怎麼標？」
 
 1. 確認 pipeline 存在於 `../taipei-gis-analytics/pipelines/`，或寫新 pipeline
 2. **dry-run pipeline**：拉 sample 但不寫 DB
@@ -91,11 +119,14 @@ User 拍板後：
    - Sample rows（5-10 列）
    - Migration SQL（diff）
    - 預期影響表名 + 列數估算
+   - **freshness 級別判定 + UI 標示策略**
    - User 拍板才繼續
 
 5. User OK → `psql $DATABASE_URL -f migrations/0XX_*.sql`
 6. 跑 pipeline `--full`
 7. 寫 frontend：query → hook → component
+   - **LIVE badge 只在真 cron 持續抓的資料用**
+   - 其他用 `<DataAgeBadge sampled_at={...} />`（待建 component）
 8. `pnpm typecheck`
 
 #### Mode V（視覺重做）

@@ -99,6 +99,36 @@
 - 詳見 `.claude/skills/water-loop/SKILL.md`
 - 觸發詞：`/water-loop`、「跑下一輪」、「接下個資料」、「修一輪 P0」
 
+### 2026-05-14: LIVE badge 嚴格定義 = data collector 持續抓的才叫 LIVE
+
+User 在 Cycle A 拍板的重要分隔：
+
+**LIVE = data collector 設了 cron 自動持續抓**（上游有 realtime / 高頻更新 + 我們有設排程跟著拉）
+
+**不是 LIVE 的標示方式**：
+- 月 / 季 / 年度更新 → UI 標「資料時間：YYYY-MM-DD」（最新採樣日）
+- 已停採 / 半年以上未更新 → 標「資料時間：YYYY-MM-DD（已停採 / 半年未更新）」
+- 一次性 backfill 後不再更新 → 同上「資料時間」
+- Mock / 未接 → placeholder
+
+**整合新資料集的決策流程**（cycle 內必做）：
+1. 上游 API 是否 realtime / 高頻？
+2. **是** → 跟 user 討論「要不要加進 data collector 跑 cron」 → 加了才能標 LIVE
+3. **否（月/季/年 batch）** → 一次性 backfill，UI 標資料時間，**不標 LIVE**
+
+**已知狀況**：
+- collector 部署在網路上自動跑（不在 .github/workflows，在別處 — 待 user 確認 location）
+- 蓄水率 / 雨量 = 真 LIVE（collector cron 持續跑 + 上游 API realtime）
+- 水庫水質 / 地下水質 / LPCD / 接管率 = **不是 LIVE**，應標資料時間
+- 各 dataset 真實 LIVE 狀態待 user 提供清單後 audit
+
+**對 mini-taiwan-info code 的影響**：
+- 現有 ViewA/B/C 內所有 LIVE badge 都要 audit 一輪
+- 加 freshness 指示 component（含 staleness 級別：即時 / 日 / 月 / 年 / 已停）
+- `themes/water.yaml` data_sources 應加 `freshness_class` 欄位驅動 UI
+
+**這條原則覆蓋 2026-05-14 原 PRINCIPLES「真實資料優先 + LIVE badge」的舊定義**（舊定義含糊把「DB 真資料」當 LIVE）。
+
 ### 2026-05-14: Secret 永遠走 .env
 
 - 不在 prototype / mockup / chat log / commit message 內留任何 token / API key

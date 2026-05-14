@@ -14,7 +14,9 @@
 | **爆炸圖（Exploded View）** | KPI 卡點下去就地展開（22 縣市排序 / 歷年趨勢）|
 | **PointProfile** | View A 點位概況面板，三模式：bucket / region / scatter |
 | **TwoSectionLayers** | 地圖左上控制：著色指標 radio + 點位圖層 checkbox |
-| **LIVE badge** | 綠色小 badge 標記「此 KPI 是 Supabase 即時資料」 |
+| **LIVE badge** | 嚴格定義（2026-05-14 拍板）：data collector 設 cron 自動持續抓 + 上游 realtime。**不是「DB 真資料」就叫 LIVE**。月/季/年資料標「資料時間 YYYY-MM-DD」 |
+| **資料時間 badge** | 非 LIVE 資料的標示方式，顯示「最新採樣日」或「最新更新日」+ staleness 級別（日/月/年/已停採） |
+| **freshness 級別** | 即時 (LIVE，cron 持續抓) / 日 (近 24hr 更新) / 月 (近月度更新) / 年 (年度 batch) / 已停 (半年以上未更新) |
 | **SSOT** | Single Source of Truth |
 | **TIC（Theme Integration Catalog）** | taipei-gis-analytics 的概念，per-theme 跨 Layer 1/2/3 聚合 |
 | **Layer 1 / 2 / 3** | (1) POI / 點位 (2) Polygon / 空間範圍 (3) Realtime / 時序感測 |
