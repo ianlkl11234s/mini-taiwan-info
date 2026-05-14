@@ -3,9 +3,9 @@
 > **Living document**。每完成一個 task / 做一個決定 / 發現新 backlog，就更新這份檔。
 > 一日一次同步：每天結束時對齊 TaskList tool 與本檔。
 
-**最後更新**：2026-05-14 (Session 2，下午 · C → A 連續執行)
-**當前 Phase**：Phase 0b+ 視覺補完進行中（A-1 + A-2 ✅）
-**當前 Focus**：📍 View A 視覺已 prototype-equivalent，可選下一步：A-3 View B 高雄 / A-4 阿公店 / View D / Phase 0d
+**最後更新**：2026-05-14 (Session 2，下午 · A-3 完成 + atomic commits)
+**當前 Phase**：Phase 0b+ A-3 ✅ ViewB 完整版（mockup must-have 達成）
+**當前 Focus**：📍 阿公店真實 8.6%（mock 28.3%）— 南部缺水實況上線。剩 A-4 View C / A-5 View D / Phase 0d
 
 ---
 
@@ -20,7 +20,7 @@
 | **0b+** | 補完 PointProfile / Charts / View B-D 元件 | 1-2 天 | 🟡 2/5 完成（A-1, A-2 ✅） |
 | └ A-1 | PointProfile 三模式 | 0.5 天 | ✅ 完成 |
 | └ A-2 | TwoSectionLayers 控制 | 0.5 天 | ✅ 完成 |
-| └ A-3 | View B 高雄水資源 | 1 天 | ⬜ 待開工 |
+| └ A-3 | View B 縣市儀錶板（7 tabs，4 real + 3 placeholder） | 1 天 | ✅ 完成 2026-05-14 |
 | └ A-4 | View C 阿公店水庫詳情 | 0.5 天 | ⬜ 待開工 |
 | └ A-5 | View D 比較模式 | 0.5 天 | ⬜ 待開工 |
 | **0d** | Flood + Rain materialized views | 0.5 天 | ⬜ 待開工 |
