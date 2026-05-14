@@ -265,6 +265,15 @@ county_dashboard:
 
   default_tab: overview
 
+  # IA v2 (Cycle B, 2026-05-14)：依「水循環層」重組 7 tabs
+  #   1. 概覽       — 總覽 stat + LPCD donut
+  #   2. 水庫       — 蓄積 Storage（含水庫水質）
+  #   3. 河川       — 流量 + 環境（含河川水質）
+  #   4. 地下水     — 補注 / 蓄積（含地下水質）
+  #   5. 防洪       — 災害 Disaster
+  #   6. 用水與配送 — Consumption + Distribution（合併原「基礎設施」+「用水 & 衛生」）
+  #   7. 排名       — 跨縣比較
+  # 取消：原「水質」獨立 tab、原「基礎設施」獨立 tab
   tabs:
     - id: overview
       label: 概覽
@@ -286,7 +295,7 @@ county_dashboard:
       icon: droplet
       type: charts
       layers: [reservoirs_point, reservoir_polygons]
-      kpis: [county_reservoir_rate]
+      kpis: [county_reservoir_rate, county_reservoir_water_quality_do]
       charts:
         - id: reservoirs_individual_30d
           type: trend_multi
@@ -295,50 +304,87 @@ county_dashboard:
           response_shape:
             series: [{ name: string, color: string, data: [{ x, y }] }]
           windows: [30d, 1y]
+        - id: reservoir_water_quality
+          type: station_ranking
+          query: get_water_quality_county_summary
+          query_args: { p_param: "DO", p_station_type: "reservoir" }
+          response_shape:
+            items: [{ county_id, avg_value, n_stations, n_readings, latest_sampled_at }]
       explore_links:
         - to: "dataset/reservoir/:id"
           when: click_point_on_map
 
-    - id: water_quality
-      label: 河川水質
-      icon: flask
+    - id: rivers
+      label: 河川
+      icon: activity
       type: charts
-      layers: [water_quality_stations, water_pollution_entities]
-      kpis: [county_severe_pollution_pct, county_pollution_fines]
+      layers: [river_lines, river_basins, river_flow_stations, water_quality_stations]
+      kpis: [county_river_flow, county_river_water_quality_do, county_rpi]
       charts:
+        - id: river_water_quality
+          type: station_ranking
+          query: get_water_quality_county_summary
+          query_args: { p_param: "DO", p_station_type: "river" }
+          response_shape:
+            items: [{ county_id, avg_value, n_stations, n_readings, latest_sampled_at }]
         - id: rpi_yearly
           type: trend
           query: county_rpi_yearly
           response_shape:
             series: [{ x: integer, y: number }]
-        - id: pollution_fines_compare
-          type: bar
-          query: county_pollution_fines_vs_national
+      meta:
+        coverage_notes:
+          - dataset: epa_river_readings
+            reason: "河川 station 表 446 站已建，但 reading 待 Cycle A2 補抓 (epa_river:siteid via wqx_p_01)"
+            ui_treatment: warning_badge
+
+    - id: groundwater
+      label: 地下水
+      icon: layers
+      type: charts
+      layers: [groundwater_zones, groundwater_level_stations, water_quality_stations]
+      kpis: [county_groundwater_level, county_groundwater_quality_do]
+      charts:
+        - id: groundwater_water_quality
+          type: station_ranking
+          query: get_water_quality_county_summary
+          query_args: { p_param: "DO", p_station_type: "groundwater" }
+        - id: groundwater_level_realtime
+          type: stations_latest
+          query: get_groundwater_level_latest
           response_shape:
-            items: [{ name: string, value: number, is_self: bool }]
+            items: [{ station_id, name, county_id, lat, lng, level_m, observed_at }]
+      meta:
+        coverage_notes:
+          - dataset: groundwater_zones
+            affected_counties: [A, F, H, O, J, K, B, N, M, P, Q, I, D, E, T]
+            mode: only_in
+            reason: "地下水分區僅西部 9 區"
 
     - id: flood
       label: 防洪
       icon: cloud-rain
       type: charts
-      layers: [flood_hazard_zones, detention_basins, rain_gauges]
-      kpis: [county_flood_high_risk_pct]
+      layers: [flood_hazard_zones, detention_basins, storm_drainage_pipes, rain_gauges]
+      kpis: [county_flood_high_risk_pct, county_detention_basin_count]
       meta:
         scenario_switcher: ["200mm", "350mm", "500mm"]
+        coverage_notes:
+          - dataset: storm_drainage_pipes
+            affected_counties: [A, H, I]
+            mode: only_in
+            ui_treatment: warning_badge
+          - dataset: detention_basins
+            affected_counties: [A, F, H]
+            mode: only_in
+            ui_treatment: warning_badge
 
-    - id: infrastructure
-      label: 基礎設施
-      icon: pipe
+    - id: supplies
+      label: 用水與配送
+      icon: recycle
       type: charts
       layers: [water_facilities, sewage_treatment_plants]
-      kpis: [county_water_penetration]
-      # coverage_warning 由 meta.coverage_notes 驅動
-
-    - id: water_usage
-      label: 用水 & 衛生
-      icon: gauge
-      type: charts
-      kpis: [county_lpcd, county_sewage_coverage]
+      kpis: [county_lpcd, county_sewage_coverage, county_wwtp_count, county_water_penetration]
       charts:
         - id: lpcd_history
           type: trend
@@ -352,12 +398,22 @@ county_dashboard:
           response_shape:
             series: [{ x: integer, y: number }]
           windows: [10y]
+      meta:
+        # 原「基礎設施」tab 內容（自來水普及率 / 漏水率 / 給水設施 / 汙水廠）併入此處
+        coverage_notes:
+          - metric: water_loss_rate
+            reason: "漏水率無 22 縣市對齊版（台水全國 + 北水單市）"
+            ui_treatment: placeholder
+          - metric: industrial_water_usage
+            affected_counties: [A, F, B, D, E]
+            mode: only_in
+            ui_treatment: warning_badge
 
     - id: ranking
       label: 排名
       icon: trending-up
       type: ranking_panel
-      metrics: [lpcd, sewage_coverage, water_pollution_fines, flood_high_risk_pct, reservoir_rate]
+      metrics: [lpcd, sewage_coverage, water_pollution_fines, flood_high_risk_pct, reservoir_rate, river_water_quality_do]
 
 # ─────────────────────────────────────────────────
 # View C 資料集詳情
