@@ -29,6 +29,7 @@ interface ViewAProps {
   metric: string;
   onMetricChange?: (id: string) => void;
   onCountyClick?: (code: CountyCode3) => void;
+  onDrillReservoir?: (reservoirId: string) => void;
   selectedCounty?: CountyCode3 | null;
   /** Phase 0c-1：真實 Supabase summary（覆蓋 mock） */
   realSummary?: {
@@ -136,6 +137,7 @@ export function ViewA({
   manifest,
   selectedCounty,
   onCountyClick: _onCountyClick,
+  onDrillReservoir,
   realSummary,
   realGovernance,
   realRain24ByCode3,
@@ -287,9 +289,7 @@ export function ViewA({
       {overview.point_profile?.enabled && realReservoirs && realReservoirs.length > 0 && (
         <PointProfile
           reservoirs={realReservoirs}
-          onReservoirClick={() => {
-            // Phase 0c-C：先不導 View C，等 0b+ A-4 補
-          }}
+          onReservoirClick={(r) => onDrillReservoir?.(r.reservoir_id)}
         />
       )}
 

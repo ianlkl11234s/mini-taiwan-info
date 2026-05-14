@@ -294,6 +294,10 @@ export default function App() {
                 metric={metric}
                 onMetricChange={setMetric}
                 onCountyClick={goCity}
+                onDrillReservoir={(id) => {
+                  setReservoirId(id);
+                  setView("C");
+                }}
                 selectedCounty={county}
                 realSummary={useRealData ? water.summary : null}
                 realGovernance={useRealData ? water.governance : null}
