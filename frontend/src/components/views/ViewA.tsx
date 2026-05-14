@@ -403,7 +403,7 @@ function SimpleExplode({
       (isReal && realLookup![c.code3] != null
         ? realLookup![c.code3]
         : (getMockMetricValue(metricKey, c.code3) ?? 0)),
-  })).sort((a, b) => b.value - a.value).slice(0, 12);
+  })).sort((a, b) => b.value - a.value);
 
   const max = rows[0].value || 1;
 
@@ -411,7 +411,7 @@ function SimpleExplode({
     <div>
       <div className="exploded-head">
         <div className="title">
-          {kpi.label} · <span className="sub">22 縣市排序（前 12）</span>
+          {kpi.label} · <span className="sub">22 縣市排序</span>
           {isReal && (
             <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: "var(--positive)", background: "var(--positive-soft)", padding: "1px 4px", borderRadius: 3 }}>
               LIVE
