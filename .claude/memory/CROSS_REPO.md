@@ -25,13 +25,11 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 ## Pending 同步（未 commit 到對應 repo 或未 push）
 
-無。本 session（2026-05-14）所有跨 repo 變動已 atomic commit：
+**無**。三個 repo 全部已 push origin（Session 3，2026-05-14）：
 
-- gis-platform: 4 commits ahead of origin/main（093/094/095/096 migrations）— **尚未 push**
-- taipei-gis-analytics: 2 commits ahead of origin/master（datagov 8316 / 26815 pipelines）— **尚未 push**
-- mini-taiwan-info: 21+ commits ahead of origin/main — **尚未 push**
-
-下次 session 開始前，user 可 push 三個 repo 確認 GitHub 同步。
+- mini-taiwan-info: 27 commits → origin/main（含 history rewrite force push 後）
+- gis-platform: pull --rebase 後 8 local commits 接在 origin 3 auto-sync 之上 → push 成功
+- taipei-gis-analytics: 0 改動，本 session 沒動 pipelines
 
 ---
 
@@ -39,12 +37,11 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 | 日期 | Repo | 動作 | Commit |
 |---|---|---|---|
-| 2026-05-14 | gis-platform | 096 flood MV + RPC | d6ad160 |
-| 2026-05-14 | gis-platform | 095 sewage_coverage_yearly | e457a7a |
-| 2026-05-14 | gis-platform | 094 water_usage_yearly | 63ca7fb |
-| 2026-05-14 | gis-platform | 093 reference.counties | 26d8105 |
-| 2026-05-14 | taipei-gis-analytics | datagov_26815 sewage pipeline | 13535f5 |
-| 2026-05-14 | taipei-gis-analytics | datagov_8316 LPCD pipeline | 1ab1fb9 |
+| 2026-05-14 | mini-taiwan-info | feat(skill) /water-loop SOP | bf99dfc |
+| 2026-05-14 | mini-taiwan-info | chore(secrets) Mapbox placeholder + filter-repo | 05f7e80 |
+| 2026-05-14 | mini-taiwan-info | fix(view-a) 3 P0 (explode 22 / drill / headline) | 5a79d54 / a5f20a1 / 5075b87 |
+| 2026-05-14 | gis-platform | rebase 8 local 在 origin/main 3 auto-sync 之上 + push | 3d8e522（tip） |
+| 2026-05-14 | mini-taiwan-info | git remote add + force push 初次設定 | — |
 
 ---
 
@@ -59,3 +56,5 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 ## 跨 repo 未同步陷阱（INCIDENTS 來源）
 
 - **2026-05-14**: LPCD pipeline 改了 `get_max_year_in_db` 邏輯（修空表誤判 bug），但 sewage pipeline 沒同樣寫法，幸好沒中招。教訓：寫 ETL helper 時抽出 shared/ 模組。記在 INCIDENTS。
+- **2026-05-14（Session 3）**: mini-taiwan-info 首次 push 被 GitHub secret scanning 擋 — Mapbox token 在 `designs/v02-claude-design-2026-05-14/` 內。歷史 27 commits 走 `git filter-repo --replace-text` rewrite + force push。教訓：commit 前 grep secret pattern；prototype/mockup 內絕對不放真實 token。記在 INCIDENTS + PB-07。
+- **2026-05-14（Session 3）**: gis-platform local 8 commits ahead，但 origin/main 也有 3 個 user 在其他 session 跑的 auto-sync commits → push 被擋。`git pull --rebase` 解決。教訓：跨 session 改 gis-platform 前先 fetch + 看 divergence。詳見 PB-09。
