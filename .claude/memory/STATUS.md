@@ -3,13 +3,13 @@
 > 每次 `/wrap-up` 完整 rewrite。只保留當下的「下個 session 接什麼」。
 > User-facing Phase 進度看 root `_STATUS.md`。
 
-**最後更新**：2026-05-14（Session 2 結束）
+**最後更新**：2026-05-14（Session 2 結束 + 試跑 /wrap-up）
 
 ---
 
 ## 一句話現況
 
-Phase 0a + 0b + 0c + 0d + 0b+ A-1/A-2/A-3/A-4 全部完成，6/6 KPI LIVE，21+ atomic commits 跨 3 repos。剩 A-5 View D（user 要求延後）。
+Phase 0a + 0b + 0c + 0d + 0b+ A-1/A-2/A-3/A-4 全部完成，6/6 KPI LIVE，**24 atomic commits（mini-taiwan-info 18 + gis-platform 4 + taipei-gis-analytics 2）**。`.claude/` framework 已建立並通過首次 /wrap-up 自我驗證。剩 A-5 View D（user 要求延後）。
 
 ## 跑得起來的東西
 
@@ -42,6 +42,7 @@ Phase 0a + 0b + 0c + 0d + 0b+ A-1/A-2/A-3/A-4 全部完成，6/6 KPI LIVE，21+ 
 - Node 23.10 / pnpm 10.17 / psql 14.13 / python3 (venv with psycopg2-binary)
 - Supabase project `utcmcikhvxnohbxchbrs` (pooler at `aws-1-ap-southeast-1.pooler.supabase.com:5432`)
 - DATABASE_URL 在 gis-platform/.env
+- agent-browser 全局已裝，截圖驗證 SOP 已建立 (PB-03)
 
 ## 跨 repo 狀態
 
