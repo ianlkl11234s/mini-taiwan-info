@@ -18,6 +18,10 @@
 | **SSOT** | Single Source of Truth |
 | **TIC（Theme Integration Catalog）** | taipei-gis-analytics 的概念，per-theme 跨 Layer 1/2/3 聚合 |
 | **Layer 1 / 2 / 3** | (1) POI / 點位 (2) Polygon / 空間範圍 (3) Realtime / 時序感測 |
+| **Cycle** | `/water-loop` skill 的工作單位。一個 Cycle = 一個 P0 fix / 一個資料整合 / 一個視覺重做。Cycle 1 = 三 P0 fix（2026-05-14） |
+| **Cycle Mode P/D/V** | P = 純前端 fix；D = 資料整合（含 migration）；V = 視覺重做。決定 cycle 走哪個分支 |
+| **`__MAPBOX_TOKEN_PLACEHOLDER__`** | Mapbox token 取代慣例。其他 token 比照辦理（`__SUPABASE_ANON_KEY_PLACEHOLDER__` 等）。實際值放 .env / .env.local |
+| **fetch 時序假象** | agent-browser headless 截圖時 SPA 尚未 hydrate 完成，KPI 顯示 ━ 但實際非 0。Cycle 1 P0-2 誤判由此而來；Discovery 截圖須 wait 3500ms+ 再 eval value 非 ━ 才當有效樣本 |
 
 ## 縣市代碼三軌
 
