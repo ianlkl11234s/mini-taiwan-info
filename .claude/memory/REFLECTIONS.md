@@ -68,3 +68,43 @@ GLOSSARY: 縣市三軌 + RPC + 表 + Mapbox + datagov 完整索引
 - Stage 3 加：「列出本 session 影響的 file count」給 user 一眼看規模
 
 這些待第一次 production wrap-up（不是 init）時驗證再進 PLAYBOOKS。
+
+---
+
+## 2026-05-14 · Session 2 後綴 · 試跑 /wrap-up
+
+### 觸發
+
+User 喊「試跑一次 /wrap-up」— 在剛建立 framework 後立即測試 SKILL.md 5 階段流程。
+
+### 跑的結果
+
+- Stage 1 (Gather)：成功讀 9 memory 檔 + git log 跨 3 repos + git status
+- Stage 2 (Analyze)：辨識本 session 變動已**幾乎全部反映**在剛寫的 9 個 memory（因為是同 session 內初始化 + /wrap-up）。新東西只剩 STATUS 加 wrap-up 完成 + REFLECTIONS append 本條
+- Stage 3 (Draft)：列 diff，2 個檔（STATUS rewrite / REFLECTIONS append）
+- Stage 4 (Confirm)：問 user
+- Stage 5 (Atomic Commit)：等 user OK
+
+### 發現的 Skill 改進點（內生）
+
+1. **初次跑 wrap-up 跟之後的 wrap-up 流程不一樣**。初次是「把整 session 知識倒進 9 檔」，之後是「diff 自上次 STATUS 起的變動」。SKILL.md 應該明確區分這兩個 mode。**TODO**: 在 SKILL.md 加「Mode A: init / Mode B: incremental」說明。
+
+2. **跨 repo `git log --since="..."` 不精準**。User 在其他 session 改的 commits 也會被抓進來（如 `2872595 fix(waste)` 不是本 session 改的但 since filter 包進去）。應該改用「hash whitelist」— 本 session 寫過哪些 hashes 直接指定。**TODO**: SKILL.md Stage 1 Gather 改用 git reflog + 對應 hashes。
+
+3. **跑 wrap-up 不會自動驗證 typecheck**（SKILL.md 寫了「manifest 變動才驗」），但這次也沒改 manifest 所以沒跑。下次有改 manifest 的 session 結束時驗證一下實際是否會跑。
+
+4. **STATUS 跟 _STATUS.md (root) 雙寫**很容易脫鉤。看到 root `_STATUS.md` 寫得比 `.claude/memory/STATUS.md` 詳細，後者更精簡。下次 wrap-up 應該確認兩者「分工」而不是「同步」（root 是 user-facing 完整版，memory 版是 next-session handoff）。
+
+### What worked（本次試跑）
+
+- SKILL.md 流程清晰，能照著跑
+- self-audit 數字（commit 數 / 行數 / DB 列數）有 hard verification
+- 9 檔分類清晰，每個事件能對到唯一一個檔
+
+### Next-time rules（加進 SKILL.md）
+
+待這次 commit 後，馬上回頭修 `.claude/skills/wrap-up/SKILL.md` 加：
+- Stage 0: 判斷 init mode vs incremental mode
+- Stage 1: 加 git reflog hash whitelist 寫法
+
+→ 這就是 SKILL **自我演進**機制驗證成功（從本次體驗回頭改 skill 自己）。
