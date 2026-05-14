@@ -110,8 +110,9 @@ mini-taiwan-info/
 | Skill | 觸發詞 | 用途 |
 |---|---|---|
 | `/wrap-up` | `/wrap-up`、收工、收尾、session 結束 | 收尾 + 更新 9 個 memory 檔 + atomic commit |
+| `/water-loop` | `/water-loop`、跑下一輪、迭代水資源、接下個資料、下個 cycle、修一輪 P0 | 半自動 5 階段 cycle：Discovery（3 並行 agent）→ Plan（user 拍板）→ Execute（純前端 fix 或 ETL+migration+frontend）→ Verify（typecheck + agent-browser）→ Commit/Push（atomic + secret scanning fallback）。3 checkpoints 由 user 拍板 |
 
-詳見 `.claude/skills/wrap-up/SKILL.md`。
+詳見 `.claude/skills/{wrap-up,water-loop}/SKILL.md`。
 
 ## 重要規範
 
