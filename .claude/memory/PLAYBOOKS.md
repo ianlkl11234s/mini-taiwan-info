@@ -247,7 +247,55 @@
 - redo Edit 時若搞錯哪個 hunk 屬於哪個 commit，typecheck 會失敗 → 直接 git restore 重來，不要勉強
 - 寫 commit message 時可參考 patch 上方 hunk 標頭 `@@ -X,Y +X,Y @@` 對應位置
 
-## PB-09: 三 repo push 順序判定
+## PB-10: ViewB IA 重組（Mode V Cycle）
+
+對應的事：發現現有 7 tabs 結構名實不符 / 想依新觀念（如水循環層）重組。
+
+```
+1. user 拍板新 tab list（用 AskUserQuestion preview 配 ASCII layout）
+   - 拍板每個原 tab 的內容歸宿（無 catch-all「基礎設施」）
+   - 拍板新 tab 數（推薦 7，桌機可承受 8）
+
+2. 改 themes/{theme}.yaml manifest（SSOT 先動）
+   - county_dashboard.tabs[] 整批重編
+   - 每 tab 加 coverage_notes 結構化警告
+   - charts.query_args 對齊新 RPC
+
+3. 改 ViewB.tsx code
+   a. imports（換 icons）
+   b. TabId type union 改
+   c. TAB_DEFS array 改
+   d. tab content routing 改
+   e. 共用 helper extract（如 WaterQualitySection by stationType prop）
+   f. 各 tab component 改/新建
+
+4. 刪 unused code
+   - 不再用的 helper function（如 PlaceholderTab）
+   - unused imports
+
+5. typecheck（每 1-2 個大改後跑）
+   - manifest 改完 → 跑
+   - ViewB 結構改完 → 跑
+   - unused import 報錯 → 立刻刪
+
+6. agent-browser 截每個新 tab
+   - 至少 N 張（每 tab 一張）
+   - 命名 /tmp/water-cycleX-tab-{id}.png
+
+7. atomic commit 拆 2-3 個
+   - commit 1: manifest 改
+   - commit 2: ViewB 結構改 + 新 component
+   - commit 3 (optional): unused code 清理
+```
+
+**Cycle B 實例**：water_quality / infrastructure 兩 tab 拆解到對應水體（reservoir/river/groundwater）+ supplies；新建 RiverTab/GroundwaterTab/FloodTab/SuppliesTab；WaterQualityTab → WaterQualitySection 共用 helper 由 stationType prop 鎖定。25 min 完成（含 typecheck loop + 截圖）。
+
+**陷阱**：
+- icon 別重複（lucide-react: rivers=Activity / groundwater=Layers / supplies=Recycle）
+- function declaration 順序不重要（JS hoist），但保持邏輯順序便於閱讀
+- 跨 tab 共用 component（如 WaterQualitySection）prop 設計要乾淨：stationType 必傳、param 內部 state
+
+
 
 對應的事：本 session 跨 mini-taiwan-info + gis-platform + taipei-gis-analytics 都有改動，要全 push。
 
