@@ -1,0 +1,428 @@
+# Mini Taiwan Info · 22 縣市 SSOT (Single Source of Truth)
+#
+# 這張表是整個專案的縣市代碼基底，所有後續開發只認這張表：
+#   - frontend/src/lib/counties.ts （TypeScript 衍生）
+#   - gis-platform/migrations/093_reference_counties.sql （Supabase reference.counties 載入）
+#   - taipei-gis-analytics/pipelines/*  （pipeline 內 county 欄位 normalize）
+#   - themes/*.yaml coverage_notes.counties[] （這裡用 slug）
+#
+# 設計考量：
+#   - id_moi 是內政部「鄉鎮市區代碼」最高位字母（VARCHAR(2)，與 admin.counties.county_id 對齊，docs/09 §A）
+#   - code3 是視覺友善的 3 字母（前綴自 IATA / postal 慣例，前端 state 用）
+#   - slug 是英文 URL（/c/kaohsiung）
+#   - name_zh 用「臺」（內政部標準），name_zh_alt 用「台」（民眾通俗）
+#   - region 用 5 區（north/central/south/east/island）— PointProfile by-region 用這欄
+#   - centroid_lng/lat 來自 prototype data.js v02，正式上線會被 NLSC boundary centroid 覆寫
+#   - pop_2024 是參考值（10 萬人為單位）— 真實值走戶政司 pipeline
+#
+# 維護規則：
+#   - 此檔修改後，必須跑 `scripts/regen-counties.sh` 重新生成衍生檔
+#   - 不要直接編輯衍生檔
+#   - id_moi 一旦發佈不可變（即使 2010 五都升格那種事，新增不刪除）
+#
+# 版本：1.0.0  (2026-05-14)
+# Reviewer: migu
+
+version: "1.0.0"
+last_reviewed: "2026-05-14"
+
+counties:
+  # 直轄市（6）
+  - id_moi: A
+    code3: TPE
+    slug: taipei
+    name_zh: 臺北市
+    name_zh_alt: 台北市
+    name_en: Taipei City
+    name_en_short: Taipei
+    region: north
+    is_special_municipality: true
+    centroid_lng: 121.565
+    centroid_lat: 25.038
+    area_km2: 271
+    pop_2024_wan: 248.8
+
+  - id_moi: F
+    code3: NTP
+    slug: new-taipei
+    name_zh: 新北市
+    name_zh_alt: 新北市
+    name_en: New Taipei City
+    name_en_short: New Taipei
+    region: north
+    is_special_municipality: true
+    centroid_lng: 121.609
+    centroid_lat: 25.012
+    area_km2: 2052
+    pop_2024_wan: 403.2
+
+  - id_moi: H
+    code3: TYC
+    slug: taoyuan
+    name_zh: 桃園市
+    name_zh_alt: 桃園市
+    name_en: Taoyuan City
+    name_en_short: Taoyuan
+    region: north
+    is_special_municipality: true
+    became_special_in: 2014
+    centroid_lng: 121.220
+    centroid_lat: 24.953
+    area_km2: 1221
+    pop_2024_wan: 230.4
+
+  - id_moi: B
+    code3: TCH
+    slug: taichung
+    name_zh: 臺中市
+    name_zh_alt: 台中市
+    name_en: Taichung City
+    name_en_short: Taichung
+    region: central
+    is_special_municipality: true
+    became_special_in: 2010
+    centroid_lng: 120.967
+    centroid_lat: 24.149
+    area_km2: 2215
+    pop_2024_wan: 283.0
+
+  - id_moi: D
+    code3: TNN
+    slug: tainan
+    name_zh: 臺南市
+    name_zh_alt: 台南市
+    name_en: Tainan City
+    name_en_short: Tainan
+    region: south
+    is_special_municipality: true
+    became_special_in: 2010
+    centroid_lng: 120.227
+    centroid_lat: 23.130
+    area_km2: 2191
+    pop_2024_wan: 184.6
+
+  - id_moi: E
+    code3: KHH
+    slug: kaohsiung
+    name_zh: 高雄市
+    name_zh_alt: 高雄市
+    name_en: Kaohsiung City
+    name_en_short: Kaohsiung
+    region: south
+    is_special_municipality: true
+    became_special_in: 2010
+    centroid_lng: 120.566
+    centroid_lat: 22.628
+    area_km2: 2952
+    pop_2024_wan: 273.4
+
+  # 省轄市（3）
+  - id_moi: C
+    code3: KLC
+    slug: keelung
+    name_zh: 基隆市
+    name_zh_alt: 基隆市
+    name_en: Keelung City
+    name_en_short: Keelung
+    region: north
+    is_special_municipality: false
+    centroid_lng: 121.744
+    centroid_lat: 25.131
+    area_km2: 133
+    pop_2024_wan: 36.0
+
+  - id_moi: O
+    code3: HSC
+    slug: hsinchu-city
+    name_zh: 新竹市
+    name_zh_alt: 新竹市
+    name_en: Hsinchu City
+    name_en_short: Hsinchu City
+    region: north
+    is_special_municipality: false
+    centroid_lng: 120.969
+    centroid_lat: 24.807
+    area_km2: 104
+    pop_2024_wan: 44.8
+
+  - id_moi: I
+    code3: CYC
+    slug: chiayi-city
+    name_zh: 嘉義市
+    name_zh_alt: 嘉義市
+    name_en: Chiayi City
+    name_en_short: Chiayi City
+    region: south
+    is_special_municipality: false
+    centroid_lng: 120.452
+    centroid_lat: 23.481
+    area_km2: 60
+    pop_2024_wan: 26.4
+
+  # 縣（13）
+  - id_moi: J
+    code3: HSH
+    slug: hsinchu-county
+    name_zh: 新竹縣
+    name_zh_alt: 新竹縣
+    name_en: Hsinchu County
+    name_en_short: Hsinchu County
+    region: north
+    is_special_municipality: false
+    centroid_lng: 121.130
+    centroid_lat: 24.683
+    area_km2: 1427
+    pop_2024_wan: 58.2
+
+  - id_moi: K
+    code3: MIA
+    slug: miaoli
+    name_zh: 苗栗縣
+    name_zh_alt: 苗栗縣
+    name_en: Miaoli County
+    name_en_short: Miaoli
+    region: central
+    is_special_municipality: false
+    centroid_lng: 120.943
+    centroid_lat: 24.488
+    area_km2: 1820
+    pop_2024_wan: 53.9
+
+  - id_moi: N
+    code3: CHA
+    slug: changhua
+    name_zh: 彰化縣
+    name_zh_alt: 彰化縣
+    name_en: Changhua County
+    name_en_short: Changhua
+    region: central
+    is_special_municipality: false
+    centroid_lng: 120.541
+    centroid_lat: 23.999
+    area_km2: 1074
+    pop_2024_wan: 124.4
+
+  - id_moi: M
+    code3: NAN
+    slug: nantou
+    name_zh: 南投縣
+    name_zh_alt: 南投縣
+    name_en: Nantou County
+    name_en_short: Nantou
+    region: central
+    is_special_municipality: false
+    centroid_lng: 120.971
+    centroid_lat: 23.961
+    area_km2: 4106
+    pop_2024_wan: 48.5
+
+  - id_moi: P
+    code3: YUN
+    slug: yunlin
+    name_zh: 雲林縣
+    name_zh_alt: 雲林縣
+    name_en: Yunlin County
+    name_en_short: Yunlin
+    region: central
+    is_special_municipality: false
+    centroid_lng: 120.431
+    centroid_lat: 23.709
+    area_km2: 1290
+    pop_2024_wan: 66.1
+
+  - id_moi: Q
+    code3: CYH
+    slug: chiayi-county
+    name_zh: 嘉義縣
+    name_zh_alt: 嘉義縣
+    name_en: Chiayi County
+    name_en_short: Chiayi County
+    region: south
+    is_special_municipality: false
+    centroid_lng: 120.574
+    centroid_lat: 23.450
+    area_km2: 1903
+    pop_2024_wan: 48.7
+
+  - id_moi: T
+    code3: PIF
+    slug: pingtung
+    name_zh: 屏東縣
+    name_zh_alt: 屏東縣
+    name_en: Pingtung County
+    name_en_short: Pingtung
+    region: south
+    is_special_municipality: false
+    centroid_lng: 120.620
+    centroid_lat: 22.555
+    area_km2: 2776
+    pop_2024_wan: 78.9
+
+  - id_moi: G
+    code3: ILA
+    slug: yilan
+    name_zh: 宜蘭縣
+    name_zh_alt: 宜蘭縣
+    name_en: Yilan County
+    name_en_short: Yilan
+    region: east
+    is_special_municipality: false
+    centroid_lng: 121.633
+    centroid_lat: 24.703
+    area_km2: 2143
+    pop_2024_wan: 44.7
+
+  - id_moi: U
+    code3: HUA
+    slug: hualien
+    name_zh: 花蓮縣
+    name_zh_alt: 花蓮縣
+    name_en: Hualien County
+    name_en_short: Hualien
+    region: east
+    is_special_municipality: false
+    centroid_lng: 121.382
+    centroid_lat: 23.737
+    area_km2: 4628
+    pop_2024_wan: 31.7
+
+  - id_moi: V
+    code3: TTT
+    slug: taitung
+    name_zh: 臺東縣
+    name_zh_alt: 台東縣
+    name_en: Taitung County
+    name_en_short: Taitung
+    region: east
+    is_special_municipality: false
+    centroid_lng: 121.110
+    centroid_lat: 22.760
+    area_km2: 3515
+    pop_2024_wan: 21.3
+
+  - id_moi: X
+    code3: PEH
+    slug: penghu
+    name_zh: 澎湖縣
+    name_zh_alt: 澎湖縣
+    name_en: Penghu County
+    name_en_short: Penghu
+    region: island
+    is_special_municipality: false
+    centroid_lng: 119.617
+    centroid_lat: 23.567
+    area_km2: 127
+    pop_2024_wan: 10.7
+
+  - id_moi: W
+    code3: KMN
+    slug: kinmen
+    name_zh: 金門縣
+    name_zh_alt: 金門縣
+    name_en: Kinmen County
+    name_en_short: Kinmen
+    region: island
+    is_special_municipality: false
+    centroid_lng: 118.317
+    centroid_lat: 24.450
+    area_km2: 152
+    pop_2024_wan: 14.2
+
+  - id_moi: Z
+    code3: LCC
+    slug: lienchiang
+    name_zh: 連江縣
+    name_zh_alt: 連江縣
+    name_en: Lienchiang County
+    name_en_short: Lienchiang
+    region: island
+    is_special_municipality: false
+    centroid_lng: 119.953
+    centroid_lat: 26.160
+    area_km2: 29
+    pop_2024_wan: 1.3
+
+# ─────────────────────────────────────────────────
+# 五區分類 (PointProfile by-region 用)
+# ─────────────────────────────────────────────────
+regions:
+  - id: north
+    name_zh: 北部
+    name_en: Northern Taiwan
+    counties: [TPE, NTP, TYC, HSC, HSH, KLC]
+  - id: central
+    name_zh: 中部
+    name_en: Central Taiwan
+    counties: [MIA, TCH, CHA, NAN, YUN]
+  - id: south
+    name_zh: 南部
+    name_en: Southern Taiwan
+    counties: [CYC, CYH, TNN, KHH, PIF]
+  - id: east
+    name_zh: 東部
+    name_en: Eastern Taiwan
+    counties: [ILA, HUA, TTT]
+  - id: island
+    name_zh: 離島
+    name_en: Outlying Islands
+    counties: [PEH, KMN, LCC]
+
+# ─────────────────────────────────────────────────
+# Name normalization map (給 ETL pipeline 用)
+# 把不同來源寫的縣市名統一回 id_moi
+# ─────────────────────────────────────────────────
+name_aliases:
+  # 「臺」「台」混用
+  "臺北市": A
+  "台北市": A
+  "臺中市": B
+  "台中市": B
+  "臺南市": D
+  "台南市": D
+  "臺東縣": V
+  "台東縣": V
+  # 歷史名
+  "臺北縣": F        # 2010 升格為新北市
+  "桃園縣": H        # 2014 升格為桃園市
+  "臺中縣": B        # 2010 與臺中市合併
+  "臺南縣": D        # 2010 與臺南市合併
+  "高雄縣": E        # 2010 與高雄市合併
+  # 英文
+  "Taipei": A
+  "New Taipei": F
+  "Taoyuan": H
+  "Taichung": B
+  "Tainan": D
+  "Kaohsiung": E
+  "Hsinchu": O
+  "Chiayi": I
+  "Keelung": C
+  "Hsinchu County": J
+  "Miaoli": K
+  "Changhua": N
+  "Nantou": M
+  "Yunlin": P
+  "Chiayi County": Q
+  "Pingtung": T
+  "Yilan": G
+  "Hualien": U
+  "Taitung": V
+  "Penghu": X
+  "Kinmen": W
+  "Lienchiang": Z
+  "Matsu": Z         # 連江縣俗稱馬祖
+
+# ─────────────────────────────────────────────────
+# 歷史備註
+# ─────────────────────────────────────────────────
+historical_notes:
+  - year: 2010-12-25
+    event: 五都升格
+    affected: [B, D, E]
+    detail: 臺中縣 (L) 併入臺中市 (B)；臺南縣 (R) 併入臺南市 (D)；高雄縣 (S) 併入高雄市 (E)
+  - year: 2014-12-25
+    event: 桃園升格
+    affected: [H]
+    detail: 桃園縣升格為桃園市，id_moi 維持 H
+  - retired_codes: [L, R, S]
+    note: 歷史 id_moi，已合併，不應在新資料中出現

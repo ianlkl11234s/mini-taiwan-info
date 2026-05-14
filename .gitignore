@@ -64,7 +64,10 @@ secrets/
 *.sqlite
 *.sqlite-journal
 *.db
-data/
+data/*
+# 例外：SSOT 設計檔，必須 commit
+!data/*.yaml
+!data/.gitkeep
 cache/
 
 # ───────────────────────────────────────
