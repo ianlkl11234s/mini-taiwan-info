@@ -16,6 +16,7 @@ import { MapView } from "@/components/map/MapView";
 import { MapLegend } from "@/components/map/MapLegend";
 import { TwoSectionLayers, type PointLayerToggle } from "@/components/map/TwoSectionLayers";
 import { ViewA } from "@/components/views/ViewA";
+import { ViewB } from "@/components/views/ViewB";
 import { getMockMetricValue } from "@/lib/mock-data";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWaterKpis } from "@/hooks/useWaterKpis";
@@ -292,8 +293,18 @@ export default function App() {
                 realLoading={useRealData ? water.loading : false}
                 realError={useRealData ? water.error : null}
               />
-            ) : view === "B" ? (
-              <ViewBPlaceholder county={county} onBack={goHome} />
+            ) : view === "B" && county ? (
+              <ViewB
+                manifest={manifest}
+                county={county}
+                allReservoirs={useRealData ? water.reservoirs : []}
+                nationalLpcd={useRealData ? water.governance?.lpcd_national_avg ?? null : null}
+                nationalSewage={useRealData ? water.governance?.sewage_national_avg ?? null : null}
+                lpcdByCountyId={useRealData ? water.governance?.lpcd_by_county ?? {} : {}}
+                sewageByCountyId={useRealData ? water.governance?.sewage_by_county ?? {} : {}}
+                onBack={goHome}
+                onAddCompare={() => { setComparing(true); }}
+              />
             ) : (
               <div className="hero">
                 <h1>View {view}</h1>
@@ -319,25 +330,3 @@ export default function App() {
   );
 }
 
-function ViewBPlaceholder({ county, onBack }: { county: CountyCode3 | null; onBack: () => void }) {
-  const c = county ? byCode3[county] : null;
-  return (
-    <div>
-      <div className="hero">
-        <button className="back-link" onClick={onBack}>
-          ‹ 返回全台概覽
-        </button>
-        <h1>
-          <span className="accent">{c?.name_zh ?? county}</span>
-          <span className="small">· 水資源</span>
-        </h1>
-        <p className="hook">
-          {c?.pop_2024_wan} 萬人 · {c?.area_km2} km² · {c?.region}
-        </p>
-      </div>
-      <div className="section">
-        <p>Phase 0b：View B 為 placeholder。Phase 0c 接 KHH 高雄水資源儀錶板真實資料。</p>
-      </div>
-    </div>
-  );
-}
