@@ -164,3 +164,111 @@
 
 6. typecheck + agent-browser 驗證
 ```
+
+## PB-07: 用 git filter-repo 從歷史移除 secret
+
+對應的事：commit 進歷史的 token / API key 被 GitHub secret scanning 擋 push。
+
+```
+1. Backup 整個 repo（filter-repo 不可逆）
+   cp -r {repo} /tmp/{repo}.bak-pre-filterrepo
+   du -sh /tmp/{repo}.bak-pre-filterrepo
+
+2. grep 找出所有出現位置
+   grep -rn "pk\.eyJ\|sk_\|AKIA\|ghp_\|gho_" \
+     --include="*.{js,jsx,ts,tsx,md,yaml,json}" .
+
+3. 修 working tree：把 token 改成 placeholder
+   - JS 常數：改成 process.env.X || "__TOKEN_PLACEHOLDER__"
+   - markdown：改成「__TOKEN_PLACEHOLDER__（實際 token 設於 .env）」
+
+4. Commit working tree 改動
+   git add <files> && git commit -m "chore(secrets): 用 placeholder 取代 ..."
+
+5. 寫 replace.txt（一行一條 rule）
+   <full_token>==><placeholder>
+   存到 /tmp/replace.txt
+
+6. Run filter-repo
+   git filter-repo --replace-text /tmp/replace.txt --force
+   → 所有 commit hash 改變
+   → remote 自動被 remove（要重 add）
+
+7. 重 add remote
+   git remote add origin git@github.com:{org}/{repo}.git
+
+8. Force push（這是 history rewrite 必須的）
+   git push -u origin main --force
+
+9. 驗證 token 真的清乾淨
+   git log --all --full-history -p -S '<full_token_substring>' | head -5
+   # 應該完全空輸出
+```
+
+**前置安裝**：`brew install git-filter-repo`
+
+**注意**：
+- filter-repo 預設禁止 fresh clone 之外的 repo（怕誤用），加 `--force` 跳過檢查
+- co-authored commit 的 secondary author 不變
+- 所有人重 clone 才會拿到 rewritten history，已有 local clone 的 collaborator 要 force reset
+- 此操作不可逆，所以 step 1 backup 必跑
+
+## PB-08: Atomic commit 拆 hunk（Bash 工具下）
+
+對應的事：一輪改動跨 N 個邏輯單元（如 cycle 1 三個 P0 fix 都在 ViewA.tsx），要拆 N 個 atomic commit。
+
+**為什麼不用 `git add -p`**：Bash 工具非互動式，跑 `git add -p` 會 hang。
+
+```
+1. backup 整 patch
+   git diff > /tmp/cycle-full.patch
+
+2. 看 hunks 確認可拆分
+   git diff <file> | head -100
+   → 確認 hunks 邏輯不重疊（同 region 改動只能合 commit）
+
+3. Restore 涉及檔案到 HEAD
+   git restore <file1> <file2> ...
+   → working tree 變 clean
+
+4. 用 Edit 工具 redo 第一個邏輯單元的改動
+   → 只 apply 屬於 commit 1 的 hunks
+   → typecheck（若 mode 要求）
+   → git add <file> && git commit -m "..."
+
+5. 重複 step 4 for commit 2, 3, ...
+
+6. 最後 git status 確認 tree clean，git log --oneline 確認 N 個 commit
+```
+
+**Cycle 1 實例**：ViewA.tsx 有 5 hunks（interface / destructure / hookText / PointProfile callback / SimpleExplode label+slice），分屬 P0-1 (1,2,4)、P0-3 (3)、P0-4 (5)。restore + redo 三輪 Edit + 三次 commit。
+
+**陷阱**：
+- redo Edit 時若搞錯哪個 hunk 屬於哪個 commit，typecheck 會失敗 → 直接 git restore 重來，不要勉強
+- 寫 commit message 時可參考 patch 上方 hunk 標頭 `@@ -X,Y +X,Y @@` 對應位置
+
+## PB-09: 三 repo push 順序判定
+
+對應的事：本 session 跨 mini-taiwan-info + gis-platform + taipei-gis-analytics 都有改動，要全 push。
+
+```
+1. 各 repo 內個別跑 git fetch + 看 divergence
+   for repo in mini-taiwan-info gis-platform taipei-gis-analytics; do
+     cd /path/to/$repo && git fetch origin
+     git rev-list --left-right --count origin/{main|master}...HEAD
+   done
+
+2. 依 divergence 決定方式：
+   | 狀況 | 動作 |
+   |---|---|
+   | local ahead, remote 0 ahead | git push origin {branch} 直接 push |
+   | local ahead, remote N ahead | git pull --rebase origin {branch} → 解 conflict（若有）→ push |
+   | rejected by secret scanning | 走 PB-07 history rewrite + force push |
+   | rejected by branch protection | 改開 PR / 找 admin |
+
+3. mini-taiwan-info 預期最常見 secret-scanning 擋（designs/ 裡有 prototype）
+4. gis-platform 預期最常見 fetch-first 擋（user 在其他 session 有 auto-sync commit）
+5. taipei-gis-analytics 預期最 smooth（pipelines 工作零碎不易 conflict）
+
+6. 全部 push 完跑各 repo `git status` 確認 tree clean
+```
