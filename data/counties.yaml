@@ -28,6 +28,9 @@ last_reviewed: "2026-05-14"
 
 counties:
   # 直轄市（6）
+  # 直轄市範圍大、polygon centroid 多偏山區（造成 map label 位置不對）
+  # 加 label_lng / label_lat 用行政中心或視覺中心作 map symbol anchor
+  # centroid_lng / centroid_lat 保留給 reverseGeocode.ts 用（水庫→縣市 nearest-match）
   - id_moi: A
     code3: TPE
     slug: taipei
@@ -39,6 +42,8 @@ counties:
     is_special_municipality: true
     centroid_lng: 121.565
     centroid_lat: 25.038
+    label_lng: 121.547      # 中正 / 大安一帶（避免新北市包覆視覺偏移）
+    label_lat: 25.045
     area_km2: 271
     pop_2024_wan: 248.8
 
@@ -53,6 +58,8 @@ counties:
     is_special_municipality: true
     centroid_lng: 121.609
     centroid_lat: 25.012
+    label_lng: 121.660      # 汐止 / 三峽以東（避免疊到臺北市）
+    label_lat: 25.090
     area_km2: 2052
     pop_2024_wan: 403.2
 
@@ -68,6 +75,8 @@ counties:
     became_special_in: 2014
     centroid_lng: 121.220
     centroid_lat: 24.953
+    label_lng: 121.300      # 桃園 / 中壢區（centroid 偏龍潭山區）
+    label_lat: 24.985
     area_km2: 1221
     pop_2024_wan: 230.4
 
@@ -83,6 +92,8 @@ counties:
     became_special_in: 2010
     centroid_lng: 120.967
     centroid_lat: 24.149
+    label_lng: 120.682      # 西屯 / 北屯（centroid 偏和平/谷關山區）
+    label_lat: 24.155
     area_km2: 2215
     pop_2024_wan: 283.0
 
@@ -98,6 +109,8 @@ counties:
     became_special_in: 2010
     centroid_lng: 120.227
     centroid_lat: 23.130
+    label_lng: 120.227      # 永華 / 安平（與 centroid 接近，微調更靠都會區）
+    label_lat: 23.000
     area_km2: 2191
     pop_2024_wan: 184.6
 
@@ -113,6 +126,8 @@ counties:
     became_special_in: 2010
     centroid_lng: 120.566
     centroid_lat: 22.628
+    label_lng: 120.310      # 苓雅 / 鳳山（centroid 偏內門/田寮山區）
+    label_lat: 22.640
     area_km2: 2952
     pop_2024_wan: 273.4
 

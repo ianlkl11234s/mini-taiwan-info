@@ -141,12 +141,27 @@ export function MapView({
           },
         });
 
-        // Centroid labels
+        // 隱藏 Mapbox 預設 settlement (city/town) labels 避免中英混雜疊到自己加的 label
+        // light-v11 內常見 layer: settlement-major-label / settlement-minor-label / settlement-subdivision-label
+        for (const layer of map.getStyle().layers ?? []) {
+          if (layer.id.includes("settlement") || layer.id === "place-city-label") {
+            try {
+              map.setLayoutProperty(layer.id, "visibility", "none");
+            } catch {
+              /* 某些 layer 不允許 setLayout，忽略 */
+            }
+          }
+        }
+
+        // County labels — 優先用 label_lng/lat（行政中心 anchor），fallback centroid
         const labels = {
           type: "FeatureCollection" as const,
           features: COUNTIES.map((c) => ({
             type: "Feature" as const,
-            geometry: { type: "Point" as const, coordinates: [c.centroid_lng, c.centroid_lat] },
+            geometry: {
+              type: "Point" as const,
+              coordinates: [c.label_lng ?? c.centroid_lng, c.label_lat ?? c.centroid_lat],
+            },
             properties: { name: c.name_zh, code: c.code3 },
           })),
         };

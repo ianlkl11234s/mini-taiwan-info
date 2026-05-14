@@ -25,8 +25,10 @@ export interface County {
   region: Region;
   is_special_municipality: boolean;
   became_special_in: number | null;
-  centroid_lng: number;
+  centroid_lng: number;       // polygon centroid（給 reverseGeocode 用）
   centroid_lat: number;
+  label_lng?: number;         // 可選 anchor — 行政中心或視覺中心（給 map symbol label 用）
+  label_lat?: number;         // fallback 用 centroid_lng/lat
   area_km2: number;
   pop_2024_wan: number;
 }
