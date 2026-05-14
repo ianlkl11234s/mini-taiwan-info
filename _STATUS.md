@@ -283,11 +283,41 @@ python3 pipelines/infrastructure/datagov_26815_sewage.py --full  # 接管率 22 
 
 ---
 
-## ▶️ 下一步（自動執行已完成，user 選方向）
+## ▶️ 下一步 — 水循環體系 Roadmap（2026-05-14 Cycle 1 後拍板）
 
-**選 A：補完 Phase 0b+ 視覺**（PointProfile / Sparkline / TrendChart / TwoSectionLayers / View B 高雄水資源 / View C 阿公店 / View D 比較）— 補足 mockup 對齊
-**選 B：Phase 0d**（淹水高潛勢 + 月雨量 MV，最後 1 個 KPI 真實化）— 6/6 KPI 全 LIVE
-**選 C：22 縣市 ranking + choropleth 改用真實 LPCD / 接管率**（現在 ranking 還是 mock，但 DB 有真實資料了）
-**選 D：擴展到 4 個主題都 v1.1**（home-basics / fire / socioeconomic 升級 manifest）
+完整 roadmap 看 **[docs/themes/water-system-cycle.md](docs/themes/water-system-cycle.md)**。
 
-推薦：**C → A**。先把 22 縣市排名 + choropleth 著色都接真實資料（30 分鐘事，DB 已就緒），然後再做 View B 高雄水資源 + PointProfile（mockup must-have）。
+**TL;DR**：
+- Phase 0 已收尾，6/6 KPI LIVE
+- 後端水資源資料 ~78% 已就緒（14 表已 ingest，11 個前端未接）
+- 接下來 11 個 cycle（A-L）按 Tier 1-5 排序依「補弱層 + ROI」推進
+
+### First Move — 推薦從 **Cycle A 水質測站 BOD/DO** 開始
+
+理由：資料完全就緒（2449 站 + 8775 reading）、pipeline 已存在、ViewB 河川水質 tab 從 placeholder 變 LIVE 解鎖感最強。
+
+```
+> /water-loop 跑 Cycle A 水質測站 BOD/DO
+```
+
+### Roadmap 5 Tier 摘要
+
+| Tier | 目的 | Cycles | 預估 |
+|---|---|---|---|
+| 1 | 補完治理層 | A 水質 / B 罰鍰 / C RPI+稽查 / C2 列管事業 | 4-5 天 |
+| 2 | 補完配送 + 排放 | D 汙水廠 / D2 TGOS / E 河川流量 / E2 灌溉 | 2-3 天 |
+| 3 | 流量觀 + 視覺串接 | F 地下水 / G 水庫 inflow / H sparkline | 2 天 |
+| 4 | 循環視覺觀 | I 防洪完整化 / J Sankey 圖 | 2-3 天 |
+| 5 | coverage 與收尾 | K warning badge / L 高警戒爆炸 | 1.5 天 |
+
+完成全 Roadmap → **前端 KPI 接通率 43% → 100%、Map layer 15% → 100%**。
+
+---
+
+## 📚 歷史「下一步」（已過時，紀錄性保留）
+
+Cycle 1 前的選項（已併入水循環 Roadmap）：
+- 選 A 補完 Phase 0b+ 視覺 → 變成 Cycle G/H/L
+- 選 B Phase 0d 月雨量 MV → 變成 Cycle K
+- 選 C 22 縣市 ranking 真實化 → Cycle 1 已完成
+- 選 D 4 主題 v1.1 → 不在水資源體系內（其他主題 roadmap）
