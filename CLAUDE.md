@@ -124,6 +124,22 @@ mini-taiwan-info/
 6. **Supabase**：anon key 可公開；service_role 只在後端（pipeline）使用
 7. **agent-browser**：截圖驗證視覺改動，特別是 layout / overlap 類問題
 
+## 「LIVE」用詞嚴守（2026-05-14 拍板，違反即錯）
+
+**LIVE** 只能形容「**data collector 設 cron 自動持續抓 + 上游 realtime/高頻**」的資料，雙條件都符合才能用。
+
+❌ 禁止用法：
+- 「LIVE 接好」「KPI 全 LIVE」「跑完自動 LIVE」「接通 LIVE」
+- 任何「實作進度 / 從 mock 改 DB / 從 placeholder 變有東西」場景用 LIVE
+
+✅ 替代用詞：「**接通真實資料**」「**接通真實 RPC**」「**接通 DB**」「**從 mock 改 DB**」
+
+✅ 仍可用 LIVE 的場景：
+- 描述「資料本身是 LIVE 的」（蓄水率 / 雨量 / 河川水位 / 地下水位 — collector cron 真跑）
+- UI 上 `<DataAgeBadge>` 自動分類，僅 cron 持續抓的標綠 LIVE，其他標「採樣 X 天前」橘 / 灰
+
+**為什麼**：mini-taiwan-info 是公開縣市儀錶板，標 LIVE 等於對外承諾即時性。LPCD（年度）/ 水質（月度）/ 淹水（靜態）標 LIVE 名實不符會傷對外信任。詳見 `.claude/memory/PRINCIPLES.md`。
+
 ## Phase 0 已完成（2026-05-14）
 
 | Phase | 內容 |

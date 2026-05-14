@@ -99,6 +99,25 @@
 - 詳見 `.claude/skills/water-loop/SKILL.md`
 - 觸發詞：`/water-loop`、「跑下一輪」、「接下個資料」、「修一輪 P0」
 
+### 2026-05-14: 「LIVE」用詞嚴守 — 不只 badge，溝通也不能亂用
+
+跟下面 LIVE 嚴格定義配對。**「LIVE」這個字只能形容資料本身**（collector cron + 上游 realtime），不能當「接通真實資料 / 從 mock 改 DB / 從 placeholder 變有東西」的代名詞。
+
+| ❌ 不該說 | ✅ 應該說 |
+|---|---|
+| 「ViewB 水質 tab LIVE 接好」 | 「ViewB 水質 tab **接通真實資料**」 |
+| 「6/6 KPI 全 LIVE」 | 「6/6 KPI **接通真實資料**（其中 N 個真 LIVE：collector cron）」 |
+| 「ETL 跑完自動 LIVE」 | 「ETL 跑完自動接通真實資料」 |
+| 「接 RPC 變 LIVE」 | 「接 RPC 接通真實資料」 |
+
+**用法守則**：
+- 「LIVE」只描述「DB 內的某張表 / 某個 KPI」本身，且必須符合「collector cron + 上游 realtime」雙條件
+- 描述「實作進度」「從 mock 改成 DB」「接 RPC 完成」一律用「**接通真實資料**」
+- commit message / STATUS / BACKLOG / 對話皆遵守
+- 介面 UI 同步：LIVE badge 也只用在真 LIVE 資料，其他用 `DataAgeBadge`
+
+**為什麼這條重要**：違反會造成 user 對「哪些資料即時、哪些其實是 backfill」的判斷錯誤；mini-taiwan-info 給 22 縣市公開儀錶板，標 LIVE 等於對外承諾即時性，名實不符會傷信任。
+
 ### 2026-05-14: LIVE badge 嚴格定義 = data collector 持續抓的才叫 LIVE
 
 User 在 Cycle A 拍板的重要分隔：
