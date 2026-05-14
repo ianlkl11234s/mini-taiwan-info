@@ -346,6 +346,91 @@ export interface GovernanceSummary {
   sewage_by_county: Record<string, number>;
 }
 
+// ─────────────────────────────────────────────────
+// 7. 水質測站 (Cycle A: migration 097 後啟用)
+//    來源：public.water_quality_stations + readings + RPCs
+// ─────────────────────────────────────────────────
+
+export type WaterStationType = "river" | "reservoir" | "groundwater";
+export type WaterParam = "DO" | "BOD" | "pH" | "COD" | "TOC" | "EC" | "SS" | "NH3N" | "RPI" | "CTSI";
+
+export interface WaterQualityCountySummary {
+  county_id: string;          // id_moi
+  county_name: string;
+  param: string;
+  avg_value: number | null;
+  min_value: number | null;
+  max_value: number | null;
+  n_stations: number;
+  n_readings: number;
+  latest_sampled_at: string | null;
+}
+
+export interface WaterQualityStation {
+  station_id: string;
+  name: string;
+  station_type: "river" | "reservoir" | "groundwater" | "other";
+  source_prefix: string;          // epa_river / epa_reservoir / epa_gw / wra_gw
+  county_id: string | null;       // id_moi
+  county_name: string | null;
+  river_name: string | null;
+  basin_name: string | null;
+  township: string | null;
+  lng: number | null;
+  lat: number | null;
+  latest_sampled_at: string | null;
+  latest_params: Record<string, unknown> | null;
+  rpi: number | null;
+  cti: number | null;
+  do_value: number | null;
+  bod_value: number | null;
+  ph_value: number | null;
+}
+
+/**
+ * 22 縣市 × 該參數 平均（最近 N 天，可篩 station_type）
+ */
+export async function fetchWaterQualityByCounty(
+  param: WaterParam,
+  days = 365,
+  stationType?: WaterStationType
+): Promise<WaterQualityCountySummary[]> {
+  const { data, error } = await supabase.rpc("get_water_quality_county_summary", {
+    p_param: param,
+    p_days: days,
+    p_station_type: stationType ?? null,
+  });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn("[query] water_quality_county not available:", error.message);
+    return [];
+  }
+  return (data ?? []) as WaterQualityCountySummary[];
+}
+
+/**
+ * 測站清單 + 最新一筆 reading（給 map layer + drill）
+ */
+export async function fetchWaterQualityStations(
+  stationType?: WaterStationType,
+  countyId?: string
+): Promise<WaterQualityStation[]> {
+  const { data, error } = await supabase.rpc("get_water_quality_station_latest", {
+    p_station_type: stationType ?? null,
+    p_county_id: countyId ?? null,
+  });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn("[query] water_quality_stations RPC failed:", error.message);
+    return [];
+  }
+  return (data ?? []) as WaterQualityStation[];
+}
+
+// ─────────────────────────────────────────────────
+// 3.1 (legacy) — 全國 governance summary (LPCD + sewage)
+// ─────────────────────────────────────────────────
+
 export async function fetchGovernanceSummary(): Promise<GovernanceSummary> {
   const [lpcdLatest, sewageLatest] = await Promise.all([
     fetchLpcdLatest(),

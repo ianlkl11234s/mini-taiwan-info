@@ -33,6 +33,7 @@ import { TrendChart, type TrendPoint } from "@/components/charts/TrendChart";
 import { Donut } from "@/components/charts/Donut";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { useCountyData } from "@/hooks/useCountyData";
+import { useWaterQuality } from "@/hooks/useWaterQuality";
 
 interface ViewBProps {
   manifest: ThemeManifest;
@@ -155,7 +156,7 @@ export function ViewB({
       {tab === "reservoirs" && (
         <ReservoirsTab reservoirs={data.countyReservoirs} onDrillReservoir={onDrillReservoir} />
       )}
-      {tab === "water_quality" && <PlaceholderTab title="河川水質" desc="水質測站 BOD/DO + 列管事業點" county={c.name_zh} />}
+      {tab === "water_quality" && <WaterQualityTab countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />}
       {tab === "flood" && <PlaceholderTab title="防洪" desc="淹水潛勢 + 滯洪池 + 即時雨量" county={c.name_zh} />}
       {tab === "infrastructure" && (
         <PlaceholderTab
@@ -608,6 +609,303 @@ function RankingTab({
         countyCode={countyCode} · 排名以 governance.{`{lpcd|sewage}`}_by_county 計算（最新年度）
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// Tab: WaterQuality（Cycle A — 水質測站 DO/BOD/pH）
+// ─────────────────────────────────────────────────
+
+function WaterQualityTab({
+  countyIdMoi,
+  countyName,
+}: {
+  countyIdMoi: string | null;
+  countyName: string;
+}) {
+  const [param, setParam] = useState<"DO" | "BOD" | "pH">("DO");
+  const [stationType, setStationType] = useState<"reservoir" | "river" | "groundwater" | "all">("reservoir");
+
+  const { loading, error, countySummary, stations } = useWaterQuality(
+    param,
+    countyIdMoi,
+    stationType
+  );
+
+  // 該縣市在 22 縣市中的排名（依 param avg）
+  const myRow = countyIdMoi ? countySummary.find((r) => r.county_id === countyIdMoi) : null;
+  const sorted = [...countySummary].filter((r) => r.avg_value != null);
+  // DO/pH 越高越好；BOD 越低越好
+  const higherBetter = param !== "BOD";
+  sorted.sort((a, b) =>
+    higherBetter ? (b.avg_value ?? 0) - (a.avg_value ?? 0) : (a.avg_value ?? 0) - (b.avg_value ?? 0)
+  );
+  const myRank = myRow ? sorted.findIndex((r) => r.county_id === countyIdMoi) + 1 : null;
+
+  const paramLabel: Record<typeof param, { name: string; unit: string; hint: string }> = {
+    DO: { name: "溶氧量", unit: "mg/L", hint: "越高越好（≥6 健康水質）" },
+    BOD: { name: "生化需氧量", unit: "mg/L", hint: "越低越好（<3 為乾淨水）" },
+    pH: { name: "酸鹼值", unit: "", hint: "6.5–8.5 為正常" },
+  };
+  const typeLabel: Record<typeof stationType, string> = {
+    reservoir: "水庫",
+    river: "河川",
+    groundwater: "地下水",
+    all: "全部",
+  };
+
+  return (
+    <>
+      {/* 控制列：參數 + 測站類別 */}
+      <div
+        className="section"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 12,
+          alignItems: "center",
+          padding: 14,
+          marginBottom: "var(--section-gap)",
+        }}
+      >
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginRight: 8 }}>
+          <FlaskConical size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
+          參數
+        </div>
+        <div className="toggle-group" style={{ fontSize: 11 }}>
+          {(["DO", "BOD", "pH"] as const).map((p) => (
+            <button
+              key={p}
+              className={param === p ? "active" : ""}
+              onClick={() => setParam(p)}
+              style={{ padding: "4px 10px" }}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>類別</div>
+        <div className="toggle-group" style={{ fontSize: 11 }}>
+          {(["reservoir", "river", "groundwater"] as const).map((t) => (
+            <button
+              key={t}
+              className={stationType === t ? "active" : ""}
+              onClick={() => setStationType(t)}
+              style={{ padding: "4px 10px" }}
+            >
+              {typeLabel[t]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && (
+        <div className="muted" style={{ padding: 20, textAlign: "center" }}>
+          ⏳ 載入水質資料…
+        </div>
+      )}
+      {error && (
+        <div className="muted" style={{ padding: 20, textAlign: "center", color: "#B91C1C" }}>
+          ⚠️ {error.message}
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          {/* 該縣市排名卡 */}
+          <div className="section">
+            <div className="section-head">
+              <div>
+                <div className="section-title">
+                  <span className="pre">RANK</span>
+                  {countyName} · {paramLabel[param].name}（{param}{paramLabel[param].unit ? " " + paramLabel[param].unit : ""}）
+                  <span style={liveBadgeStyle}>LIVE</span>
+                </div>
+                <div className="section-subtitle">
+                  {paramLabel[param].hint}．資料來源：環境部 EPA + 水利署 WRA 水質測站
+                </div>
+              </div>
+            </div>
+
+            {myRow && myRow.avg_value != null ? (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "auto 1fr",
+                  gap: 18,
+                  alignItems: "center",
+                  padding: "12px 4px",
+                }}
+              >
+                <Donut value={myRank ?? 0} total={sorted.length || 22} size={100} tier={
+                  myRank == null
+                    ? "—"
+                    : myRank <= Math.ceil((sorted.length || 22) * 0.33)
+                      ? "前段"
+                      : myRank >= Math.ceil((sorted.length || 22) * 0.66)
+                        ? "後段"
+                        : "中段"
+                } />
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: "var(--accent-deep)" }}>
+                    {Number(myRow.avg_value).toFixed(2)}
+                    {paramLabel[param].unit && (
+                      <span style={{ fontSize: 13, color: "var(--text-secondary)", marginLeft: 4 }}>
+                        {paramLabel[param].unit}
+                      </span>
+                    )}
+                  </div>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                    {myRow.n_stations} 站 · {myRow.n_readings} 筆讀值 · 最新 {myRow.latest_sampled_at?.slice(0, 10) ?? "—"}
+                  </div>
+                  <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                    範圍 {Number(myRow.min_value ?? 0).toFixed(2)} – {Number(myRow.max_value ?? 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 12.5 }}>
+                ⚠️ {countyName} 在「{typeLabel[stationType]}」類別下無 {param} 資料
+                {stationType === "river" && (
+                  <>
+                    <br />（河川水質 446 站表已建，reading pipeline 待補 — Cycle A2 進行中）
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 22 縣市排名（橫向 bar） */}
+          {sorted.length > 0 && (
+            <div className="section">
+              <div className="section-head">
+                <div className="section-title">
+                  <span className="pre">RANKING</span>
+                  全國 {paramLabel[param].name} 縣市排名（{higherBetter ? "高 → 低" : "低 → 高"}）
+                  <span style={liveBadgeStyle}>LIVE</span>
+                </div>
+                <div className="section-subtitle">
+                  {sorted.length} / 22 縣市有 {param} 資料·依「{higherBetter ? "越高越好" : "越低越好"}」排序
+                </div>
+              </div>
+              <div>
+                {sorted.map((r, i) => {
+                  const isSelf = r.county_id === countyIdMoi;
+                  const max = Math.max(...sorted.map((x) => Number(x.avg_value ?? 0)));
+                  const pct = Math.max(2, (Number(r.avg_value ?? 0) / Math.max(max, 0.01)) * 100);
+                  return (
+                    <div
+                      key={r.county_id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "26px 84px 1fr 64px",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "4px 0",
+                        background: isSelf ? "var(--accent-soft)" : undefined,
+                        borderRadius: 4,
+                      }}
+                    >
+                      <span style={{ fontSize: 11, color: "var(--text-tertiary)", textAlign: "right" }}>
+                        {i + 1}
+                      </span>
+                      <span style={{ fontSize: 12.5, fontWeight: isSelf ? 700 : 400 }}>
+                        {r.county_name}
+                      </span>
+                      <span style={{ position: "relative", height: 14 }}>
+                        <span
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: `${pct}%`,
+                            background: isSelf ? "var(--accent)" : "var(--accent-soft)",
+                            borderRadius: 3,
+                          }}
+                        />
+                      </span>
+                      <span style={{ fontSize: 11.5, textAlign: "right", color: "var(--text-secondary)" }}>
+                        {Number(r.avg_value ?? 0).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 該縣市測站清單 */}
+          {stations.length > 0 && (
+            <div className="section">
+              <div className="section-head">
+                <div className="section-title">
+                  <span className="pre">STATIONS</span>
+                  {countyName} {typeLabel[stationType]}水質測站 · {stations.length} 站
+                  <span style={liveBadgeStyle}>LIVE</span>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+                {stations.slice(0, 30).map((s) => (
+                  <div
+                    key={s.station_id}
+                    style={{
+                      padding: 10,
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      background: "var(--surface)",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
+                      {s.name}
+                    </div>
+                    <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
+                      {s.river_name ?? s.township ?? s.source_prefix}
+                    </div>
+                    <div style={{ display: "flex", gap: 12, fontSize: 11.5 }}>
+                      {s.do_value != null && (
+                        <span><b>DO</b> {Number(s.do_value).toFixed(1)}</span>
+                      )}
+                      {s.bod_value != null && (
+                        <span><b>BOD</b> {Number(s.bod_value).toFixed(1)}</span>
+                      )}
+                      {s.ph_value != null && (
+                        <span><b>pH</b> {Number(s.ph_value).toFixed(1)}</span>
+                      )}
+                    </div>
+                    <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>
+                      {s.latest_sampled_at?.slice(0, 10) ?? "無資料"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {stations.length > 30 && (
+                <div className="muted" style={{ fontSize: 11, marginTop: 8, textAlign: "center" }}>
+                  顯示前 30 / 共 {stations.length} 站
+                </div>
+              )}
+            </div>
+          )}
+
+          {stationType === "river" && countySummary.length === 0 && (
+            <div className="section" style={{ textAlign: "center", padding: 24 }}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>🚧</div>
+              <div className="muted" style={{ fontSize: 12.5 }}>
+                河川水質 reading 還沒進 DB（站表 446 站已建）
+                <br />Cycle A2 補 pipeline 進行中
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="source-badge">
+        <span className="field">資料來源 <b>環境部 EPA · 水利署 WRA · migration 087 + 097</b></span>
+        <span className="spacer" />
+        <a href="#">資料說明</a>
+      </div>
+    </>
   );
 }
 
