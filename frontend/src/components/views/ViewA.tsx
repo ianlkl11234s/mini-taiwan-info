@@ -162,7 +162,9 @@ export function ViewA({
   }
   const hasRealLpcd = Object.keys(lpcdRealByCode3).length > 0;
 
-  // Hero hook（v1：用 manifest.tagline + 簡單統計；hook_rules engine 留 Phase 1）
+  // Hero hook：水主題用 LPCD 比率敘事；其他主題 fallback 到 manifest.theme.tagline
+  // hook_rules engine 留 Phase 1
+  const isWaterTheme = theme.id === "water";
   const ranking = hasRealLpcd
     ? COUNTIES.map((c) => ({
         code: c.code3,
@@ -171,7 +173,9 @@ export function ViewA({
       })).sort((a, b) => b.value - a.value)
     : computeLpcdRanking();
   const lpcdNationalForHook = realGovernance?.lpcd_national_avg ?? WATER_NATIONAL_MOCK.lpcd;
-  const hookText = computeHookText(ranking, lpcdNationalForHook, hasRealLpcd);
+  const hookText: JSX.Element = isWaterTheme
+    ? computeHookText(ranking, lpcdNationalForHook, hasRealLpcd)
+    : <span className="em">{theme.tagline ?? theme.description}</span>;
 
   return (
     <div>
