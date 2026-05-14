@@ -193,6 +193,78 @@ agent-browser headless Chrome 截圖時 SPA 還沒 hydrate 完：
 
 ---
 
+## 2026-05-14 epa_river 站表存在但 reading 0 筆 — Discovery agent 報告失準
+
+**現象**
+Cycle A Discovery 階段，agent 回報「water_quality_stations 2449 站 + readings 8775 筆」，據此規劃 Cycle A 接 ViewB「河川水質」tab。實際 drill schema 才發現：
+- epa_river: stations 446 站，readings **0 筆**（pipeline 漏抓河川 source）
+- 真正有 reading 的是 epa_reservoir (399) + wra_gw (8357) + epa_gw (19)
+
+險些花時間做「河川水質 tab」但實際看到的是水庫水質。
+
+**根因**
+- pipeline `03_load_water_quality.py` 抓了 epa_reservoir / epa_gw / wra_gw 但**漏 epa_river**
+- Discovery agent 只看 station 表，沒 join reading 看真實覆蓋
+- pipeline 過去某時點手動跑 + 沒 cron 持續，狀況不易發現
+
+**對策**
+- Cycle A scope 調整：水庫水質為主（13 縣市覆蓋）+ 河川 placeholder
+- 並行 spawn agent 寫 epa_river pipeline 補抓（Cycle A2，commit 88353ae 但未 run）
+- ViewB IA 重組（Cycle B）：水質拆解到對應水體 tab，河川 tab 警告「reading pipeline 待補」
+
+**教訓**
+- Discovery 階段對「資料就緒」的 agent 報告**必須 drill SQL 驗證**（select count + sample），不只看表存在
+- 「pipeline 已存在」不等於「資料已完整」— 要看 ingested_at + reading 行數
+- 跨層查 schema：station 表 + reading 表 by source 都查清楚
+- /water-loop SKILL Stage 1 Discovery 已加「by source freshness 驗證」步驟
+
+---
+
+## 2026-05-14 「LIVE」用詞濫用 — commit message + UI 名實不符
+
+**現象**
+Cycle A 我寫 commit「ViewB 水質 tab LIVE 接好」+ UI 加 LIVE badge。但水質 collector 沒設、月度採樣 — user 抓包：「水質 tab 有 live 資料嗎？什麼叫做他的 live 接好，但是我的 collector 又沒有？」
+
+**根因**
+我把「LIVE」當「接通真實資料 / 從 mock 改 DB」代名詞，忽略 LIVE 在本專案的嚴格定義（PRINCIPLES）= collector cron + 上游 realtime。
+- commit message 5075b87 / 95bc30e 等 title 都犯
+- ViewB WaterQualityTab 內 3 處 LIVE badge 標水質資料（月度採樣，非 LIVE）
+- _STATUS / BACKLOG / STATUS 內充斥「6/6 KPI 全 LIVE」濫用
+
+**對策**
+- 立刻定義「LIVE」嚴格規範（commit ac44c72 PRINCIPLES）
+- 用詞嚴守（commit 84c417c PRINCIPLES + CLAUDE.md）
+- 建 DataAgeBadge component（commit 1864a61）取代名實不符的 LIVE badge
+- patch living docs LIVE 錯字（commit 47d61e4）
+- 舊 commit message immutable 不動
+
+**教訓**
+- 對外公開儀錶板，「LIVE」是承諾即時性的字 — 名實不符傷信任
+- mini-taiwan-info 給 22 縣市公開觀眾看，**對外用詞必須跟上游真實 freshness 對齊**
+- 規範要寫進 PRINCIPLES + CLAUDE.md 雙保險（CLAUDE.md 是全域可見）
+- ViewA 6 KPI / ViewB OverviewTab 既有 LIVE badge 也要 audit（B029 task）
+
+---
+
+## 2026-05-14 vite dev server 中途死掉，agent-browser 截全白
+
+**現象**
+Cycle A 改完 frontend 跑 typecheck pass，agent-browser reload 截圖卻全白。lsof :5173 沒 listening process — dev server 死了，但 typecheck pass 沒提示。
+
+**根因**
+之前 cycle 1 一直跑著的 dev server 不知何時退出（可能 background hang up）。typecheck 是獨立 process 不受影響。截圖前沒 verify server alive。
+
+**對策**
+- 重啟 `pnpm dev > /tmp/vite-dev.log 2>&1 &`
+- 截圖前用 `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5173` 確認 200
+
+**教訓**
+- agent-browser 截全白 → 第一直覺懷疑 dev server，不是 React render bug
+- 長時間 background process 不可信，cycle 間驗證一次
+- /water-loop SKILL Stage 4 Verify 前加「dev server alive check」
+
+---
+
 ## (template, 之後用)
 
 ## YYYY-MM-DD 標題
