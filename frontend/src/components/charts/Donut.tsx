@@ -39,16 +39,47 @@ export function Donut({ value, total = 22, size = 110, stroke = 11, tier }: Prop
           </linearGradient>
         </defs>
       </svg>
-      <div className="donut-label">
+      <div
+        className="donut-label"
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "grid",
+          placeItems: "center",
+          textAlign: "center",
+          pointerEvents: "none",
+        }}
+      >
         <div>
-          <div className="big tnum">
+          <div
+            className="big tnum"
+            style={{
+              fontSize: 28,
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              color: "var(--text)",
+              lineHeight: 1,
+            }}
+          >
             {value}
-            <span className="muted" style={{ fontSize: 16, fontWeight: 500 }}>
+            <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-tertiary)" }}>
               {" / "}
               {total}
             </span>
           </div>
-          {tier && <div className="tier">{tier}</div>}
+          {tier && (
+            <div
+              className="tier"
+              style={{
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: "var(--accent-deep)",
+                marginTop: 6,
+              }}
+            >
+              {tier}
+            </div>
+          )}
         </div>
       </div>
     </div>

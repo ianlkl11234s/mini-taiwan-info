@@ -68,11 +68,14 @@ export function PointProfile({ reservoirs, onReservoirClick }: Props) {
 
   return (
     <div className="section point-profile">
-      <div className="section-head">
-        <div>
+      <div
+        className="section-head"
+        style={{ flexWrap: "wrap", rowGap: 10, alignItems: "flex-start" }}
+      >
+        <div style={{ minWidth: 0, flex: "1 1 200px" }}>
           <div className="section-title">
             <span className="pre">POINTS</span>
-            點位概況 · {total} 座主要水庫
+            點位概況 · {total} 座
             <span
               style={{
                 marginLeft: 6,
@@ -88,17 +91,34 @@ export function PointProfile({ reservoirs, onReservoirClick }: Props) {
               LIVE
             </span>
           </div>
-          <div className="section-subtitle">把縣市彙整數字看不到的「個別狀態」攤開</div>
+          <div className="section-subtitle" style={{ marginTop: 2 }}>
+            把縣市彙整看不到的個別狀態攤開
+          </div>
         </div>
-        <div className="toggle-group">
-          <button className={mode === "bucket" ? "active" : ""} onClick={() => setMode("bucket")}>
-            蓄水率分布
+        <div
+          className="toggle-group"
+          style={{ flexShrink: 0, fontSize: 11 }}
+        >
+          <button
+            className={mode === "bucket" ? "active" : ""}
+            onClick={() => setMode("bucket")}
+            style={tinyToggleStyle}
+          >
+            分布
           </button>
-          <button className={mode === "region" ? "active" : ""} onClick={() => setMode("region")}>
-            按地理區
+          <button
+            className={mode === "region" ? "active" : ""}
+            onClick={() => setMode("region")}
+            style={tinyToggleStyle}
+          >
+            地理區
           </button>
-          <button className={mode === "scatter" ? "active" : ""} onClick={() => setMode("scatter")}>
-            容量 × 蓄水率
+          <button
+            className={mode === "scatter" ? "active" : ""}
+            onClick={() => setMode("scatter")}
+            style={tinyToggleStyle}
+          >
+            容量×率
           </button>
         </div>
       </div>
@@ -188,6 +208,11 @@ export function PointProfile({ reservoirs, onReservoirClick }: Props) {
     </div>
   );
 }
+
+const tinyToggleStyle: React.CSSProperties = {
+  padding: "4px 8px",
+  fontSize: 11,
+};
 
 function computeRegionHint(byRegion: Array<{ label: string; count: number; avg: number }>): string {
   if (byRegion.length < 2) return "";
