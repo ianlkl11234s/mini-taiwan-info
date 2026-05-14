@@ -86,7 +86,7 @@ export function ViewC({ reservoirId, allReservoirs, nationalAvg, onBack }: ViewC
         </div>
         <h2 className="name">
           <Waves size={22} color="var(--accent)" />
-          <span style={{ marginLeft: 8 }}>{r.name}水庫</span>
+          <span style={{ marginLeft: 8 }}>{r.name.endsWith("水庫") ? r.name : `${r.name}水庫`}</span>
           {isDanger && (
             <span className="badge" style={{ background: "var(--danger)" }}>
               🔴 警戒
@@ -197,7 +197,7 @@ export function ViewC({ reservoirId, allReservoirs, nationalAvg, onBack }: ViewC
           }}
         >
           <div className="muted">水庫名稱</div>
-          <div>{r.name}水庫</div>
+          <div>{r.name.endsWith("水庫") ? r.name : `${r.name}水庫`}</div>
           <div className="muted">水庫 ID</div>
           <div className="tnum">{r.reservoir_id}</div>
 

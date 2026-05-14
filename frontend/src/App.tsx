@@ -17,6 +17,7 @@ import { MapLegend } from "@/components/map/MapLegend";
 import { TwoSectionLayers, type PointLayerToggle } from "@/components/map/TwoSectionLayers";
 import { ViewA } from "@/components/views/ViewA";
 import { ViewB } from "@/components/views/ViewB";
+import { ViewC } from "@/components/views/ViewC";
 import { getMockMetricValue } from "@/lib/mock-data";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWaterKpis } from "@/hooks/useWaterKpis";
@@ -52,6 +53,7 @@ export default function App() {
   const [theme, setTheme] = useState<string>(import.meta.env.VITE_DEFAULT_THEME ?? "water");
   const [view, setView] = useState<AppView>("A");
   const [county, setCounty] = useState<CountyCode3 | null>(null);
+  const [reservoirId, setReservoirId] = useState<string | null>(null);
   const [comparing, setComparing] = useState(false);
 
   const manifest: ThemeManifest | null = manifests[theme] ?? null;
@@ -293,6 +295,16 @@ export default function App() {
                 realLoading={useRealData ? water.loading : false}
                 realError={useRealData ? water.error : null}
               />
+            ) : view === "C" && reservoirId ? (
+              <ViewC
+                reservoirId={reservoirId}
+                allReservoirs={useRealData ? water.reservoirs : []}
+                nationalAvg={useRealData ? water.summary?.reservoir_rate_avg ?? null : null}
+                onBack={() => {
+                  setReservoirId(null);
+                  setView(county ? "B" : "A");
+                }}
+              />
             ) : view === "B" && county ? (
               <ViewB
                 manifest={manifest}
@@ -304,6 +316,10 @@ export default function App() {
                 sewageByCountyId={useRealData ? water.governance?.sewage_by_county ?? {} : {}}
                 onBack={goHome}
                 onAddCompare={() => { setComparing(true); }}
+                onDrillReservoir={(id) => {
+                  setReservoirId(id);
+                  setView("C");
+                }}
               />
             ) : (
               <div className="hero">
