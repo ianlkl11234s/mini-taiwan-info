@@ -4,7 +4,9 @@
 
 const { useEffect: muEffect, useRef: muRef, useState: muState } = React;
 
-const MAPBOX_TOKEN = "__MAPBOX_TOKEN_PLACEHOLDER__";
+// Set via env or replace inline before serving the prototype HTML.
+// Frontend production version reads from VITE_MAPBOX_TOKEN (see frontend/src/lib/mapbox.ts).
+const MAPBOX_TOKEN = (typeof window !== "undefined" && window.MAPBOX_TOKEN) || "__MAPBOX_TOKEN_PLACEHOLDER__";
 
 // Taiwan counties simplified GeoJSON (decimated locally, ~460KB)
 const TW_COUNTIES_URL = "data/tw-counties.geo.json";

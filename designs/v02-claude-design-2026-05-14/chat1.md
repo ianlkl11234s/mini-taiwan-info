@@ -64,7 +64,7 @@ _[tool: questions_v2]_
 Questions answered:
 - scope: 全部都做：以水資源為主軸，做完整流程 + 一個新主題對照
 - fidelity: 真的接 Mapbox GL JS（你提供 token 或我用公開 demo token）
-- mapbox_token: __MAPBOX_TOKEN_PLACEHOLDER__
+- mapbox_token: __MAPBOX_TOKEN_PLACEHOLDER__ (實際 token 設定於本機 .env，不入版控)
 - variation_count: 2-3 個方向（保守 / 中庸 / 大膽）
 - visual_direction: 現在這個版本就很好 — 維持白底淡色 + 主題色 KPI 卡, 更現代產品感：圓角大、卡片陰影、micro-interactions
 - theme_colors: 用 06 元件庫已經定的色（水=藍 / 火=紅 / 人口=紫 / 環境=綠…）

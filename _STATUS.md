@@ -120,7 +120,7 @@ pnpm install
 cp .env.example .env.local
 # 編輯 .env.local 填入：
 #   VITE_SUPABASE_ANON_KEY=（從 gis-platform/.env 拷貝）
-#   VITE_MAPBOX_TOKEN=pk.eyJ1IjoiaWFubGsxMTIzNHMi... （prototype 內的 dev token，可先用）
+#   VITE_MAPBOX_TOKEN=__MAPBOX_TOKEN_PLACEHOLDER__   （從 Mapbox dashboard 拿，dev 可用 unrestricted token，上線換 URL-restricted）
 pnpm typecheck   # 預期：可能有少數 unused param warning
 pnpm dev         # 開 http://localhost:5173
 ```
