@@ -34,6 +34,7 @@ import { Donut } from "@/components/charts/Donut";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { useCountyData } from "@/hooks/useCountyData";
 import { useWaterQuality } from "@/hooks/useWaterQuality";
+import { DataAgeBadge } from "@/components/DataAgeBadge";
 
 interface ViewBProps {
   manifest: ThemeManifest;
@@ -720,10 +721,10 @@ function WaterQualityTab({
                 <div className="section-title">
                   <span className="pre">RANK</span>
                   {countyName} · {paramLabel[param].name}（{param}{paramLabel[param].unit ? " " + paramLabel[param].unit : ""}）
-                  <span style={liveBadgeStyle}>LIVE</span>
+                  <DataAgeBadge sampledAt={myRow?.latest_sampled_at} label="採樣" />
                 </div>
                 <div className="section-subtitle">
-                  {paramLabel[param].hint}．資料來源：環境部 EPA + 水利署 WRA 水質測站
+                  {paramLabel[param].hint}．資料來源：環境部 EPA（月度採樣，無 collector cron）
                 </div>
               </div>
             </div>
@@ -783,10 +784,16 @@ function WaterQualityTab({
                 <div className="section-title">
                   <span className="pre">RANKING</span>
                   全國 {paramLabel[param].name} 縣市排名（{higherBetter ? "高 → 低" : "低 → 高"}）
-                  <span style={liveBadgeStyle}>LIVE</span>
+                  <DataAgeBadge
+                    sampledAt={sorted.reduce<string | null>((m, r) => {
+                      const t = r.latest_sampled_at ?? null;
+                      return !m || (t && t > m) ? t : m;
+                    }, null)}
+                    label="採樣"
+                  />
                 </div>
                 <div className="section-subtitle">
-                  {sorted.length} / 22 縣市有 {param} 資料·依「{higherBetter ? "越高越好" : "越低越好"}」排序
+                  {sorted.length} / 22 縣市有 {param} 資料·依「{higherBetter ? "越高越好" : "越低越好"}」排序·環境部月度採樣
                 </div>
               </div>
               <div>
@@ -843,7 +850,13 @@ function WaterQualityTab({
                 <div className="section-title">
                   <span className="pre">STATIONS</span>
                   {countyName} {typeLabel[stationType]}水質測站 · {stations.length} 站
-                  <span style={liveBadgeStyle}>LIVE</span>
+                  <DataAgeBadge
+                    sampledAt={stations.reduce<string | null>((m, s) => {
+                      const t = s.latest_sampled_at ?? null;
+                      return !m || (t && t > m) ? t : m;
+                    }, null)}
+                    label="最新採樣"
+                  />
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
@@ -902,6 +915,9 @@ function WaterQualityTab({
 
       <div className="source-badge">
         <span className="field">資料來源 <b>環境部 EPA · 水利署 WRA · migration 087 + 097</b></span>
+        <span className="field" title="水質目前無 collector cron 持續抓，是手動 pipeline backfill。月度更新典型">
+          ⚠ <b>非 LIVE</b> · 月度採樣
+        </span>
         <span className="spacer" />
         <a href="#">資料說明</a>
       </div>
