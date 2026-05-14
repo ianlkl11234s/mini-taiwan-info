@@ -611,7 +611,14 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   border-radius: 5px;
   background: var(--accent-soft);
 }
-.section-subtitle { font-size: 12.5px; color: var(--text-tertiary); margin-top: -8px; margin-bottom: 12px; }
+/* section-subtitle: 緊跟 title 但保留呼吸（原 -8px 太狠造成重疊） */
+.section-subtitle {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
 
 /* ===== Toggle group ===== */
 .toggle-group {
@@ -1250,7 +1257,15 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
 /* utilities */
 .row { display: flex; align-items: center; gap: 10px; }
-.between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.between > :first-child { min-width: 0; flex: 1 1 auto; }
+.between > :last-child { flex-shrink: 0; }
 .gap-4 { gap: 4px; } .gap-6 { gap: 6px; } .gap-8 { gap: 8px; }
 .muted { color: var(--text-tertiary); }
 .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; }

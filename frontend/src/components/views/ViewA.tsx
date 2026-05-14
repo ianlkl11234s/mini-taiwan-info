@@ -297,7 +297,7 @@ export function ViewA({
               <div className="section-title">
                 <span className="pre">RANKING</span>
                 {overview.ranking.primary_metric === "lpcd" ? "人均日用水量" : overview.ranking.primary_metric}
-                · TOP {overview.ranking.top_n} / BOTTOM {overview.ranking.bottom_n}
+                {" · TOP "}{overview.ranking.top_n} / BOTTOM {overview.ranking.bottom_n}
               </div>
               <div className="section-subtitle">點任一縣市進入該縣市儀錶板</div>
             </div>

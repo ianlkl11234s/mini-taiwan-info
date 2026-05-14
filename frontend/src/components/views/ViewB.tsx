@@ -530,27 +530,43 @@ function RankingTab({
           const myVal = m.by[idMoi];
           return (
             <div key={m.key} className="section" style={{ marginBottom: 0 }}>
-              <div className="between mb-12">
-                <div>
-                  <div className="section-title" style={{ fontSize: 14 }}>
+              <div style={{ marginBottom: 12 }}>
+                {/* title row：title + LIVE badge + 越高越好 badge 在同一行 */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div
+                    className="section-title"
+                    style={{ fontSize: 14, minWidth: 0, flex: "1 1 auto" }}
+                  >
                     {m.label}
                     <span style={liveBadgeStyle}>LIVE</span>
                   </div>
-                  <div className="muted" style={{ fontSize: 11.5 }}>
-                    {county.name_zh} 第 <b style={{ color: "var(--accent-deep)" }}>{rank}</b> / {entries.length} ·
-                    值 <b style={{ color: "var(--text)" }}>{fmt.num(myVal, 1)} {m.unit}</b>
-                  </div>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "3px 8px",
+                      borderRadius: 5,
+                      background: m.better === "higher" ? "var(--positive-soft)" : "var(--accent-soft)",
+                      color: m.better === "higher" ? "#047857" : "var(--accent-deep)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {m.better === "higher" ? "越高越好" : "越低越好"}
+                  </span>
                 </div>
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "3px 8px",
-                  borderRadius: 5,
-                  background: m.better === "higher" ? "var(--positive-soft)" : "var(--accent-soft)",
-                  color: m.better === "higher" ? "#047857" : "var(--accent-deep)",
-                }}>
-                  {m.better === "higher" ? "越高越好" : "越低越好"}
-                </span>
+                {/* description row：獨占一行，不再被 badge 擠 */}
+                <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+                  {county.name_zh} 第 <b style={{ color: "var(--accent-deep)" }}>{rank}</b> / {entries.length}
+                  {" · "}值 <b style={{ color: "var(--text)" }}>{fmt.num(myVal, 1)} {m.unit}</b>
+                </div>
               </div>
               <div style={{ display: "flex", gap: 2, height: 26, position: "relative" }}>
                 {sorted.map(([id, v], i) => (
