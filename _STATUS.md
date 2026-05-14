@@ -26,6 +26,10 @@
 | └ A-5 | View D 比較模式 | 0.5 天 | ⬜ 待開工 |
 | **0d** | Flood MV ✅ + Rain monthly MV (Backlog) | 0.5 天 | ✅ 完成 — 6/6 KPI 接通真實資料 |
 | **0e** | 「6/6 KPI 全跑通真實資料」驗收 | 0.5 天 | ✅ 達成 |
+| **Cycle 1** (S3) | 3 P0 fix + secret scrub + /water-loop skill 固化 | 1-2 hr | ✅ 完成 2026-05-14 |
+| **Cycle A** (S4) | 水質測站 BOD/DO 接通真實資料 + DataAgeBadge + LIVE 用詞嚴守 | 2 hr | ✅ 完成 2026-05-14 |
+| **Cycle B** (S4) | ViewB IA v2 依水循環層 7 tabs 重組 | 25 min | ✅ 完成 2026-05-14 |
+| **Cycle A2** | epa_river pipeline diff (commit 88353ae) 未 run | 1-2 hr run time | ⬜ user 拍板 run |
 
 **Phase 0 預估總工期**：5-6 天（單人）
 
@@ -293,23 +297,29 @@ python3 pipelines/infrastructure/datagov_26815_sewage.py --full  # 接管率 22 
 - 後端水資源資料 ~78% 已就緒（14 表已 ingest，11 個前端未接）
 - 接下來 11 個 cycle（A-L）按 Tier 1-5 排序依「補弱層 + ROI」推進
 
-### First Move — 推薦從 **Cycle A 水質測站 BOD/DO** 開始
+### First Move — Cycle A 已完成 ✅，推薦下一個跑 **Cycle E 河川流量 + map layers**
 
-理由：資料完全就緒（2449 站 + 8775 reading）、pipeline 已存在、ViewB 河川水質 tab 從 placeholder 接通真實資料解鎖感最強。
+Cycle A + B 已完成（2026-05-14 S4）。新 First Move 候選：
+
+**Cycle E** — 河川流量 188 站 + river_lines 2015 條 + river_basins 116 個 map layer
+- 資料完全就緒（後端 collector cron 真跑）
+- ViewB「河川」tab 流量 placeholder → 接通真實 LIVE 資料
+- 0.5 天
 
 ```
-> /water-loop 跑 Cycle A 水質測站 BOD/DO
+> /water-loop 跑 Cycle E 河川流量 + map layers
 ```
 
 ### Roadmap 5 Tier 摘要
 
-| Tier | 目的 | Cycles | 預估 |
-|---|---|---|---|
-| 1 | 補完治理層 | A 水質 / B 罰鍰 / C RPI+稽查 / C2 列管事業 | 4-5 天 |
-| 2 | 補完配送 + 排放 | D 汙水廠 / D2 TGOS / E 河川流量 / E2 灌溉 | 2-3 天 |
-| 3 | 流量觀 + 視覺串接 | F 地下水 / G 水庫 inflow / H sparkline | 2 天 |
-| 4 | 循環視覺觀 | I 防洪完整化 / J Sankey 圖 | 2-3 天 |
-| 5 | coverage 與收尾 | K warning badge / L 高警戒爆炸 | 1.5 天 |
+| Tier | 目的 | Cycles | 預估 | 狀態 |
+|---|---|---|---|---|
+| 1 | 補完治理層 | **A 水質 ✅** / B 罰鍰 / C RPI+稽查 / C2 列管事業 | 4-5 天 | 1/4 |
+| 2 | 補完配送 + 排放 | D 汙水廠 / D2 TGOS / E 河川流量 / E2 灌溉 | 2-3 天 | 0/4 |
+| 3 | 流量觀 + 視覺串接 | F 地下水 / G 水庫 inflow / H sparkline | 2 天 | 0/3 |
+| 4 | 循環視覺觀 | I 防洪完整化 / J Sankey 圖 | 2-3 天 | 0/2 |
+| 5 | coverage 與收尾 | K warning badge / L 高警戒爆炸 | 1.5 天 | 0/2 |
+| 額外 | **Cycle B** IA v2 重組（水循環層 7 tabs）| 0.5 天 | ✅ | 1/1 |
 
 完成全 Roadmap → **前端 KPI 接通率 43% → 100%、Map layer 15% → 100%**。
 
