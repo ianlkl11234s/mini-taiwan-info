@@ -16,15 +16,40 @@ user_invocable: true
 
 ---
 
-## 5 階段流程
+## 6 階段流程（v1.1，加 Stage 0）
+
+### Stage 0: Mode 判斷（v1.1 新增）
+
+跑 wrap-up 前先決定走哪個 mode：
+
+| Mode | 判斷條件 | 流程差異 |
+|---|---|---|
+| **A. Init mode** | `.claude/memory/STATUS.md` 不存在 / 或本 session 內剛建立 | 把 session 全部知識倒進 9 個 memory；REFLECTIONS append 一條「初始化」紀錄 |
+| **B. Incremental mode**（預設）| STATUS 存在且非本 session 建立 | Diff 上次 STATUS 跟現況；只 append 新事件到對應 memory |
+| **C. Empty mode** | 純閒聊 / 純 read 的 session | 問用戶「要強制留紀錄嗎？」；若 no，跳過 Stage 2-5 |
+
+**判斷指令**：
+```bash
+# 看 STATUS 上次更新時間
+head -10 .claude/memory/STATUS.md | grep "最後更新"
+# 看本 session 有沒有 commit memory 檔
+git log --oneline --since="1 hour ago" -- .claude/memory/
+```
 
 ### Stage 1: Gather
 
 **平行發**：
 
 - Read `.claude/memory/` 9 個檔（除 README）
-- `git log --oneline HEAD~20..HEAD`
-- `git status` + 檢查 `../gis-platform/` `../taipei-gis-analytics/` 有無變動
+- 本 session 的 commit hash 範圍：
+  ```bash
+  # 找出本 session 開始時的 HEAD（用 reflog 而非 --since，更精準）
+  SESSION_START=$(git reflog --date=iso | grep -B1 "from $(git rev-parse HEAD~20)" | head -1 | awk '{print $1}')
+  git log --oneline $SESSION_START..HEAD
+  ```
+  或更簡單：直接用「最早的 memory: 或 feat: commit 之前一個」當 baseline
+- 跨 repo：在每個 repo 內看 `git log --oneline` 用相同 hash whitelist（**不要用 --since=**，會抓到其他 session 的 commits）
+- `git status` 看未 commit 的變動
 - Read root `_STATUS.md` 看 user-facing Phase 進度（不重寫，只取摘要參考）
 
 **接著回顧本 session**：
@@ -33,6 +58,11 @@ user_invocable: true
 - 哪裡卡住、有 typecheck error / runtime error？
 - 用戶糾正幾次、哪些 feedback？
 - agent-browser 抓到的視覺問題？
+
+**陷阱**：
+- ❌ `git log --since="1 hour ago"` — 跨 session 邊界不精準
+- ❌ `git log origin/main..HEAD` — origin 同步狀態取決於是否 fetch
+- ✅ 用具體 commit hash 範圍（從 reflog 或本 session 已知的第一個 commit）
 
 ### Stage 2: Analyze
 
