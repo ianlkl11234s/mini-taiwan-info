@@ -21,7 +21,7 @@ v{NN}-{theme}-{view}-{platform}.{ext}
 | 版本 | 日期 | 狀態 | 備註 |
 |---|---|---|---|
 | v01 | 2026-05-14 | ⚠️ 需改 | 初版，點位資料偏弱，已給補充規範（見 `../docs/10-point-data-pattern.md`） |
-| v02 | 待收 | — | 對應 doc 10 的設計交付清單 |
+| v02 | 2026-05-14 | ✅ 已收（high-fi prototype） | 來自 Claude Design：4 view 全互動 + Mapbox 真接 + 點位概況 + tweaks，目錄 `v02-claude-design-2026-05-14/`，主檔 `Mini Taiwan Info.html`，原始對話 `chat1.md` `chat2.md` |
 
 ---
 
