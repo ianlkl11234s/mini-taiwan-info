@@ -139,6 +139,60 @@ View B Ranking section 內「值 84.5%」desc 文字疊到右側「越高越好�
 
 ---
 
+## 2026-05-14 Mapbox token 已 commit 進 history → GitHub secret scanning 擋 push
+
+**現象**
+首次 `git push -u origin main` 到 mini-taiwan-info 新 remote 被拒：
+```
+remote: ...push declined due to repository rule violations
+remote: ...secret-scanning/unblock-secret/...
+```
+偵測到 `designs/v02-claude-design-2026-05-14/js/map.jsx:7` 內含完整 Mapbox public token。
+
+**根因**
+Phase 0a 設計階段 prototype（`designs/v02-claude-design-2026-05-14/`）直接把 dev token 寫死成 JS 常數，後續沒處理就 commit 進 git。GitHub Push Protection 自動掃描 push 內容含 secret pattern 直接擋。
+
+**對策**
+1. 用 placeholder 取代 working tree token（map.jsx 改讀 `window.MAPBOX_TOKEN`；chat1.md 改說明文字；_STATUS.md 範例改 `__MAPBOX_TOKEN_PLACEHOLDER__`）+ commit
+2. `git filter-repo --replace-text /tmp/replace.txt --force` 把所有歷史 commit 內 token 替換成 placeholder（27 commits 全 rewrite，hash 改變）
+3. filter-repo 自動 remove remote，重 `git remote add` 後 `git push --force`
+4. 過程中 backup 整個 repo 到 `/tmp/{repo}.bak-pre-filterrepo`
+
+**教訓**
+- Mapbox / 任何 token 都當作 secret 看待，**永遠走 .env / .env.local**，不放 prototype / mockup / chat log
+- commit 前若不確定，跑 `grep -rn "pk\\.eyJ\\|sk_\\|AKIA\\|ghp_\\|gho_" --include="*.{js,jsx,ts,tsx,md,yaml,json}" .`
+- GitHub Push Protection 看的是 commit history，不是 working tree — 改現行檔 + 新 commit 救不了
+- `git filter-repo` 比 `git filter-branch` 快很多，built-in tool（brew install）
+- 三 repo 同步時 mini-taiwan-info 第一次 push 才會踩到（其他兩 repo 已有 push 記錄）
+
+詳見 PLAYBOOKS PB-07。
+
+---
+
+## 2026-05-14 agent-browser headless fetch 時序假象造成 P0-2 誤判
+
+**現象**
+Cycle 1 Discovery 階段，screenshot agent 截桃園 ViewB 後回報「水庫 = 0 座、LPCD ━、接管率 ━ 全 None」，列為 P0 bug（reservoirs nearest-centroid 匹配失敗）。實際手動驗證 + 加長 `agent-browser wait` 後：桃園真實顯示「1 座石門 / 平均 72.6% / LPCD 274L LIVE / 接管率 63.8% LIVE」全 LIVE。
+
+**根因**
+agent-browser headless Chrome 截圖時 SPA 還沒 hydrate 完：
+- `useWaterKpis` 拉 Supabase RPC + `useCountyData` 拉 LPCD/sewage 都還在 async loading
+- KPI value 顯示 `━` 或 0（初始 state）
+- agent 截圖 + 看 textContent 抓到 placeholder 值就下結論「真實 0」
+
+**對策**
+- 截圖前 `agent-browser wait 3500-4500ms`（不要只 wait 1500ms）
+- 用 `agent-browser eval` 看 `.kpi-card .kpi-value` text 非 `━` 才視為有效樣本
+- 不確定就拉用戶實機驗證，不把假象當 bug 修
+- `/water-loop` SKILL.md Stage 1 已寫進「fetch 時序假象偵測」
+
+**教訓**
+- agent 截圖 == 拍照，不代表 page 已就緒
+- Discovery agent 回報的「N=0」「顯示 ━」要交叉驗證才下結論
+- Cycle 1 險些花 30min 修一個不存在的 bug — 半自動 loop **必須有 sanity-check 環節**（手動 click 驗證一次，比 agent 截圖可靠）
+
+---
+
 ## (template, 之後用)
 
 ## YYYY-MM-DD 標題
