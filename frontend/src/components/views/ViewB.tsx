@@ -1,11 +1,16 @@
 /**
  * ViewB — 縣市儀錶板（manifest.county_dashboard driven）
  *
- * 對應 prototype view-b.jsx；移植 4 個 real tab：
- *   overview / reservoirs / usage / ranking
- * 3 個 placeholder：water_quality / flood / infrastructure（待 Phase 1+ ETL）
+ * IA v2 (Cycle B, 2026-05-14)：依水循環層 7 tabs：
+ *   overview / reservoirs(+水質) / rivers(+水質) / groundwater(+水質, 水位)
+ *   / flood / supplies(用水與配送) / ranking
  *
- * 資料：useCountyData 一次拉 LPCD history + sewage history + countyReservoirs
+ * 取消：原獨立「水質」tab、原「基礎設施」tab
+ * 水質：拆解到對應水體（水庫/河川/地下水）內
+ * 基礎設施：併入 supplies（自來水普及/漏水率/汙水廠）+ flood（雨水下水道）
+ *
+ * 資料：useCountyData 一次拉 LPCD + sewage + countyReservoirs
+ *       useWaterQuality 共用，stationType 由 prop 鎖定
  */
 
 import { useMemo, useState } from "react";
@@ -14,15 +19,15 @@ import {
   Waves,
   Recycle,
   CloudRain,
-  Building2,
   Globe,
   TrendingUp,
   Plus,
   Share2,
   Download,
   ChevronLeft,
-  AlertTriangle,
   FlaskConical,
+  Activity,
+  Layers,
 } from "lucide-react";
 import type { ThemeManifest, CountyCode3, County } from "@/lib/types";
 import type { ReservoirStatusRow } from "@/lib/queries/water";
@@ -54,16 +59,16 @@ interface ViewBProps {
   onDrillReservoir?: (reservoirId: string) => void;
 }
 
-type TabId = "overview" | "reservoirs" | "water_quality" | "flood" | "infrastructure" | "usage" | "ranking";
+type TabId = "overview" | "reservoirs" | "rivers" | "groundwater" | "flood" | "supplies" | "ranking";
 
 const TAB_DEFS: Array<{ id: TabId; label: string; icon: typeof Globe }> = [
-  { id: "overview",        label: "概覽",       icon: Globe },
-  { id: "reservoirs",      label: "水庫",       icon: Droplet },
-  { id: "water_quality",   label: "河川水質",   icon: FlaskConical },
-  { id: "flood",           label: "防洪",       icon: CloudRain },
-  { id: "infrastructure",  label: "基礎設施",   icon: Building2 },
-  { id: "usage",           label: "用水 & 衛生", icon: Droplet },
-  { id: "ranking",         label: "排名",       icon: TrendingUp },
+  { id: "overview",    label: "概覽",       icon: Globe },
+  { id: "reservoirs",  label: "水庫",       icon: Droplet },
+  { id: "rivers",      label: "河川",       icon: Activity },
+  { id: "groundwater", label: "地下水",     icon: Layers },
+  { id: "flood",       label: "防洪",       icon: CloudRain },
+  { id: "supplies",    label: "用水與配送", icon: Recycle },
+  { id: "ranking",     label: "排名",       icon: TrendingUp },
 ];
 
 export function ViewB({
@@ -155,20 +160,26 @@ export function ViewB({
         />
       )}
       {tab === "reservoirs" && (
-        <ReservoirsTab reservoirs={data.countyReservoirs} onDrillReservoir={onDrillReservoir} />
-      )}
-      {tab === "water_quality" && <WaterQualityTab countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />}
-      {tab === "flood" && <PlaceholderTab title="防洪" desc="淹水潛勢 + 滯洪池 + 即時雨量" county={c.name_zh} />}
-      {tab === "infrastructure" && (
-        <PlaceholderTab
-          title="基礎設施"
-          desc="給水普及率 / 漏水率（部分縣市資料未開放）"
-          county={c.name_zh}
-          warning
+        <ReservoirsTab
+          reservoirs={data.countyReservoirs}
+          onDrillReservoir={onDrillReservoir}
+          countyIdMoi={c.id_moi ?? null}
+          countyName={c.name_zh}
         />
       )}
-      {tab === "usage" && (
-        <UsageTab lpcdHistory={data.lpcdHistory} sewageHistory={data.sewageHistory} />
+      {tab === "rivers" && (
+        <RiverTab countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />
+      )}
+      {tab === "groundwater" && (
+        <GroundwaterTab countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />
+      )}
+      {tab === "flood" && <FloodTab countyName={c.name_zh} />}
+      {tab === "supplies" && (
+        <SuppliesTab
+          lpcdHistory={data.lpcdHistory}
+          sewageHistory={data.sewageHistory}
+          countyName={c.name_zh}
+        />
       )}
       {tab === "ranking" && (
         <RankingTab
@@ -356,56 +367,213 @@ function OverviewTab({
 function ReservoirsTab({
   reservoirs,
   onDrillReservoir,
+  countyIdMoi,
+  countyName,
 }: {
   reservoirs: ReservoirStatusRow[];
   onDrillReservoir?: (id: string) => void;
+  countyIdMoi: string | null;
+  countyName: string;
 }) {
-  if (reservoirs.length === 0) {
-    return (
-      <div className="section" style={{ textAlign: "center", padding: 36 }}>
-        <div style={{ fontSize: 24, marginBottom: 8 }}>💧</div>
-        <div className="muted">該縣市無主要水庫資料（lat/lng nearest-centroid 未匹配）</div>
-      </div>
-    );
-  }
-  const avg = reservoirs.reduce((s, r) => s + (r.storage_ratio_pct ?? 0), 0) / reservoirs.length;
+  const hasReservoirs = reservoirs.length > 0;
+  const avg = hasReservoirs ? reservoirs.reduce((s, r) => s + (r.storage_ratio_pct ?? 0), 0) / reservoirs.length : 0;
   const alert = reservoirs.filter((r) => (r.storage_ratio_pct ?? 100) < 30);
   return (
     <>
-      <div className="insight">
-        <div className="ico"><Waves size={18} /></div>
-        <div className="body">
-          {reservoirs.length} 座水庫平均蓄水率 <b>{avg.toFixed(1)}%</b>。
-          {alert.length > 0 && (
-            <>{" "}<b className="em">{alert.length} 座跌破 30% 紅線</b>（{alert.map((r) => r.name).join("、")}）。</>
-          )}
+      {hasReservoirs ? (
+        <>
+          <div className="insight">
+            <div className="ico"><Waves size={18} /></div>
+            <div className="body">
+              {reservoirs.length} 座水庫平均蓄水率 <b>{avg.toFixed(1)}%</b>。
+              {alert.length > 0 && (
+                <>{" "}<b className="em">{alert.length} 座跌破 30% 紅線</b>（{alert.map((r) => r.name).join("、")}）。</>
+              )}
+            </div>
+          </div>
+          <div className="kpi-grid">
+            {reservoirs.map((r) => {
+              const rate = r.storage_ratio_pct ?? 0;
+              const danger = rate < 30;
+              return (
+                <div
+                  key={r.reservoir_id}
+                  className="kpi-card"
+                  style={{ cursor: onDrillReservoir ? "pointer" : "default" }}
+                  onClick={() => onDrillReservoir?.(r.reservoir_id)}
+                >
+                  <div className="kpi-head">
+                    <div className="kpi-label">
+                      <span className="ico"><Waves size={13} /></span>
+                      {r.name}
+                    </div>
+                  </div>
+                  <div className="kpi-value">{rate.toFixed(1)}<span className="unit">%</span></div>
+                  <div className="muted mt-8" style={{ fontSize: 11.5 }}>
+                    水位 {Number(r.water_level_m ?? 0).toFixed(1)}m · 容量 {fmt.num(Number(r.effective_capacity_wan ?? 0))} 萬m³
+                    {danger && " · 🔴 警戒"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <div className="section" style={{ textAlign: "center", padding: 36, marginBottom: "var(--section-gap)" }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>💧</div>
+          <div className="muted">該縣市無主要水庫資料（lat/lng nearest-centroid 未匹配）</div>
+        </div>
+      )}
+
+      {/* 水庫水質 section — Cycle B IA 重組：水質歸到對應水體 tab */}
+      <WaterQualitySection
+        countyIdMoi={countyIdMoi}
+        countyName={countyName}
+        stationType="reservoir"
+      />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// Tab: Rivers（Cycle B — 河川水位 / 流量 / 水質）
+// ─────────────────────────────────────────────────
+
+function RiverTab({ countyIdMoi, countyName }: { countyIdMoi: string | null; countyName: string }) {
+  return (
+    <>
+      <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">RIVERS</span>
+              {countyName} 河川流量 / 水位
+            </div>
+            <div className="section-subtitle">
+              river_flow_stations 188 站表已建（Cycle E 待接 query）
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          🚧 流量 / 水位資料待 Cycle E 接 query（後端表 + collector cron 已就緒）
         </div>
       </div>
-      <div className="kpi-grid">
-        {reservoirs.map((r) => {
-          const rate = r.storage_ratio_pct ?? 0;
-          const danger = rate < 30;
-          return (
-            <div
-              key={r.reservoir_id}
-              className="kpi-card"
-              style={{ cursor: onDrillReservoir ? "pointer" : "default" }}
-              onClick={() => onDrillReservoir?.(r.reservoir_id)}
-            >
-              <div className="kpi-head">
-                <div className="kpi-label">
-                  <span className="ico"><Waves size={13} /></span>
-                  {r.name}
-                </div>
-              </div>
-              <div className="kpi-value">{rate.toFixed(1)}<span className="unit">%</span></div>
-              <div className="muted mt-8" style={{ fontSize: 11.5 }}>
-                水位 {Number(r.water_level_m ?? 0).toFixed(1)}m · 容量 {fmt.num(Number(r.effective_capacity_wan ?? 0))} 萬m³
-                {danger && " · 🔴 警戒"}
-              </div>
+
+      <WaterQualitySection
+        countyIdMoi={countyIdMoi}
+        countyName={countyName}
+        stationType="river"
+      />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// Tab: Groundwater（Cycle B — 地下水位 / 水質 / 分區）
+// ─────────────────────────────────────────────────
+
+function GroundwaterTab({ countyIdMoi, countyName }: { countyIdMoi: string | null; countyName: string }) {
+  return (
+    <>
+      <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">GW LEVEL</span>
+              {countyName} 地下水位
             </div>
-          );
-        })}
+            <div className="section-subtitle">
+              realtime.groundwater_level_readings 200 萬筆表已建（Cycle F 待接 server-side aggregate）
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          🚧 地下水位 realtime 資料待 Cycle F（collector cron 真跑，已就緒；前端要 RPC down-sample）
+        </div>
+      </div>
+
+      <WaterQualitySection
+        countyIdMoi={countyIdMoi}
+        countyName={countyName}
+        stationType="groundwater"
+      />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// Tab: Flood（Cycle B — 淹水 / 滯洪池 / 雨水下水道 / 即時雨量）
+// ─────────────────────────────────────────────────
+
+function FloodTab({ countyName }: { countyName: string }) {
+  return (
+    <>
+      <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">FLOOD</span>
+              {countyName} 淹水高潛勢
+            </div>
+            <div className="section-subtitle">
+              flood_hazard_pct_by_county MV LIVE（NLDCB 靜態場景，350mm/24hr 預設）
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          🚧 縣市淹水佔比 + 場景切換 (200/350/500mm) 待 Cycle I 接 ViewA props
+        </div>
+      </div>
+
+      <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">DETENTION</span>
+              滯洪池
+            </div>
+            <div className="section-subtitle">
+              detention_basins 140 個 polygon 表已建（5 縣市 + 3 科園 only，coverage 不全 → warning）
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          🚧 待 Cycle I 接 map layer
+        </div>
+      </div>
+
+      <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">STORM DRAIN</span>
+              雨水下水道
+            </div>
+            <div className="section-subtitle">
+              storm_drainage_pipes 26,652 條 + manholes 28,609 個（3 縣市 only）
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          🚧 待 Cycle I 接 map layer (zoom &gt; 12 才顯示)
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">RAIN</span>
+              即時雨量站
+            </div>
+            <div className="section-subtitle">
+              realtime.rain_gauge_readings collector cron 持續抓 1306 站
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          🚧 該縣市即時雨量分布 map layer 待 Cycle I
+        </div>
       </div>
     </>
   );
@@ -415,12 +583,14 @@ function ReservoirsTab({
 // Tab: Usage（LPCD + 接管率歷年）
 // ─────────────────────────────────────────────────
 
-function UsageTab({
+function SuppliesTab({
   lpcdHistory,
   sewageHistory,
+  countyName,
 }: {
   lpcdHistory: Array<{ year: number; lpcd: number | null }>;
   sewageHistory: Array<{ year: number; coverage_pct: number | null }>;
+  countyName: string;
 }) {
   const lpcdData: TrendPoint[] = lpcdHistory
     .filter((d) => d.lpcd != null)
@@ -428,17 +598,25 @@ function UsageTab({
   const sewageData: TrendPoint[] = sewageHistory
     .filter((d) => d.coverage_pct != null)
     .map((d) => ({ x: d.year, y: d.coverage_pct! }));
+  const latestLpcdYear = lpcdData.length > 0 ? lpcdData[lpcdData.length - 1].x : null;
+  const latestSewageYear = sewageData.length > 0 ? sewageData[sewageData.length - 1].x : null;
 
   return (
     <>
+      {/* USAGE — LPCD（年度） */}
       {lpcdData.length > 0 && (
         <div className="section">
           <div className="section-head">
             <div className="section-title">
               <span className="pre">TREND</span>
-              LPCD 歷年（{lpcdData[0].x} – {lpcdData[lpcdData.length - 1].x}）
-              <span style={liveBadgeStyle}>LIVE</span>
+              {countyName} 人均日用水量 LPCD 歷年（{lpcdData[0].x} – {latestLpcdYear}）
+              <DataAgeBadge
+                sampledAt={latestLpcdYear ? `${latestLpcdYear}-12-31T00:00:00Z` : null}
+                label="最新年度"
+                forceClass="annual"
+              />
             </div>
+            <div className="section-subtitle">資料來源：經濟部水利署 datagov:8316（年度，無 collector cron）</div>
           </div>
           <TrendChart
             series={[{ name: "LPCD", color: "var(--accent)", data: lpcdData }]}
@@ -448,14 +626,21 @@ function UsageTab({
           />
         </div>
       )}
+
+      {/* SEWAGE 接管率（年度） */}
       {sewageData.length > 0 ? (
         <div className="section">
           <div className="section-head">
             <div className="section-title">
               <span className="pre">TREND</span>
               污水接管率歷年
-              <span style={liveBadgeStyle}>LIVE</span>
+              <DataAgeBadge
+                sampledAt={latestSewageYear ? `${latestSewageYear}-12-31T00:00:00Z` : null}
+                label="最新年度"
+                forceClass="annual"
+              />
             </div>
+            <div className="section-subtitle">資料來源：內政部營建署 datagov:26815（年度）</div>
           </div>
           <TrendChart
             series={[{ name: "接管率", color: "#10B981", data: sewageData }]}
@@ -471,8 +656,65 @@ function UsageTab({
           ※ 接管率上游 datagov 26815 只提供最新年（無歷年），歷年走勢待 Phase 1+ 補
         </div>
       )}
+
+      {/* INFRASTRUCTURE（合併自原「基礎設施」tab） */}
+      <div className="section">
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">WWTP</span>
+              {countyName} 汙水廠
+            </div>
+            <div className="section-subtitle">
+              sewage_treatment_plants 表 82 座已建（座標 NULL 待 TGOS 反查）
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          🚧 縣市汙水廠 count + map layer 待 Cycle D
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">WATER FACILITIES</span>
+              給水設施 / 自來水普及率
+            </div>
+            <div className="section-subtitle">
+              water_facilities 表 609 處已建（Cycle D2 待接 query）
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          🚧 給水普及率 待 Cycle D2
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">LOSS RATE</span>
+              漏水率
+              <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: "#B91C1C", background: "#FEE2E2", padding: "1px 4px", borderRadius: 3 }}>
+                COVERAGE 不全
+              </span>
+            </div>
+            <div className="section-subtitle">
+              datagov 155665 漏水率無 22 縣市對齊版（台水全國 + 北水單市）
+            </div>
+          </div>
+        </div>
+        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+          ⚠️ coverage 不全，是否要對外呈現待 Cycle K 評估
+        </div>
+      </div>
+
       <div className="source-badge">
-        <span className="field">datagov:8316 · datagov:26815</span>
+        <span className="field">datagov:8316 · datagov:26815 · sewage_treatment_plants · water_facilities</span>
+        <span className="field">⚠ 全部年度 / 靜態資料（非 LIVE）</span>
         <span className="spacer" />
         <a href="#">資料說明</a>
       </div>
@@ -614,18 +856,20 @@ function RankingTab({
 }
 
 // ─────────────────────────────────────────────────
-// Tab: WaterQuality（Cycle A — 水質測站 DO/BOD/pH）
+// Section: WaterQuality (Cycle A + B — 共用，由 stationType prop 鎖定水體類型)
+//   reservoir → ReservoirsTab；river → RiverTab；groundwater → GroundwaterTab
 // ─────────────────────────────────────────────────
 
-function WaterQualityTab({
+function WaterQualitySection({
   countyIdMoi,
   countyName,
+  stationType,
 }: {
   countyIdMoi: string | null;
   countyName: string;
+  stationType: "reservoir" | "river" | "groundwater";
 }) {
   const [param, setParam] = useState<"DO" | "BOD" | "pH">("DO");
-  const [stationType, setStationType] = useState<"reservoir" | "river" | "groundwater" | "all">("reservoir");
 
   const { loading, error, countySummary, stations } = useWaterQuality(
     param,
@@ -652,12 +896,11 @@ function WaterQualityTab({
     reservoir: "水庫",
     river: "河川",
     groundwater: "地下水",
-    all: "全部",
   };
 
   return (
     <>
-      {/* 控制列：參數 + 測站類別 */}
+      {/* 控制列：只剩參數 toggle（stationType 由 tab 鎖定） */}
       <div
         className="section"
         style={{
@@ -671,7 +914,7 @@ function WaterQualityTab({
       >
         <div style={{ fontSize: 12, color: "var(--text-secondary)", marginRight: 8 }}>
           <FlaskConical size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
-          參數
+          {typeLabel[stationType]}水質參數
         </div>
         <div className="toggle-group" style={{ fontSize: 11 }}>
           {(["DO", "BOD", "pH"] as const).map((p) => (
@@ -682,20 +925,6 @@ function WaterQualityTab({
               style={{ padding: "4px 10px" }}
             >
               {p}
-            </button>
-          ))}
-        </div>
-        <div style={{ flex: 1 }} />
-        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>類別</div>
-        <div className="toggle-group" style={{ fontSize: 11 }}>
-          {(["reservoir", "river", "groundwater"] as const).map((t) => (
-            <button
-              key={t}
-              className={stationType === t ? "active" : ""}
-              onClick={() => setStationType(t)}
-              style={{ padding: "4px 10px" }}
-            >
-              {typeLabel[t]}
             </button>
           ))}
         </div>
@@ -922,42 +1151,6 @@ function WaterQualityTab({
         <a href="#">資料說明</a>
       </div>
     </>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// Placeholder Tab
-// ─────────────────────────────────────────────────
-
-function PlaceholderTab({
-  title,
-  desc,
-  county,
-  warning,
-}: {
-  title: string;
-  desc: string;
-  county: string;
-  warning?: boolean;
-}) {
-  return (
-    <div className="section" style={{ textAlign: "center", padding: 36 }}>
-      <div style={{ fontSize: 24, marginBottom: 8 }}>{warning ? "⚠️" : "🚧"}</div>
-      <div className="section-title" style={{ justifyContent: "center", marginBottom: 8 }}>
-        {title}
-      </div>
-      <div className="muted" style={{ fontSize: 12.5, maxWidth: 360, margin: "0 auto" }}>
-        {county} · {desc}
-        <br />
-        {warning ? (
-          <>
-            <AlertTriangle size={11} style={{ verticalAlign: -1 }} /> 該指標部分縣市資料未開放
-          </>
-        ) : (
-          <>Phase 1+ 待接 ETL pipeline</>
-        )}
-      </div>
-    </div>
   );
 }
 
