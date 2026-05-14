@@ -22,6 +22,7 @@ import { getMockMetricValue } from "@/lib/mock-data";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWaterKpis } from "@/hooks/useWaterKpis";
 import { codeConvert, normalizeCountyName } from "@/lib/counties";
+import { getNearestCounty } from "@/lib/reverseGeocode";
 
 // 主題色映射（與 manifest theme.color_accent 對齊）
 const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: string }> = {
@@ -152,9 +153,10 @@ export default function App() {
     setPointLayersOn((prev) => ({ ...prev, [id]: !prev[id] }));
 
   // 40 水庫真實點位（給 MapView）
+  // View A: 全部 37 座；View B/C: 只顯示該縣市 + 鄰縣（聚焦上下文）
   const reservoirPointsForMap = useMemo(() => {
     if (!useRealData || !water.reservoirs.length) return [];
-    return water.reservoirs.map((r) => ({
+    const all = water.reservoirs.map((r) => ({
       id: r.reservoir_id,
       name: r.name,
       rate: r.storage_ratio_pct,
@@ -162,7 +164,12 @@ export default function App() {
       lat: r.lat,
       lng: r.lng,
     }));
-  }, [useRealData, water.reservoirs]);
+    // 縣市 view 過濾：只該縣市
+    if ((view === "B" || view === "C") && county) {
+      return all.filter((p) => p.lat != null && p.lng != null && getNearestCounty(p.lng, p.lat) === county);
+    }
+    return all;
+  }, [useRealData, water.reservoirs, view, county]);
 
   // Breadcrumb
   const breadcrumb: CrumbItem[] = useMemo(() => {
@@ -249,7 +256,7 @@ export default function App() {
               drillCounty={(view === "B" || view === "C") ? county : null}
               onCountyClick={goCity}
               reservoirPoints={reservoirPointsForMap}
-              showReservoirs={useRealData && view === "A" && pointLayersOn.reservoir}
+              showReservoirs={useRealData && (view === "A" ? pointLayersOn.reservoir : view !== "D")}
             />
           </ErrorBoundary>
 
