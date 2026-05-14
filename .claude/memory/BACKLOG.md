@@ -37,6 +37,18 @@
 | B026 | P1 | **Cycle 2 候選**: 水污染罰鍰 datagov_45136（Tier S）| 待開工 | 22 縣市 × 14 年。仿 datagov_8316_lpcd.py 範本寫 pipeline + migration + KPI。30-60min |
 | B027 | P2 | RPI 89034 + 稽查罰鍰次數 45134/45135（Tier A）| 待開工 | 要寫新 pipeline + migration |
 | B028 | P2 | .env.example 補充所有 token convention 註解 | 待開工 | 寫清楚 `__MAPBOX_TOKEN_PLACEHOLDER__` 等 placeholder 用法 + 哪些 token 必填 / 選填 |
+| B029 | P1 | 全站 LIVE badge audit | 部分完成 | ViewB 水質已改 (DataAgeBadge)。剩 ViewA 6 KPI + ViewB OverviewTab/Usage 等 |
+| B030 | P1 | A2 run epa_river pipeline | 未跑 | commit 88353ae 已存在，run 1-2hr 約 30k reading 進 DB，跑完河川 tab 接通真實資料 |
+| B031 | P1 | Cycle E 河川流量 188 站 + river_lines/basins map | 待開工 | 表都已建（river_flow_stations / river_lines 2015 / river_basins 116）|
+| B032 | P1 | Cycle F 地下水位 realtime + 21 區 polygon | 待開工 | 200 萬筆 realtime + groundwater_zones 已建。要 server-side aggregate RPC |
+| B033 | P2 | Cycle G ViewC 加水庫 inflow/outflow 雙線 + reservoir_polygons map | 待開工 | RPC 欄位都有，只差 frontend |
+| B034 | P2 | Cycle H ViewB 30 天 sparkline 接 RPC（取代假資料） | 待開工 | get_reservoir_timeseries 已有 |
+| B035 | P2 | Cycle D 汙水廠 count + map layer | 待開工 | sewage_treatment_plants 82 座已建 |
+| B036 | P2 | Cycle D2 TGOS 反查汙水廠座標 | 等 FastAPI wrapper | 前置 B008 |
+| B037 | P2 | Cycle E2 灌溉用水 datagov_35644 | 未做 pipeline | 18 處水利會 proxy 22 縣市 |
+| B038 | P2 | Cycle I 防洪 4 section 完整化 | 待開工 | 淹水場景 switcher / 滯洪池 polygon / 雨水下水道 layer / 即時雨量站 |
+| B039 | P2 | Cycle J View A 水循環 Sankey 圖 | 待開工 | 一張總圖視覺化水循環流量 |
+| B040 | P2 | Cycle B / C datagov 45136 / 45134 / 45135 / 89034 (4 pipeline) | 未做 | 治理層補強 |
 
 ---
 
@@ -44,6 +56,9 @@
 
 | 日期 | ID | 摘要 |
 |---|---|---|
+| 2026-05-14 | Cycle B (S4) | ViewB IA v2 重組 7 tabs 依水循環層 + WaterQualitySection 共用 helper（25min） |
+| 2026-05-14 | Cycle A (S4) | 水質測站 BOD/DO 接通真實資料 + DataAgeBadge component + LIVE 用詞嚴守 + Roadmap doc + epa_river pipeline diff（A2 未 run） |
+| 2026-05-14 | LIVE 嚴格定義 (S4) | data collector cron 才叫 LIVE；PRINCIPLES + CLAUDE.md 雙保險；DataAgeBadge 取代誤標 |
 | 2026-05-14 | Cycle 1 (session 3) | 3 P0 fix + secret scrub + /water-loop skill 固化 + 三 repo 全 push |
 | 2026-05-14 | P0-4 | ViewA explode 改顯示全 22 縣市（之前截前 12）|
 | 2026-05-14 | P0-3 | ViewA hero hook 切主題 fallback 到 theme.tagline（之前寫死 LPCD）|
