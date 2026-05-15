@@ -39,7 +39,9 @@ import { Donut } from "@/components/charts/Donut";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { useCountyData } from "@/hooks/useCountyData";
 import { useWaterQuality } from "@/hooks/useWaterQuality";
+import { useRiverWaterLevel } from "@/hooks/useRiverWaterLevel";
 import { DataAgeBadge } from "@/components/DataAgeBadge";
+import { ALERT_COLORS, ALERT_LABELS } from "@/lib/queries/river";
 
 interface ViewBProps {
   manifest: ThemeManifest;
@@ -168,7 +170,7 @@ export function ViewB({
         />
       )}
       {tab === "rivers" && (
-        <RiverTab countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />
+        <RiverTab countyCode={county} countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />
       )}
       {tab === "groundwater" && (
         <GroundwaterTab countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />
@@ -439,7 +441,34 @@ function ReservoirsTab({
 // Tab: Rivers（Cycle B — 河川水位 / 流量 / 水質）
 // ─────────────────────────────────────────────────
 
-function RiverTab({ countyIdMoi, countyName }: { countyIdMoi: string | null; countyName: string }) {
+function RiverTab({
+  countyCode,
+  countyIdMoi,
+  countyName,
+}: {
+  countyCode: CountyCode3;
+  countyIdMoi: string | null;
+  countyName: string;
+}) {
+  const river = useRiverWaterLevel();
+  const summary = river.byCode3[countyCode];
+  const countyStations = useMemo(
+    () => river.stations.filter((s) => s.county_code3 === countyCode),
+    [river.stations, countyCode]
+  );
+
+  // 該縣市在 22 縣市 alert_pct 排名（高 = alert 多 = 危險）
+  const rank = useMemo(() => {
+    if (!summary) return null;
+    const sorted = river.countySummary;
+    const idx = sorted.findIndex((s) => s.code3 === countyCode);
+    return idx >= 0 ? { rank: idx + 1, total: sorted.length } : null;
+  }, [river.countySummary, summary, countyCode]);
+
+  const hasData = countyStations.length > 0;
+  // 注：水利署水位 freshness < 1hr + collector cron + RPC = 雙條件符合 LIVE
+  const isLive = !!summary?.latest_observed_at;
+
   return (
     <>
       <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
@@ -447,16 +476,162 @@ function RiverTab({ countyIdMoi, countyName }: { countyIdMoi: string | null; cou
           <div>
             <div className="section-title">
               <span className="pre">RIVERS</span>
-              {countyName} 河川流量 / 水位
+              {countyName} 河川水位
+              {isLive && <span style={liveBadgeStyle}>LIVE</span>}
             </div>
             <div className="section-subtitle">
-              river_flow_stations 188 站表已建（Cycle E 待接 query）
+              水利署即時水位 · 每 10 分鐘更新
+              {summary?.latest_observed_at && (
+                <DataAgeBadge sampledAt={summary.latest_observed_at} label="最近" />
+              )}
             </div>
           </div>
         </div>
-        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
-          🚧 流量 / 水位資料待 Cycle E 接 query（後端表 + collector cron 已就緒）
-        </div>
+
+        {river.loading && (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            ⏳ 載入河川水位資料中…
+          </div>
+        )}
+
+        {!river.loading && !hasData && (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            該縣市無水位測站 reading（或 normalize 後對不上 county）
+          </div>
+        )}
+
+        {!river.loading && hasData && (
+          <>
+            <div className="kpi-grid cols-4">
+              <KPICard
+                icon={<Activity size={13} />}
+                label="水位站"
+                value={summary!.n_total.toString()}
+                unit="站"
+                trend={{
+                  delta: `${summary!.n_with_alert} 有警戒值`,
+                  direction: "flat",
+                  baseline: "",
+                  sentiment: "neutral",
+                }}
+              />
+              <KPICard
+                icon={<Activity size={13} />}
+                label={<>達警戒{summary!.n_any_alert > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: "var(--danger)" }}>●</span>}</>}
+                value={summary!.n_any_alert.toString()}
+                unit="站"
+                trend={{
+                  // 一級警戒最嚴重，優先顯示（水利署慣例 1=最高水位門檻）
+                  delta:
+                    summary!.n_alert_1 > 0
+                      ? `${summary!.n_alert_1} 一級`
+                      : summary!.n_alert_2 > 0
+                        ? `${summary!.n_alert_2} 二級`
+                        : summary!.n_alert_3 > 0
+                          ? `${summary!.n_alert_3} 三級`
+                          : "正常",
+                  direction: summary!.n_any_alert > 0 ? "up" : "flat",
+                  baseline: "",
+                  sentiment: summary!.n_any_alert > 0 ? "negative" : "neutral",
+                }}
+              />
+              <KPICard
+                icon={<Activity size={13} />}
+                label="警戒佔比"
+                value={summary!.alert_pct.toFixed(1)}
+                unit="%"
+                trend={{
+                  delta:
+                    rank != null ? `第 ${rank.rank} / ${rank.total}` : "—",
+                  direction: "flat",
+                  baseline: "22 縣市排名",
+                  sentiment: "neutral",
+                }}
+              />
+              <KPICard
+                icon={<Activity size={13} />}
+                label="最高水位"
+                value={
+                  summary!.max_water_level_m != null
+                    ? summary!.max_water_level_m.toFixed(1)
+                    : "—"
+                }
+                unit="m"
+                trend={{
+                  delta: "縣市內最高",
+                  direction: "flat",
+                  baseline: "",
+                  sentiment: "neutral",
+                }}
+              />
+            </div>
+
+            {/* 測站清單 */}
+            <div className="section" style={{ marginTop: "var(--section-gap)" }}>
+              <div className="section-head">
+                <div>
+                  <div className="section-title">
+                    <span className="pre">STATIONS</span>
+                    {countyName} {countyStations.length} 座河川水位站
+                  </div>
+                  <div className="section-subtitle">
+                    依當前水位與警戒水位門檻著色
+                  </div>
+                </div>
+              </div>
+              <div className="kpi-grid" style={{ gap: 8 }}>
+                {countyStations.map((s) => {
+                  const lvl = s.alert_level;
+                  const color = lvl != null ? ALERT_COLORS[lvl] : "#94A3B8";
+                  const label = lvl != null ? ALERT_LABELS[lvl] : "未設警戒值";
+                  return (
+                    <div
+                      key={s.station_id}
+                      className="kpi-card"
+                      style={{ borderLeft: `3px solid ${color}` }}
+                    >
+                      <div className="kpi-head">
+                        <div className="kpi-label">
+                          <span className="ico"><Activity size={13} /></span>
+                          {s.station_name}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color,
+                            padding: "2px 6px",
+                            background: `${color}22`,
+                            borderRadius: 4,
+                          }}
+                        >
+                          {label}
+                        </span>
+                      </div>
+                      <div className="kpi-value">
+                        {s.water_level_m != null ? s.water_level_m.toFixed(2) : "—"}
+                        <span className="unit">m</span>
+                      </div>
+                      <div className="muted mt-8" style={{ fontSize: 11.5 }}>
+                        {s.river_name && <>{s.river_name} · </>}
+                        {s.alert_level_1_m != null && (
+                          <>警戒 {s.alert_level_1_m}m</>
+                        )}
+                        {s.alert_level_2_m != null && (
+                          <> / {s.alert_level_2_m}m</>
+                        )}
+                        {s.alert_level_3_m != null && (
+                          <> / {s.alert_level_3_m}m</>
+                        )}
+                      </div>
+                      <DataAgeBadge sampledAt={s.observed_at} label="觀測" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <WaterQualitySection

@@ -137,14 +137,26 @@ FROM public.{new_table};
 
 ### Stage 4: Verify（Checkpoint B）
 
-**自動**：
-- agent-browser reload + 截圖 changed view（before/after 對比）
-- 對純資料 cycle：截 ViewA KPI 卡 / explode / ViewB tab / ViewC chart
-- 對純前端 cycle：focus 改動 area
+**自動執行三件事**（三條獨立、可平行）：
+
+1. **typecheck**：`cd frontend && pnpm typecheck` — fail 則阻止進 Checkpoint B
+2. **agent-browser 截圖**：reload + 截 changed view（before/after 對比）
+   - 純資料 cycle：截 ViewA KPI 卡 / explode / ViewB tab / ViewC chart
+   - 純前端 cycle：focus 改動 area
+3. **`/codex:review`（Cycle E 加入，2026-05-15）**：跑 Codex 程式 review
+   - 預設 background：`node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" review --background`
+     - `${CLAUDE_PLUGIN_ROOT}` 解析到 `~/.claude/plugins/cache/openai-codex/codex/<version>/`
+   - 用 `AskUserQuestion` 給 user 選 wait / background / skip：
+     - 中型以上（≥ 3 既存改 + 1 新檔，或 > 200 lines）→ 推薦 background
+     - 純 .md / docs 改動 → 可 skip（review 對 docs 價值低）
+     - tiny 改動（1-2 檔 + < 50 lines）→ 推薦 wait
+   - background 跑完後在 Stage 5 Checkpoint C 前用 `/codex:status` / `/codex:result` 取結果
+   - **review 內容如果有 P0 issue（security / 邏輯 bug / 破壞 invariant）→ 退回 Stage 3 修正**，不進 Stage 5
 
 **Checkpoint B**：給 user 看
 - before/after screenshot
 - typecheck 結果
+- codex review 摘要（若 wait 模式）+ review report 路徑
 - 視覺化選項（若 Mode V）
 - 若有「視覺化方式 vs 資料形狀」抉擇 → `AskUserQuestion` 列選項配 preview
 
@@ -293,3 +305,9 @@ User 拍板才進 Stage 5（commit）。
 - ✅ Atomic commit 拆 hunk 用 git restore + redo Edit（比 git add -p 穩）
 - ✅ Secret scanning push 擋 → git filter-repo --replace-text fallback
 - ✅ 三個 repo 同步順序（taipei-gis 直接 push / gis-platform rebase / mini-taiwan-info 注意 secret）
+
+**Cycle E 沉澱（2026-05-15）**：
+- ✅ Stage 4 加入 `/codex:review`（Codex 跨模型 code review，避免單一 LLM 盲區）
+- ✅ Mode 判定要靈活：原 STATUS 寫的「河川流量」實證後是「河川水位」（流量上游不公開），跑前先 SQL drill 過再進 Plan
+- ✅ 大檔靜態資料（river_lines 3.7MB）改 export 成 `frontend/public/data/*.geo.json` 而非後端 RPC，省 migration
+- ✅ Client-side aggregate 也是合法做法，不必每 cycle 都加 server-side RPC
