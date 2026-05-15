@@ -50,6 +50,11 @@ overview:
       unit: "%"
       ramp_direction: reverse      # 淹水佔比低=好
       domain: [0, 35]
+    - id: river_alert_pct          # Cycle E：警戒站佔比（縣市內達一級以上警戒站 / 有警戒門檻設定站）
+      label: 河川警戒站佔比
+      unit: "%"
+      ramp_direction: reverse      # 警戒站越少越好
+      domain: [0, 50]
 
   kpis:
     # 即時排（realtime group）
