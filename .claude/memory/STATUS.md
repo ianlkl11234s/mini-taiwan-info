@@ -3,103 +3,134 @@
 > 每次 `/wrap-up` 完整 rewrite。只保留當下的「下個 session 接什麼」。
 > User-facing Phase 進度看 root `_STATUS.md`，完整接手書看 `HANDOFF.md`。
 
-**最後更新**：2026-05-14（Session 4 結束 · Cycle A 水質 + Cycle B IA 重組）
+**最後更新**：2026-05-15（Session 5 結束 · 消防主題 ViewA Phase 1 上線）
 
 ---
 
 ## 一句話現況
 
-Phase 0 已收尾 + Cycle 1 (P0 fix) + Cycle A (水質接通) + Cycle B (ViewB IA v2 7 tabs 依水循環層重組) 完成；水質測站、DataAgeBadge component、LIVE 用詞嚴守原則都已落地；**3 個 repo 都 ahead origin 未 push**（Session 4 wrap-up 後共約 17 commits）。下個 session 建議跑 Cycle E（河川流量 + map layers）或 A2 run（補抓河川水質 reading）。
+水主題 Phase 0+ 全部完成（6/6 KPI 接通真實）；**消防主題 ViewA Phase 1 上線**：4 區塊（火災發生 / 火災救災 / 量能交叉 / 其他救護），S1 接通真實 48,626 件 + 5+22 cause + 22 縣市，S2/S3/S4 mock 標待ETL；**三 repo 都 ahead origin 未 push**（mini ~15 / gis 2 / taipei 2）；用戶下個 session 目標：**把 fire mock 都替換成真實**。
 
 ## 跑得起來的東西
 
-`cd frontend && pnpm dev` → http://localhost:5173
+`cd frontend && pnpm dev` → http://localhost:5174（5173 被占用自動切 5174）
 
-- **View A**：6 KPI 接通真實資料（蓄水率 / 雨量真 LIVE，其他月度/年度/靜態）
-- **View B**：**IA v2 7 tabs 依水循環層**
-  - 概覽 ✅ / 水庫(蓄水率+DO/BOD/pH 水庫水質) ✅
-  - 河川(流量 placeholder + 水質 warning「epa_river reading 待 A2」) ✅
-  - 地下水(水位 placeholder + 水質) ✅
-  - 防洪(FLOOD/DETENTION/STORM DRAIN/RAIN 4 section placeholder) ✅
-  - 用水與配送(LPCD+接管率 LIVE + 汙水廠/給水/漏水 placeholder) ✅
-  - 排名 ✅
-- **View C**：水庫詳情頁 4 stat + 1 年 trend
+### View A
+- **water 主題**：6 KPI 接通真實資料（蓄水率 / 雨量 / 警戒 / 淹水 / LPCD / 接管率）
+- **fire 主題**（NEW）：4 區塊 cat-block 結構
+  - S1 火災發生：4 KPI（3 真實 + 1 mock 待ETL）+ 時間長條 4 切片（年/月/日/時）+ 5 維度佔比 + 3 tab 表格（縣市排名 / 5+22 起火原因 / 起火處所 mock）
+  - S2 火災救災：2 KPI mock + 4 都消防栓表 mock 待 Sprint 2
+  - S3 火災交叉量能：3 KPI mock + 散布圖（x 軸真實 / y 軸 mock）+ 22 縣市量能對照表 mock 待 Sprint 3
+  - S4 其他救護：3 KPI mock + 22 縣市救護表 mock + 災變時間軸 mock 待 Sprint 4
+
+### View B
+- **water 主題**：IA v2 7 tabs（概覽 / 水庫 / 河川 / 地下水 / 防洪 / 用水與配送 / 排名）
+- **fire 主題**：**尚未實作**，user 點縣市目前只在地圖上 highlight（不進 ViewB）
+
+### View C
+- 水庫詳情頁 4 stat + 1 年 trend（fire 未支援）
+
+## Fire 主題真實 vs Mock 對映（給下個 session 看）
+
+| 元件 | 資料來源 | Real / Mock |
+|---|---|---|
+| S1 年度件數 / 死傷 / 主因 | `incidents_by_county_year` MV + `incidents_by_cause_year` MV | ✅ 真實（48,626 件 / 民111-113） |
+| S1 火災財損 KPI | mock 838 萬元 | 🔶 待 MOI 統計處 5 表 ETL |
+| S1 時間長條 年/月/日/時 | MV 全 derive | ✅ 真實 |
+| S1 5 維度佔比 早中晚/5大類/縣市/傷亡 | MV + derive | ✅ 真實 |
+| S1 處所佔比 + 起火處所表 | mock | 🔶 待 MOI ETL |
+| S1 縣市排名表 | `incidents_by_county_year` JOIN counties | ✅ 真實 |
+| S1 起火原因 5+22 表 | `incidents_by_cause_year` + taxonomy | ✅ 真實（含致死率） |
+| S2 分隊 / 消防栓 KPI + 表 | mock | 🔶 待 Sprint 2 ETL |
+| S3 KPI 量能 3 個 | mock | 🔶 待 Sprint 3 PostGIS |
+| S3 散布圖 x 軸火災密度 | derive from S1 真實 + counties.pop | ✅ 真實 |
+| S3 散布圖 y 軸分隊密度 | mock | 🔶 待 Sprint 3 |
+| S3 22 縣市量能對照表 | mock | 🔶 待 Sprint 3 |
+| S4 EMS / 醫院 / 山林 / 災變 | mock | 🔶 待 Sprint 4 |
+| 地圖 fire 主題基底 | choropleth 4 metric（火災密度真實 / 其他 mock） | 混合 |
+| 地圖 fire 點位層（分隊 dot + heatmap） | **尚未實作** | ⬜ B045 P1 待做 |
 
 ## 下一個 session 的合理開頭
 
-讀本檔 + `HANDOFF.md` Session 4 區段，挑下面之一：
+讀本檔 + `_STATUS.md` Session 5 段，挑下面之一：
 
-1. **Cycle E 河川流量 + map layers**（推薦，0.5 天）
-   - river_flow_stations 188 + river_lines 2015 + river_basins 116 全已建
-   - ViewB 河川 tab 流量 placeholder → 接通真實 LIVE 資料
+1. **B045 fire 地圖層 dot + heatmap**（推薦，1-2 hr，立即有視覺差別）
+   - SPEC.md 明指消防分隊紅 dot + 火災 heatmap **始終 on**
+   - 可用 fire.incidents 48,626 lat/lng 立即做 heatmap
+   - 分隊用 mock_fire_stations (Sprint 2 真實前的過渡)
    ```
-   > /water-loop 跑 Cycle E 河川流量 + map layers
+   > 加 fire 地圖層：消防分隊 + 火災 heatmap
    ```
 
-2. **Cycle A2 run epa_river pipeline**（1-2 小時）
+2. **TODO-3 MOI 5 表 ETL**（3-4 天，解 S1 兩個 placeholder）
+   - 寫 taipei-gis-analytics/pipelines/environment/fire/07_fetch_moi_stats.py
+   - 寫 gis-platform/migrations/100_fire_moi_stats_tables.sql（5 張 + RPC）
+   - 解 S1 火災財損 KPI + 起火處所表
    ```
-   cd taipei-gis-analytics
-   python3 pipelines/water_resources/extensions/03_load_water_quality.py --full
+   > 開 TODO-3：MOI 5 表 ETL（先確認 5 個 dataset id）
    ```
-   跑完 ViewB「河川」類別水質從 placeholder 變接通真實資料
 
-3. **Cycle F 地下水位 realtime + 21 區 polygon**（1 天）
-   - realtime.groundwater_level_readings 200 萬筆 + groundwater_zones 已建
-   - 要 server-side aggregate RPC
+3. **B046 fire ViewB 縣市儀錶板**（1-2 天）
+   - 5 tabs（概覽 / 火災發生 / 救災量能 / 服務圈 / 其他）
+   - 頂端 雷達圖 6 指標（縣市 vs 全國平均）
+   - 服務圈 3km / 6km buffer + 圈外 Top 10 村里
+   - 設計藍圖：/tmp/fire_design/mini-taiwan-info/project/js/view-b-fire.jsx
 
-4. **Cycle B / C 治理層 datagov 45136 / 45134 / 45135 / 89034**（2-3 天）
-   - 寫 4 個 pipeline + migration + frontend
+4. **push 三 repo + run A2 pipeline**（10 min + 1-2 hr）
 
 ## 跑得起來但還沒接的
 
-- A2 pipeline（taipei-gis 88353ae）已 commit 但**未 run**
-- ViewA 6 KPI LIVE badge audit（B029）— 部分仍誤標 LIVE
-- ViewB Reservoir / Usage tab 內既有 LIVE badge 待 audit
-- `frontend/src/lib/api.ts`：backend wrapper client，等 FastAPI
+- fire 主題 4 個 choropleth metric 切換 OK，但 station_density / out_of_5min / hydrant_density 三個是 mock
+- fire 地圖層分隊 + heatmap 尚未實作（B045）
+- fire ViewB 尚未實作（B046）
+- ViewA fire 6 個 placeholder KPI 全標 mock 待 Sprint X ETL
+- A2 pipeline 仍未 run（taipei-gis 88353ae，1-2 hr）
+- TGOS batch_003 待 user 手動上傳（1-3 天回應期）
 
 ## 等用戶執行
 
-- 拍板是否 push 三 repo（mini 7+wrapup / gis 1 / taipei 1）
-- 拍板是否 run A2 pipeline（吃 1/10 daily quota）
+- 拍板是否 push 三 repo
+- 拍板是否 run A2 pipeline
+- 上傳 TGOS batch_003（fire 補抓 109+108）
+- 確認 22→5 大類 cause mapping 是否要調整（v1 已上 Supabase，但 user 沒明確 review）
 
 ## 開發環境
 
-- Node 23.10 / pnpm 10.17 / psql 14.13 / python3 (venv with psycopg2-binary)
+- Node 23.10 / pnpm 10.17 / psql 14.13 / python3
 - Supabase project `utcmcikhvxnohbxchbrs` (pooler at `aws-1-ap-southeast-1.pooler.supabase.com:5432`)
 - DATABASE_URL 在 gis-platform/.env
-- agent-browser 0.10.0 全局；截圖前須 curl 驗 dev server 200
-- mini-taiwan-info remote: git@github.com:ianlk11234s/mini-taiwan-info.git
-- `git-filter-repo` 已裝（cycle 1 用過清 secret）
+- agent-browser 0.10.0 全局
+- Dev server: localhost:5174（5173 被佔，自動切）
+- Mapbox dev token 在 .env.local（git history 已 placeholder）
 
 ## 跨 4 repo 狀態
 
-- **mini-taiwan-info**: 7 commits ahead + Session 4 wrap-up 9 commits (~16 total) — 未 push
-- **gis-platform**: 1 commit ahead (995efec migration 097) — 未 push
-- **taipei-gis-analytics**: 1 commit ahead (88353ae A2 pipeline) — 未 push
-- **data-collectors**: 本 session 沒動（sibling repo，Zeabur 部署自動跑 cron）
+- **mini-taiwan-info**: ~15 commits ahead — 未 push（S4 殘 7 + S5 fire 8 + css fix 3 + wrap-up 6）
+- **gis-platform**: 2 commits ahead — 未 push（097 S4 + 104 S5 fire wrappers）
+- **taipei-gis-analytics**: 2 commits ahead — 未 push（88353ae S4 未 run + 5c7f061 S5 已跑）
+- **data-collectors**: 本 session 沒動
 
 ## 已知小瑕疵（不阻塞）
 
-- `home-basics.yaml` / `socioeconomic.yaml` / `fire.yaml` 仍 v1.0 spec
+- `themes/fire.yaml.v1.bak` 已清（commit 前刪）
+- `home-basics.yaml` / `socioeconomic.yaml` 仍 v1.0 spec
 - `scripts/regen-counties.ts` 沒寫
-- ViewA / ViewB OverviewTab 既有 LIVE badge 未 audit（B029）
-- Mapbox dev token：本機 .env.local 仍 real value（git history 已 placeholder）
-- Backup `/tmp/mini-taiwan-info.bak-pre-filterrepo` 555MB 還沒清
+- agent-browser headless 沒 WebGL，無法驗證地圖 heatmap / 分隊 dot（要 user 真實瀏覽器驗）
 
 ## Skill 狀態
 
 | Skill | 版本 | 跑過幾次 | 待修 |
 |---|---|---|---|
-| `/wrap-up` | v1.1 | 3 | Stage 1 強制並行 read 全 9 檔 |
+| `/wrap-up` | v1.1 | 4 | Mode 判斷已加，本次 incremental 順跑；Stage 1 並行 read 全 9 檔已實踐 |
 | `/water-loop` | v1.0 | 2 | Stage 1 加 SQL drill / Stage 4 加 dev server health check / Mode V 加 ASCII preview |
 
-兩 skill 待下個 session 跑完一輪後回頭修（自演進機制）。
+兩 skill 待下個 session 跑完一輪後回頭修。
 
-## 本 session 學到的關鍵（看 REFLECTIONS Session 4 完整版）
+## 本 session 學到的關鍵（看 REFLECTIONS Session 5 完整版）
 
-1. Discovery agent 報告必 SQL drill 驗證（epa_river 0 reading 教訓）
-2. LIVE 用詞嚴守（user 抓包 30 分鐘修補）
-3. Migration dry-run 拿掉內 COMMIT（避免 accidentally apply）
-4. dev server 中途死掉要 curl 驗證
-5. data-collectors 是 sibling repo（跨 4 repo 不只 3）
-6. Cycle B Mode V IA 重組 25 分鐘超快（共用 helper 比拆三邊容易）
+1. **PostgREST exposed schema 限制** — 新 schema 直接 `withSchema()` 報 Invalid schema，要寫 public wrapper migration
+2. **wrapper RPC 簽名要對齊 `pg_get_function_result`** — 不能憑記憶寫，第一次 apply 報 return type mismatch
+3. **MapView 寫死的水主題基底層** — 新主題要 audit 所有 `map.addLayer`，加 `showXxxBaseLayers` prop
+4. **dashboard pane = viewport × 40%** — 響應式斷點要對 pane 寬不是 viewport 寬，1500px 才是 cols-4 → 2x2 的合理斷點
+5. **固定 px 欄寬（如 1fr 320px）在窄 pane 內擠垮 1fr** — 永遠用 1fr 1fr 或單欄
+6. **Codex review 抓 critical bug 比人工有效** — Session 5 兩個 critical（ViewB 路由 / water layer 殘留）codex 一眼，人工 review 漏掉
