@@ -49,6 +49,13 @@
 | B038 | P2 | Cycle I 防洪 4 section 完整化 | 待開工 | 淹水場景 switcher / 滯洪池 polygon / 雨水下水道 layer / 即時雨量站 |
 | B039 | P2 | Cycle J View A 水循環 Sankey 圖 | 待開工 | 一張總圖視覺化水循環流量 |
 | B040 | P2 | Cycle B / C datagov 45136 / 45134 / 45135 / 89034 (4 pipeline) | 未做 | 治理層補強 |
+| B041 | P1 | **fire-S1 區塊 1 placeholder swap** | 待開工 | 火災財損 KPI + 起火處所表 → 等 taipei-gis TODO-3 內政部統計處 5 表 ETL（07_fetch_moi_stats.py + migration 100），3-4 天 |
+| B042 | P1 | **fire-S2 區塊 2 placeholder swap** | 待開工 | 消防分隊 + 消防栓 → 等 Sprint 2 TODO-5/6/7/8（7 都分隊 + 374 筆 Google geocoding + 4 都消防栓）5-7 天 |
+| B043 | P2 | **fire-S3 區塊 3 placeholder swap** | 待開工 | 分隊密度 / 5min 圈外人口 / 量能對照 → 等 Sprint 3 PostGIS 衍生表（stations_density / service_coverage）3-4 天 |
+| B044 | P2 | **fire-S4 區塊 4 placeholder swap** | 待開工 | 救護 / 急救醫院 / 林火 / 災變 → 等 Sprint 4 多源 ETL（衛福部全國急救醫院 catalog 缺，需手爬）3-5 天 |
+| B045 | P1 | **fire 地圖層：消防分隊 dot + 火災 heatmap** | 待開工 | SPEC.md 明指「兩層始終 on」。可用現有 fire.incidents 48,626 lat/lng 立即做 heatmap + mock 分隊 dot 過渡；1-2 hr |
+| B046 | P1 | **fire ViewB 縣市儀錶板** | 待開工 | 5 tabs（概覽/incidents/response/service/others）+ 頂端雷達圖 6 指標 + 服務圈 buffer。設計 view-b-fire.jsx 已有藍圖；user 點縣市目前只 highlight，要進 ViewB 才能 drilldown。1-2 天 |
+| B047 | P2 | **fire KPI 爆炸視圖** | 待開工 | 點 KPI 卡 → 大圖 + time scale + dimension 切換器（年/月/日/時 × 縣市/原因/場所/嚴重度），20 種組合。設計 SPEC.md 區塊「KPI 爆炸視圖」 |
 
 ---
 
@@ -56,6 +63,9 @@
 
 | 日期 | ID | 摘要 |
 |---|---|---|
+| 2026-05-15 | Fire Phase 1 (S5) | ViewA Fire 4 區塊 + queries/hook/mock-fire + 11 components + 響應式 CSS + App routing + 修 4 個 CSS bug；S1 真實接（48,626 件 / 5+22 cause / 22 縣市 / 4 時間切片），S2/S3/S4 mock 標待ETL |
+| 2026-05-15 | fire-etl TODO-1 (S5) | 12_upload_to_supabase.py 跑完 48,626 筆 fire.incidents + 4 MV refresh |
+| 2026-05-15 | gis-platform 104 (S5) | public.fire_* wrapper views + RPCs（PostgREST exposed schema 限制 workaround） |
 | 2026-05-14 | Cycle B (S4) | ViewB IA v2 重組 7 tabs 依水循環層 + WaterQualitySection 共用 helper（25min） |
 | 2026-05-14 | Cycle A (S4) | 水質測站 BOD/DO 接通真實資料 + DataAgeBadge component + LIVE 用詞嚴守 + Roadmap doc + epa_river pipeline diff（A2 未 run） |
 | 2026-05-14 | LIVE 嚴格定義 (S4) | data collector cron 才叫 LIVE；PRINCIPLES + CLAUDE.md 雙保險；DataAgeBadge 取代誤標 |
