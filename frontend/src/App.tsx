@@ -8,7 +8,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadAllManifests, getThemeList } from "@/lib/themes";
 import type { AppView, CountyCode3, ThemeManifest } from "@/lib/types";
-import { byCode3 } from "@/lib/counties";
 import { TopBar } from "@/components/chrome/TopBar";
 import { ThemeSwitcher } from "@/components/chrome/ThemeSwitcher";
 import type { CrumbItem } from "@/components/chrome/Breadcrumb";
@@ -16,18 +15,22 @@ import { MapView } from "@/components/map/MapView";
 import { MapLegend } from "@/components/map/MapLegend";
 import { TwoSectionLayers, type PointLayerToggle } from "@/components/map/TwoSectionLayers";
 import { ViewA } from "@/components/views/ViewA";
+import { ViewAFire } from "@/components/views/ViewAFire";
 import { ViewB } from "@/components/views/ViewB";
 import { ViewC } from "@/components/views/ViewC";
 import { getMockMetricValue } from "@/lib/mock-data";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWaterKpis } from "@/hooks/useWaterKpis";
 import { useRiverWaterLevel } from "@/hooks/useRiverWaterLevel";
-import { codeConvert, normalizeCountyName } from "@/lib/counties";
+import { useFireData } from "@/hooks/useFireData";
+import { codeConvert, normalizeCountyName, COUNTIES, byCode3 } from "@/lib/counties";
 import { getNearestCounty } from "@/lib/reverseGeocode";
+import { FIRE_MOCK_BY_COUNTY } from "@/lib/mock-fire";
 
 // 主題色映射（與 manifest theme.color_accent 對齊）
 const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: string }> = {
   water: { accent: "#0EA5E9", deep: "#0369A1", soft: "#E0F2FE" },
+  fire:  { accent: "#DC2626", deep: "#991B1B", soft: "#FEF2F2" },
   home:  { accent: "#475569", deep: "#1E293B", soft: "#F1F5F9" },
 };
 
@@ -85,6 +88,10 @@ export default function App() {
   const river = useRiverWaterLevel();
   const useRealData = theme === "water";
 
+  // 消防主題 Supabase 資料（只在 fire 主題啟用，省 RPC quota）
+  const fire = useFireData({ enabled: theme === "fire" });
+  const useFireRealData = theme === "fire";
+
   // 把雨量站（中文 county）聚合成 22 縣市平均 24hr 雨量 → code3
   const rain24ByCode3 = useMemo(() => {
     if (!useRealData) return {} as Record<CountyCode3, number>;
@@ -125,6 +132,20 @@ export default function App() {
       }
     }
 
+    // Fire choropleth：火災密度 真實，其他 mock
+    const fireDensityByCode3 = new Map<CountyCode3, number>();
+    if (useFireRealData) {
+      for (const a of fire.countyAggregates) {
+        const c = COUNTIES.find((x) => x.id_moi === a.county_id);
+        if (c && c.pop_2024_wan > 0) {
+          fireDensityByCode3.set(
+            c.code3 as CountyCode3,
+            a.incidents / c.pop_2024_wan
+          );
+        }
+      }
+    }
+
     for (const code of Object.keys(byCode3) as CountyCode3[]) {
       let value: number | null = null;
       if (useRealData) {
@@ -135,16 +156,32 @@ export default function App() {
         } else if (metric === "rain_24hr" && rain24ByCode3[code] != null) {
           value = rain24ByCode3[code];
         } else if (metric === "river_alert_pct") {
-          // Cycle E：警戒站佔比；無對應站資料 → 0（非缺值）
           value = river.byCode3[code]?.alert_pct ?? 0;
         }
+      } else if (useFireRealData) {
+        const mock = FIRE_MOCK_BY_COUNTY[code];
+        if (metric === "fire_density_per_wan") {
+          value = fireDensityByCode3.get(code) ?? null;
+        } else if (metric === "station_density_per_wan") {
+          value = mock?.stationsPerWan ?? null;
+        } else if (metric === "out_of_5min_pct") {
+          value = mock?.outOf5MinPct ?? null;
+        } else if (metric === "hydrant_density_per_km2") {
+          // 4 都 only — 用 area_km2 算密度
+          const c = byCode3[code];
+          if (mock && mock.hydrants > 0 && c?.area_km2 > 0) {
+            value = mock.hydrants / c.area_km2;
+          } else {
+            value = null;
+          }
+        }
       }
-      // fallback to mock
-      if (value == null) value = getMockMetricValue(metric, code);
+      // fallback to mock (water mock; fire 主題若 metric 無資料則保持 null)
+      if (value == null && !useFireRealData) value = getMockMetricValue(metric, code);
       out[code] = value;
     }
     return out;
-  }, [metric, useRealData, water.governance, rain24ByCode3, river.byCode3]);
+  }, [metric, useRealData, useFireRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates]);
 
   // Phase 0b+ A-2: 點位圖層 toggle state（目前只 reservoir 有資料，其他 placeholder）
   const [pointLayersOn, setPointLayersOn] = useState<Record<string, boolean>>({
@@ -219,6 +256,11 @@ export default function App() {
     setComparing(false);
   };
   const goCity = (code: CountyCode3) => {
+    // Fire 主題目前只有 ViewA — 點縣市改為 highlight only（不進 View B，因 fire View B 未實作）
+    if (theme === "fire") {
+      setCounty(county === code ? null : code);
+      return;
+    }
     setCounty(code);
     setView("B");
     setComparing(false);
@@ -289,13 +331,19 @@ export default function App() {
             />
           </ErrorBoundary>
 
-          {/* Phase 0b+ A-2: 著色指標 + 點位圖層控制 */}
+          {/* Phase 0b+ A-2: 著色指標 + 點位圖層控制
+              - water：完整 6 個點位 layer
+              - fire：只顯著色指標選單（Sprint 2 完成後加分隊/熱點/消防栓 layer） */}
           {view === "A" && manifest.overview.color_metrics && (
             <TwoSectionLayers
               metric={metric}
               metricOptions={manifest.overview.color_metrics}
               onMetricChange={setMetric}
-              pointLayers={buildPointLayers(pointLayersOn, water.reservoirs.length, river.stations.length)}
+              pointLayers={
+                theme === "water"
+                  ? buildPointLayers(pointLayersOn, water.reservoirs.length, river.stations.length)
+                  : []
+              }
               onTogglePoint={togglePointLayer}
             />
           )}
@@ -318,24 +366,32 @@ export default function App() {
         <div className="dashboard-pane">
           <ErrorBoundary label="儀錶板">
             {view === "A" ? (
-              <ViewA
-                manifest={manifest}
-                metric={metric}
-                onMetricChange={setMetric}
-                onCountyClick={goCity}
-                onDrillReservoir={(id) => {
-                  setReservoirId(id);
-                  setView("C");
-                }}
-                selectedCounty={county}
-                realSummary={useRealData ? water.summary : null}
-                realGovernance={useRealData ? water.governance : null}
-                realRain24ByCode3={useRealData ? rain24ByCode3 : null}
-                realReservoirs={useRealData ? water.reservoirs : []}
-                realFloodPct={useRealData ? water.flood : null}
-                realLoading={useRealData ? water.loading : false}
-                realError={useRealData ? water.error : null}
-              />
+              theme === "fire" ? (
+                <ViewAFire
+                  data={fire}
+                  selectedCounty={county}
+                  onCountyClick={goCity}
+                />
+              ) : (
+                <ViewA
+                  manifest={manifest}
+                  metric={metric}
+                  onMetricChange={setMetric}
+                  onCountyClick={goCity}
+                  onDrillReservoir={(id) => {
+                    setReservoirId(id);
+                    setView("C");
+                  }}
+                  selectedCounty={county}
+                  realSummary={useRealData ? water.summary : null}
+                  realGovernance={useRealData ? water.governance : null}
+                  realRain24ByCode3={useRealData ? rain24ByCode3 : null}
+                  realReservoirs={useRealData ? water.reservoirs : []}
+                  realFloodPct={useRealData ? water.flood : null}
+                  realLoading={useRealData ? water.loading : false}
+                  realError={useRealData ? water.error : null}
+                />
+              )
             ) : view === "C" && reservoirId ? (
               <ViewC
                 reservoirId={reservoirId}

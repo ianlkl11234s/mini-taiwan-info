@@ -1517,3 +1517,549 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   border: 5px solid transparent;
   border-top-color: var(--text);
 }
+
+/* ============================================================
+   FIRE THEME — 區塊 (cat-block) / 表格 / donut / scatter / timeline
+   v03 design bundle (2026-05-15) verbatim 移植 + TypeScript 化
+   ============================================================ */
+
+/* ── cat-block: 區塊容器（1-4 區塊都用） ── */
+.cat-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 22px 22px 20px;
+  margin-bottom: var(--section-gap);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.04));
+}
+
+/* numbered cat header */
+.cat-head {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--border);
+}
+.cat-num {
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  border-radius: 12px;
+  background: var(--accent-soft, #FEF2F2);
+  color: var(--accent-deep, #B91C1C);
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.cat-meta { min-width: 0; }
+.cat-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.cat-title .accent { color: var(--accent-deep, var(--accent)); }
+.cat-tagline {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.cat-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.cat-badge.tone-live      { background: #DCFCE7; color: #166534; }
+.cat-badge.tone-historical { background: #DBEAFE; color: #1E40AF; }
+.cat-badge.tone-sampled   { background: #FEF3C7; color: #92400E; }
+.cat-badge.tone-static    { background: var(--surface-3); color: var(--text-secondary); }
+.cat-badge.tone-placeholder { background: #F3E8FF; color: #6B21A8; }
+.cat-badge .pulse-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #22C55E;
+  margin-right: 6px;
+  animation: fire-pulse 1.4s ease-in-out infinite;
+}
+@keyframes fire-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ── fire bar row (年/月/時段 bar chart) ── */
+.fire-bar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 8px 4px 0;
+  position: relative;
+}
+.fbr-col {
+  flex: 1;
+  min-width: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  position: relative;
+}
+.fbr-num {
+  font-size: 9.5px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  margin-bottom: 3px;
+  white-space: nowrap;
+}
+.fbr-bar {
+  width: 80%;
+  max-width: 32px;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-deep) 100%);
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  transition: filter 0.2s;
+}
+.fbr-bar.is-peak {
+  background: linear-gradient(180deg, #FCD34D 0%, var(--accent-fire) 100%);
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.4);
+}
+.fbr-col:hover .fbr-bar { filter: brightness(1.1); }
+.fbr-lbl {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-family: var(--font-mono);
+}
+
+/* ── fire donut + legend ── */
+.fire-donut-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  align-items: center;
+}
+.fire-donut svg { display: block; }
+.fire-legend {
+  display: grid;
+  gap: 8px;
+}
+.fl-row {
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 12.5px;
+}
+.fl-sw {
+  width: 12px; height: 12px;
+  border-radius: 3px;
+}
+.fl-lbl { font-weight: 500; }
+.fl-pct {
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.fl-val {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+/* ── fire county bars (22 縣市排序 bar) ── */
+.fire-county-bars {
+  display: grid;
+  gap: 4px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.fcb-row {
+  display: grid;
+  grid-template-columns: 28px 80px 1fr 60px;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.fcb-row:hover { background: var(--surface-2); }
+.fcb-row.is-selected { background: var(--accent-soft, #FEF2F2); }
+.fcb-rank {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: right;
+}
+.fcb-name { font-size: 13px; font-weight: 500; }
+.fcb-bar {
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.fcb-bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-deep) 100%);
+  border-radius: 4px;
+}
+.fcb-val {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ── fire tables ── */
+.fire-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.fire-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.fire-table thead th {
+  text-align: left;
+  padding: 9px 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.fire-table thead th.is-sorted { color: var(--accent-deep); }
+.fire-table tbody tr {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.fire-table tbody tr:hover { background: var(--surface-2); }
+.fire-table tbody tr.is-selected { background: var(--accent-soft, #FEF2F2); }
+.fire-table tbody tr.is-crit { background: rgba(220, 38, 38, 0.03); }
+.fire-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.fire-table .tnum {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+.fire-table .muted { color: var(--text-tertiary); }
+.fire-table.compact td,
+.fire-table.compact thead th { padding: 6px 10px; }
+.fire-table-strong thead th { background: var(--surface-3); }
+.fire-table-spacer-row td { border-bottom: 0; background: var(--surface-2); }
+
+.fire-crit-dot {
+  color: var(--accent-fire);
+  margin-right: 4px;
+  font-size: 10px;
+}
+
+.fire-warn-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: #92400E;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* mini tabs row (1-4 表格切換) */
+.fire-tab-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.fire-mini-tab {
+  padding: 6px 14px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.fire-mini-tab:hover { background: var(--surface-3); color: var(--text); }
+.fire-mini-tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+/* ── fire cause table (5 大類展開 22 細項) ── */
+.fire-cause-tbl {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.fct-head {
+  display: grid;
+  grid-template-columns: 2fr 0.6fr 1.4fr 0.6fr 0.6fr 0.7fr;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.fct-col-num, .fct-col-fr { text-align: right; }
+.fct-row {
+  display: grid;
+  grid-template-columns: 2fr 0.6fr 1.4fr 0.6fr 0.6fr 0.7fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.fct-row.fct-cat {
+  background: var(--surface);
+  cursor: pointer;
+  font-weight: 500;
+}
+.fct-row.fct-cat:hover { background: var(--surface-2); }
+.fct-row.fct-child {
+  background: var(--surface-2);
+  padding-left: 28px;
+  font-size: 12px;
+}
+.fct-col-cat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fct-caret {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  width: 12px;
+}
+.fct-sev-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fct-sev-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid;
+  background: var(--surface);
+}
+.fct-child-rail {
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.fct-bar {
+  height: 6px;
+  background: var(--surface-3);
+  border-radius: 3px;
+  overflow: hidden;
+  flex: 1;
+  min-width: 40px;
+}
+.fct-bar > div {
+  height: 100%;
+  border-radius: 3px;
+}
+.fct-col-pct {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fct-col-pct .tnum {
+  min-width: 44px;
+  text-align: right;
+  font-family: var(--font-mono);
+}
+.fct-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.fct-legend i {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+
+/* ── fire scatter ── */
+.fire-scatter-wrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 8px 12px 4px;
+  overflow: hidden;
+}
+.fire-scatter-wrap svg { display: block; max-width: 100%; }
+.fire-scatter-tt {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 14px));
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  background: var(--text);
+  color: white;
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+  display: grid;
+  gap: 1px;
+  z-index: 10;
+}
+.fire-scatter-tt strong { font-size: 12.5px; font-weight: 700; }
+.fire-scatter-tt .muted { color: rgba(255, 255, 255, 0.65); font-size: 11px; }
+.fire-scatter-foot {
+  display: flex;
+  gap: 14px;
+  padding: 6px 6px 2px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+.fire-scatter-legend {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.fire-scatter-legend i {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+
+/* ── fire timeline (S4 災變紀錄) ── */
+.fire-timeline {
+  display: grid;
+  gap: 14px;
+  padding: 12px 8px;
+}
+.ftl-row {
+  display: grid;
+  grid-template-columns: 56px 16px 1fr;
+  gap: 10px;
+  align-items: start;
+  position: relative;
+}
+.ftl-yr {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-align: right;
+  padding-top: 2px;
+}
+.ftl-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  margin-top: 6px;
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 2px var(--accent);
+  background: var(--accent);
+  position: relative;
+}
+.ftl-row.tag-typhoon .ftl-dot { background: #0EA5E9; box-shadow: 0 0 0 2px #0EA5E9; }
+.ftl-row.tag-quake   .ftl-dot { background: #DC2626; box-shadow: 0 0 0 2px #DC2626; }
+.ftl-row.tag-accident .ftl-dot { background: #F59E0B; box-shadow: 0 0 0 2px #F59E0B; }
+.ftl-row:not(:last-child) .ftl-dot::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 1px;
+  height: 36px;
+  background: var(--border);
+  transform: translateX(-50%);
+}
+.ftl-body {
+  display: grid;
+  gap: 4px;
+}
+.ftl-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ftl-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.ftl-row.tag-typhoon  .ftl-tag { background: #E0F2FE; color: #075985; }
+.ftl-row.tag-quake    .ftl-tag { background: var(--danger-soft); color: #991B1B; }
+.ftl-row.tag-accident .ftl-tag { background: var(--warning-soft); color: #92400E; }
+.ftl-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.ftl-stat {
+  display: flex;
+  gap: 8px;
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+.ftl-stat-death {
+  color: #991B1B;
+  font-weight: 600;
+}
+.ftl-stat-inj {
+  color: #92400E;
+  font-weight: 500;
+}
+
+/* S4 二欄 grid (EMS table + timeline) */
+.fire-s4-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 18px;
+  margin-bottom: var(--section-gap);
+}
+@media (max-width: 1100px) {
+  .fire-s4-grid { grid-template-columns: 1fr; }
+}
