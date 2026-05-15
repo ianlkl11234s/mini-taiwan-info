@@ -25,16 +25,23 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 ## Pending 同步（未 commit 到對應 repo 或未 push）
 
-**Session 4（2026-05-14 Cycle A + B）三 repo 都 ahead origin 未 push**：
+**Session 5（2026-05-15 fire 主題 ViewA Phase 1）三 repo 都 ahead origin 未 push**：
 
-- mini-taiwan-info: **7 commits ahead** origin/main (558f77c..d96f69e + 本次 wrap-up commits)
-- gis-platform: **1 commit ahead** origin/main (995efec migration 097)
-- taipei-gis-analytics: **1 commit ahead** origin/master (88353ae 03_load_water_quality 加 wqx_p_01)
+- **mini-taiwan-info**: **15+ commits ahead** origin/main
+  - Session 4 殘留：7 commits (558f77c..d96f69e + 4 docs)
+  - Session 5 新增 fire：8 commits (9dfd144..b1941a1)
+  - Session 5 css fix：3 commits (29de112 + e3bd381 + b1941a1)
+  - 本次 wrap-up: 6+ memory commits
+- **gis-platform**: **2 commits ahead** origin/main
+  - 995efec migration 097（S4 殘留）
+  - 93d825f migration 104 fire public wrappers（S5）
+- **taipei-gis-analytics**: **2 commits ahead** origin/master
+  - 88353ae A2 pipeline（S4 殘留，未 run）
+  - 5c7f061 12_upload_to_supabase.py（S5，已 run 48,626 筆進 DB）
 
-**A2 pipeline 已 commit 但未 run**：taipei-gis 88353ae 加 wqx_p_01 河川 reading endpoint，
-要實際抓資料須跑 `python3 pipelines/water_resources/extensions/03_load_water_quality.py --full`
-（~1-2 小時 / 1300 API calls / 約 30k reading 進 DB）。Run 後 ViewB「河川」類別水質可從
-placeholder 變接通真實資料。
+**A2 pipeline 仍未 run**：taipei-gis 88353ae，~1-2 小時 / 約 30k reading（待 user 拍板）
+
+**TODO-2 batch_003 未上傳**：taipei-gis fire batch_003 在 2026-04-28 已產出但 user 還沒手動上傳 TGOS web（1-3 天回應期）
 
 ---
 
@@ -42,6 +49,9 @@ placeholder 變接通真實資料。
 
 | 日期 | Repo | 動作 | Commit |
 |---|---|---|---|
+| 2026-05-15 (S5) | mini-taiwan-info | feat(fire-frontend) ViewA Phase 1 — 8 commits | 9dfd144..b1941a1 |
+| 2026-05-15 (S5) | gis-platform | feat(fire-schema) migration 104 public wrappers | 93d825f |
+| 2026-05-15 (S5) | taipei-gis-analytics | feat(fire-etl) 12_upload_to_supabase.py | 5c7f061（48,626 筆 fire.incidents + 4 MV refresh）|
 | 2026-05-14 (S4) | mini-taiwan-info | feat(view-b) Cycle B IA 重組 7 tabs | d96f69e + 462feac |
 | 2026-05-14 (S4) | mini-taiwan-info | fix(view-b) DataAgeBadge + LIVE 用詞 patch | 1864a61 + 84c417c + 47d61e4 |
 | 2026-05-14 (S4) | mini-taiwan-info | feat(view-b) Cycle A 水質 tab 接通真實資料 | 95bc30e |
