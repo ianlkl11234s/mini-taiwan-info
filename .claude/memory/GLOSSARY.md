@@ -157,3 +157,16 @@
 | `psql "$DATABASE_URL" -c "..."` | Supabase 查詢 |
 | `agent-browser --session-name miniti open URL` | 開瀏覽器 session |
 | `agent-browser --session-name miniti screenshot path` | 截圖 |
+
+## 消防主題（Fire）2026-05-15 加
+
+| 詞 | 意思 |
+|---|---|
+| **fire 主題 4 區塊（S1/S2/S3/S4）** | S1 火災發生（incidents） / S2 火災救災（response） / S3 火災交叉量能（capacity） / S4 其他救災救護（others）。對應 ViewA-Fire 4 個 cat-block，設計來源 designs/v03-fire-design-brief-2026-05-15/SPEC.md |
+| **5 大類起火原因（cause_5_id）** | 22 細項 → 5 大類 mapping：`intentional`（人為故意 縱火/自殺）/ `chemical`（化學燃料 瓦斯爆炸）/ `electrical`（電氣機械）/ `careless`（用火不慎 爐火/菸蒂/掃墓）/ `other`（其他不明）。對齊 fire.cause_taxonomy SSOT |
+| **severity_signal** | 5 大類嚴重度色碼 `high`(紅 #DC2626 intentional+chemical) / `med`(黃 #F59E0B electrical) / `low`(綠 #10B981 careless) / `unknown`(灰 #9CA3AF other)。用件數最多 ≠ 致死率最高（用火不慎件數最多但自殺致死率 64.6% 最高）— 色碼幫 user 分辨「危險 vs 常見」 |
+| **民國年（minguo year）** | fire.incidents.data_year_minguo 用民國年（111-113），西元 = minguo + 1911（113 = 2024）。frontend 顯示時換算 |
+| **public.fire_* wrapper** | PostgREST 不 expose fire schema，故 migration 104 在 public 建 wrapper views/RPCs：`public.fire_cause_taxonomy`、`public.fire_incidents_by_*`、`public.fire_aggregate_count`、`public.fire_list_incidents`。Frontend 一律走 public |
+| **`.dashboard-pane`** | 右側儀錶板容器，佔 viewport ~40%（左地圖 60% / 右儀錶板 40%）。必加 `overflow-x:hidden + min-width:0` 防內部元件超寬產生橫卷 |
+| **`.cat-block`** | 4 區塊容器，每塊頂端有 `.cat-head`（含 `.cat-num` 編號 01-04 + 標題 + tagline + 右上 `.cat-badge.tone-*`） |
+| **「待ETL」label** | 元件級 mock 標示。慣例：placeholder KPI 在 label 旁顯示 `<span class="muted">待ETL</span>`，明示「這格還沒接真實」 |
