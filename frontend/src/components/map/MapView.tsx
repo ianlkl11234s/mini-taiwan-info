@@ -22,6 +22,18 @@ export interface ReservoirPointFeature {
   lng: number;
 }
 
+export interface RiverStationFeature {
+  id: string;
+  name: string;
+  river: string | null;
+  county: string | null;
+  level_m: number | null;
+  alert_level: 0 | 1 | 2 | 3 | null;
+  observed_at: string;
+  lat: number;
+  lng: number;
+}
+
 interface MapViewProps {
   metric: string;
   rampName: string;
@@ -38,9 +50,14 @@ interface MapViewProps {
   onCountyClick?: (code: CountyCode3) => void;
   reservoirPoints?: ReservoirPointFeature[];
   showReservoirs?: boolean;
+  /** Cycle E：河川水位站點（圈圈依警戒等級上色） */
+  riverStations?: RiverStationFeature[];
+  showRiverStations?: boolean;
 }
 
 const TW_COUNTIES_URL = "/data/tw-counties.geo.json";
+const RIVER_LINES_URL = "/data/river-lines.geo.json";
+const RIVER_BASINS_URL = "/data/river-basins.geo.json";
 
 export function MapView({
   metric,
@@ -58,6 +75,8 @@ export function MapView({
   onCountyClick,
   reservoirPoints = [],
   showReservoirs = false,
+  riverStations = [],
+  showRiverStations = false,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
@@ -67,7 +86,15 @@ export function MapView({
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState<
-    | { x: number; y: number; name: string; value: number | null }
+    | {
+        x: number;
+        y: number;
+        name: string;
+        value: number | null;
+        /** override label/unit；省略則 fallback 到 choropleth metric */
+        valueLabel?: string;
+        valueUnit?: string;
+      }
     | null
   >(null);
 
@@ -183,6 +210,37 @@ export function MapView({
           },
         });
 
+        // ── Cycle E: 河川流域邊界（虛線灰）+ 河網（細藍線 minzoom 7）──
+        try {
+          map.addSource("river-basins", { type: "geojson", data: RIVER_BASINS_URL });
+          map.addLayer({
+            id: "river-basins-line",
+            type: "line",
+            source: "river-basins",
+            paint: {
+              "line-color": "#6B7280",
+              "line-width": 0.7,
+              "line-opacity": 0.32,
+              "line-dasharray": [3, 2],
+            },
+          });
+          map.addSource("river-lines", { type: "geojson", data: RIVER_LINES_URL });
+          map.addLayer({
+            id: "river-lines-line",
+            type: "line",
+            source: "river-lines",
+            minzoom: 7,
+            paint: {
+              "line-color": "#0EA5E9",
+              "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.5, 10, 1.5, 14, 2.5],
+              "line-opacity": 0.55,
+            },
+          });
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn("[MapView] river basins/lines layer init failed", e);
+        }
+
         // ── Reservoir points layer ──
         map.addSource("reservoirs", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         map.addLayer({
@@ -218,7 +276,53 @@ export function MapView({
           paint: { "text-color": "#0F172A", "text-halo-color": "#FFFFFF", "text-halo-width": 1.4 },
         });
 
-        // Reservoir hover
+        // ── Cycle E: 河川水位站圈圈（依警戒等級配色）──
+        map.addSource("river-stations", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer({
+          id: "river-stations-pt",
+          type: "circle",
+          source: "river-stations",
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 3, 8, 5, 12, 8],
+            // 水利署慣例：一級=最嚴重(紅) / 二級=橘 / 三級=黃(最先預警) / 0=正常綠
+            "circle-color": [
+              "match",
+              ["get", "alert_level"],
+              1, "#EF4444",
+              2, "#F59E0B",
+              3, "#FACC15",
+              0, "#10B981",
+              "#94A3B8", // null/unset
+            ],
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": 1.4,
+            "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5.5, 0.85, 7, 1],
+          },
+        });
+
+        // River station hover tooltip — 用 valueLabel/valueUnit override，避免被 choropleth metric 單位污染
+        const ALERT_LBL: Record<string, string> = { "1": "一級警戒", "2": "二級警戒", "3": "三級警戒", "0": "正常" };
+        map.on("mousemove", "river-stations-pt", (e) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          map.getCanvas().style.cursor = "pointer";
+          const p = f.properties as { name: string; river: string | null; level_m: number | null; alert_level: number | null };
+          const lvl = p.alert_level == null ? "未設警戒值" : ALERT_LBL[String(p.alert_level)] ?? "—";
+          setTooltip({
+            x: e.point.x,
+            y: e.point.y,
+            name: `${p.name}${p.river ? "（" + p.river + "）" : ""} · ${lvl}`,
+            value: typeof p.level_m === "number" ? p.level_m : null,
+            valueLabel: "水位",
+            valueUnit: "m",
+          });
+        });
+        map.on("mouseleave", "river-stations-pt", () => {
+          map.getCanvas().style.cursor = "";
+          setTooltip(null);
+        });
+
+        // Reservoir hover — 也用 valueLabel/valueUnit override，避免被 choropleth metric 單位污染
         map.on("mousemove", "reservoirs-pt", (e) => {
           const f = e.features?.[0];
           if (!f) return;
@@ -229,6 +333,8 @@ export function MapView({
             y: e.point.y,
             name: `${p.name}水庫 · 蓄水 ${p.rate ?? "—"}%`,
             value: typeof p.capacity === "number" ? p.capacity : null,
+            valueLabel: "容量",
+            valueUnit: "萬 m³",
           });
         });
         map.on("mouseleave", "reservoirs-pt", () => {
@@ -365,6 +471,32 @@ export function MapView({
     src.setData({ type: "FeatureCollection", features });
   }, [ready, showReservoirs, JSON.stringify(reservoirPoints)]);
 
+  // Cycle E: Update river-stations source
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    const src = map.getSource("river-stations") as mapboxgl.GeoJSONSource | undefined;
+    if (!src) return;
+    const features = showRiverStations
+      ? riverStations
+          .filter((p) => p.lat != null && p.lng != null)
+          .map((p) => ({
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
+            properties: {
+              id: p.id,
+              name: p.name,
+              river: p.river,
+              county: p.county,
+              level_m: p.level_m,
+              alert_level: p.alert_level,
+              observed_at: p.observed_at,
+            },
+          }))
+      : [];
+    src.setData({ type: "FeatureCollection", features });
+  }, [ready, showRiverStations, JSON.stringify(riverStations)]);
+
   // Zoom on drill
   useEffect(() => {
     if (!ready || !mapRef.current) return;
@@ -392,7 +524,9 @@ export function MapView({
           <strong>{tooltip.name}</strong>
           {tooltip.value != null && (
             <span className="stat">
-              {metricLabel} <b>{fmt.num(tooltip.value, tooltip.value < 100 ? 1 : 0)}</b> {metricUnit}
+              {tooltip.valueLabel ?? metricLabel}{" "}
+              <b>{fmt.num(tooltip.value, tooltip.value < 100 ? 1 : 0)}</b>{" "}
+              {tooltip.valueUnit ?? metricUnit}
             </span>
           )}
         </div>

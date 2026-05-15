@@ -21,6 +21,7 @@ import { ViewC } from "@/components/views/ViewC";
 import { getMockMetricValue } from "@/lib/mock-data";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWaterKpis } from "@/hooks/useWaterKpis";
+import { useRiverWaterLevel } from "@/hooks/useRiverWaterLevel";
 import { codeConvert, normalizeCountyName } from "@/lib/counties";
 import { getNearestCounty } from "@/lib/reverseGeocode";
 
@@ -33,15 +34,16 @@ const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: st
 // Phase 0b+ A-2: 水主題點位圖層定義（reservoir 已 LIVE，其他 Phase 1+ 規劃）
 function buildPointLayers(
   on: Record<string, boolean>,
-  reservoirCount: number
+  reservoirCount: number,
+  riverStationCount: number
 ): PointLayerToggle[] {
   return [
-    { id: "reservoir",  label: "主要水庫",  count: reservoirCount, color: "#0EA5E9", shape: "ring",   enabled: true,  on: on.reservoir },
-    { id: "rainGauge",  label: "雨量站",    count: 1306,           color: "#10B981", shape: "dot",    enabled: false, on: on.rainGauge },
-    { id: "waterQC",    label: "水質測站",  count: 2269,           color: "#A855F7", shape: "small",  enabled: false, on: on.waterQC },
-    { id: "riverLevel", label: "河川水位站", count: 188,            color: "#F59E0B", shape: "dot",    enabled: false, on: on.riverLevel },
-    { id: "polluter",   label: "列管事業",  count: 8420,           color: "#EF4444", shape: "small",  enabled: false, on: on.polluter },
-    { id: "wwtp",       label: "汙水處理廠", count: 82,            color: "#64748B", shape: "square", enabled: false, on: on.wwtp },
+    { id: "reservoir",  label: "主要水庫",  count: reservoirCount,    color: "#0EA5E9", shape: "ring",   enabled: true,  on: on.reservoir },
+    { id: "rainGauge",  label: "雨量站",    count: 1306,              color: "#10B981", shape: "dot",    enabled: false, on: on.rainGauge },
+    { id: "waterQC",    label: "水質測站",  count: 2269,              color: "#A855F7", shape: "small",  enabled: false, on: on.waterQC },
+    { id: "riverLevel", label: "河川水位站", count: riverStationCount, color: "#F59E0B", shape: "dot",    enabled: true,  on: on.riverLevel },
+    { id: "polluter",   label: "列管事業",  count: 8420,              color: "#EF4444", shape: "small",  enabled: false, on: on.polluter },
+    { id: "wwtp",       label: "汙水處理廠", count: 82,               color: "#64748B", shape: "square", enabled: false, on: on.wwtp },
   ];
 }
 
@@ -80,6 +82,7 @@ export default function App() {
 
   // 真實 Supabase KPI（只在 water 主題啟用）
   const water = useWaterKpis();
+  const river = useRiverWaterLevel();
   const useRealData = theme === "water";
 
   // 把雨量站（中文 county）聚合成 22 縣市平均 24hr 雨量 → code3
@@ -131,6 +134,9 @@ export default function App() {
           value = sewageByCode3[code];
         } else if (metric === "rain_24hr" && rain24ByCode3[code] != null) {
           value = rain24ByCode3[code];
+        } else if (metric === "river_alert_pct") {
+          // Cycle E：警戒站佔比；無對應站資料 → 0（非缺值）
+          value = river.byCode3[code]?.alert_pct ?? 0;
         }
       }
       // fallback to mock
@@ -138,7 +144,7 @@ export default function App() {
       out[code] = value;
     }
     return out;
-  }, [metric, useRealData, water.governance, rain24ByCode3]);
+  }, [metric, useRealData, water.governance, rain24ByCode3, river.byCode3]);
 
   // Phase 0b+ A-2: 點位圖層 toggle state（目前只 reservoir 有資料，其他 placeholder）
   const [pointLayersOn, setPointLayersOn] = useState<Record<string, boolean>>({
@@ -170,6 +176,27 @@ export default function App() {
     }
     return all;
   }, [useRealData, water.reservoirs, view, county]);
+
+  // Cycle E：河川水位站給 MapView
+  // View A: 全國；View B: 只該縣市
+  const riverStationsForMap = useMemo(() => {
+    if (!useRealData || !river.stations.length) return [];
+    const all = river.stations.map((s) => ({
+      id: s.station_id,
+      name: s.station_name,
+      river: s.river_name,
+      county: s.county_id_moi,
+      level_m: s.water_level_m,
+      alert_level: s.alert_level,
+      observed_at: s.observed_at,
+      lat: s.lat,
+      lng: s.lng,
+    }));
+    if ((view === "B" || view === "C") && county) {
+      return all.filter((p) => p.county != null && codeConvert.idMoiToCode3(p.county) === county);
+    }
+    return all;
+  }, [useRealData, river.stations, view, county]);
 
   // Breadcrumb
   const breadcrumb: CrumbItem[] = useMemo(() => {
@@ -257,6 +284,8 @@ export default function App() {
               onCountyClick={goCity}
               reservoirPoints={reservoirPointsForMap}
               showReservoirs={useRealData && (view === "A" ? pointLayersOn.reservoir : view !== "D")}
+              riverStations={riverStationsForMap}
+              showRiverStations={useRealData && (view === "A" ? pointLayersOn.riverLevel : view === "B" || view === "C")}
             />
           </ErrorBoundary>
 
@@ -266,7 +295,7 @@ export default function App() {
               metric={metric}
               metricOptions={manifest.overview.color_metrics}
               onMetricChange={setMetric}
-              pointLayers={buildPointLayers(pointLayersOn, water.reservoirs.length)}
+              pointLayers={buildPointLayers(pointLayersOn, water.reservoirs.length, river.stations.length)}
               onTogglePoint={togglePointLayer}
             />
           )}
