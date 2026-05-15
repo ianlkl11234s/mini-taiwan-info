@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "Project-level settings for mini-taiwan-info. Allows read-only ops + auto typecheck. 2026-05-15 setup based on Session 5 learnings.",
+  "permissions": {
+    "allow": [
+      "Bash(cd frontend && pnpm typecheck)",
+      "Bash(cd frontend && pnpm typecheck:*)",
+      "Bash(cd frontend && pnpm install)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm install)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git show:*)",
+      "Bash(git blame:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote:*)",
+      "Bash(git reflog:*)",
+      "Bash(git stash list)",
+      "Bash(git config --get:*)",
+      "Bash(psql * -c \"SELECT*)",
+      "Bash(psql * -t -c \"SELECT*)",
+      "Bash(psql * -c \"\\d*)",
+      "Bash(psql * -c \"\\df*)",
+      "Bash(psql * -c \"\\dt*)",
+      "Bash(psql * -c \"SHOW*)",
+      "Bash(agent-browser --session-name * screenshot:*)",
+      "Bash(agent-browser --session-name * eval:*)",
+      "Bash(agent-browser --session-name * snapshot)",
+      "Bash(agent-browser --session-name * open:*)",
+      "Bash(agent-browser --session-name * close)",
+      "Bash(agent-browser --session-name * scrollintoview:*)",
+      "Bash(agent-browser --session-name * scroll:*)",
+      "Bash(curl -s * -o /dev/null*)",
+      "Bash(curl -sI*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(ls:*)",
+      "Bash(find . -type *)",
+      "Bash(find ./* -*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc -l:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(file:*)",
+      "Bash(stat:*)",
+      "Bash(echo:*)",
+      "Bash(jq:*)",
+      "Bash(python3 -m pip list)",
+      "Bash(python3 -m pip show:*)",
+      "Bash(python3 *.py --dry-run:*)",
+      "Bash(python3 *.py --help)",
+      "Bash(cd /Users/migu/Desktop/資料庫/gen_ai_try/ichef_工作用/GIS/* && git status)",
+      "Bash(cd /Users/migu/Desktop/資料庫/gen_ai_try/ichef_工作用/GIS/* && git log:*)",
+      "Bash(cd /Users/migu/Desktop/資料庫/gen_ai_try/ichef_工作用/GIS/* && git fetch:*)",
+      "Bash(cd /Users/migu/Desktop/資料庫/gen_ai_try/ichef_工作用/GIS/* && git rev-list:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(rm -rf:*)",
+      "Bash(psql * -c \"DROP*)",
+      "Bash(psql * -c \"TRUNCATE*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/migu/Desktop/資料庫/gen_ai_try/ichef_工作用/GIS/mini-taiwan-info/.claude/hooks/typecheck-on-frontend-edit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
