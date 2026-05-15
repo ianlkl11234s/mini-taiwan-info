@@ -467,6 +467,19 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .kpi-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .kpi-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
+/* ── 響應式：dashboard pane 約 40% 視窗，所以 viewport 斷點較高 ── */
+/* < 1500px: 4 欄 → 2x2  ;  3 欄 → 3 欄保留 */
+@media (max-width: 1500px) {
+  .kpi-grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* < 900px: 3/2 欄全部 1 欄（mobile / 折疊狀態） */
+@media (max-width: 900px) {
+  .kpi-grid,
+  .kpi-grid.cols-4,
+  .kpi-grid.cols-3,
+  .kpi-grid.cols-2 { grid-template-columns: 1fr; }
+}
+
 /* ===== KPI Card ===== */
 .kpi-card {
   background: var(--surface);
@@ -512,6 +525,10 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   color: var(--text-secondary);
   font-weight: 500;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .kpi-label .ico {
   width: 22px; height: 22px;
@@ -534,13 +551,15 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .kpi-card.expanded .kpi-expand { opacity: 1; transform: rotate(45deg); }
 
 .kpi-value {
-  font-size: 32px;
+  /* clamp: 窄時降到 22px，寬時最高 32px，2.4vw 線性內插 */
+  font-size: clamp(22px, 2.4vw, 32px);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.1;
   color: var(--text);
-  display: flex; align-items: baseline; gap: 4px;
+  display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap;
   position: relative; z-index: 1;
+  overflow-wrap: anywhere;
 }
 .kpi-value .unit {
   font-size: 14px;
