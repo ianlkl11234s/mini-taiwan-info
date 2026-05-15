@@ -157,4 +157,38 @@ User 在 Cycle A 拍板的重要分隔：
     --include="*.{js,jsx,ts,tsx,md,yaml,json}" .
   ```
 - 已 commit 進歷史的 secret，走 PB-07 `git filter-repo --replace-text` 移除
+
+### 2026-05-15: PostgREST exposed schema 限制 → public schema wrapper 模式
+
+Supabase Cloud 的 PostgREST 預設只 expose `public` schema；其他 schema（`fire`、`demographics` 等）需在 Dashboard → Settings → API → "Exposed schemas" 手動加。
+
+**Claude 無法 CLI 改這個設定**（不是 SQL，是 Supabase 平台層的 config），所以：
+
+- 新 schema 上線時，**寫一個 migration 在 `public` 建 wrapper views + RPCs**
+- View 用 `WITH (security_invoker = true)` 保留 RLS pass-through
+- RPC wrapper 用 `LANGUAGE sql STABLE SECURITY INVOKER` 包原 schema function
+- 命名慣例：`public.{schema}_{table_or_function}`（如 `public.fire_cause_taxonomy`、`public.fire_aggregate_count`）
+
+**為什麼這條重要**：Session 5 試圖用 `withSchema("fire")` 直接連 fire schema，前端報 "Invalid schema: fire"。打 PostgREST 配置牆才知道要 wrapper。下次開新 schema 主題（demographics / safety / ...）直接寫 wrapper migration 一起 apply。
+
+**範本**：`gis-platform/migrations/104_fire_public_wrappers.sql`
+
+### 2026-05-15: KPI grid 響應式斷點規格
+
+對應元件：`.kpi-grid.cols-{2,3,4}`
+
+| viewport | cols-4 | cols-3 | cols-2 |
+|---|---|---|---|
+| ≥ 1500px | 4 欄 | 3 欄 | 2 欄 |
+| 900-1500px | 2×2 | 3 欄保留 | 2 欄保留 |
+| < 900px | 1 欄 | 1 欄 | 1 欄 |
+
+**為什麼 1500 而非 1280**：dashboard pane 在「左地圖 60% / 右儀錶板 40%」layout 中只占 viewport 40%；要讓每張 KPI card 有 ≥ 200px 容身空間，cols-4 至少需 dashboard pane 880px → viewport 2200px。實務上 1500px 是「窄但仍可看」的折衷。
+
+**配套規則**：
+- `.kpi-value` 字級用 `clamp(22px, 2.4vw, 32px)` 自動縮放
+- `.kpi-label` + `.kpi-trend` 加 `overflow:hidden + text-overflow:ellipsis` 防截斷文字超出 card
+- `.dashboard-pane` 必加 `overflow-x:hidden + min-width:0`（防內部超寬產生橫卷）
+
+**Sibling 規則**：任何 fixed-column grid（如 `.fire-s4-grid`）在 dashboard pane 內**不要用固定 px 欄寬**（如 `1fr 320px`），否則窄時 1fr 那欄被擠垮。改用 `1fr 1fr` 或單欄 `1fr` stacked。
 - placeholder 慣例：`__MAPBOX_TOKEN_PLACEHOLDER__` / `__SUPABASE_ANON_KEY_PLACEHOLDER__` 等（GLOSSARY 收錄）
