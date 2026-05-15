@@ -116,9 +116,9 @@ SELECT * FROM public.get_twc_system_monthly_trend('基隆', 12);
 ```
 
 **前端 KPI 卡建議**：
-- 卡「17 座大型淨水場」：show `COUNT(*)`，⤴ 列出 top 5（板新/鯉魚潭/南化等）
+- 卡「17 座大型淨水場」：show `COUNT(*)`，⤴ 列出 top 5（板新/鯉魚潭/南化等）+ 地圖 cluster
 - 卡「管線長度」：show 最新 `pipe_length_km`，⤴ 拉開 21 年趨勢
-- ⚠️ **大型淨水場目前 lng/lat 為 NULL**，前端不能畫 map layer（後續另跑 TGOS geocode 補）
+- ✅ **大型淨水場 17/17 已有 lng/lat/geom**（Google Maps geocoded：ROOFTOP 14 / APPROXIMATE 3），前端可直接畫 map layer
 
 ### 類別 5 · 使用（歷年治理）
 
