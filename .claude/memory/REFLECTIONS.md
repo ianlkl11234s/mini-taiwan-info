@@ -278,4 +278,78 @@ BACKLOG: 移完成項 + B029-B040 共 12 個新項
 
 留下個 cycle 或 wrap-up 後回頭改 SKILL.md。
 
+---
+
+## 2026-05-15 · Session 5 · 消防主題 ViewA Phase 1（4 區塊 + 接通真實）
+
+### 本 session 做了什麼
+
+User 開場：「接續做 fire 主題資料端 TODO-1 → 完成後接著做 → 然後依設計實現 + 接真實」。流程：
+
+1. 讀 3 個 fire 文件（handoff / tic / progress）+ 既有 fire.yaml v1 + 設計 SPEC
+2. 跑 TODO-1 upload script — 發現 fire.incidents 已 48,626 筆（前次跑過），refresh 4 MV 確認
+3. TODO-2/3 跳過（user 拍板「全前端 + 接所有現有真實 + mock 標 placeholder」）
+4. 拆 9 個 F-task：F0 manifest / F1 queries / F2 hook / F3 components / F4 CSS / F5 routing / F6 typecheck / F7 codex review / F8 截圖 / F9 commit
+5. 寫 fire 全套：themes/fire.yaml v2 + queries/fire.ts 370 行 + useFireData hook + 11 components + ~550 行 CSS + App.tsx routing
+6. 撞 PostgREST 牆 → 寫 migration 104 在 public 建 wrapper views/RPCs → 改 queries 走 public
+7. Codex review 抓出 2 critical（ViewB 路由 / 水主題 layer 仍渲染）+ 6 improvement → 全修
+8. agent-browser screenshot 9 張驗證 4 區塊
+9. Atomic commits 共 8 個（gis-platform 1 + taipei-gis 1 + mini-taiwan 6）
+10. User 回報 3 個 CSS bug：河川層仍顯示 / KPI 窄頁壓垮 / S4 雙欄擠 → 修完 +3 commit
+11. /wrap-up 結束
+
+最終 6 個 mini-taiwan-info commits（init phase）+ 3 個 css fix commits + memory commits
+
+### What worked
+
+1. **設計 SPEC + Anthropic bundle 兩來源對齊** — SPEC.md 高層敘事 + view-a-fire.jsx low-level 結構，互補產出完整 mental model
+2. **並行 task agent**：codex review + agent-browser screenshot 並行跑，省時間
+3. **任務拆 9 個 F-step + STATUS doc** — _FIRE_IMPL_STATUS.md 把 backend ready/not-ready 跟 27 個元件 data source 一張表釐清，避免邊做邊發現要 mock
+4. **TypeScript 全程強型別** — `Cause5Id` literal union + 強制 bigint → number 轉換 + RPC 簽名對齊原 SQL，typecheck 0 error
+5. **Mock data 命名 + UI 標示一致** — `lib/mock-fire.ts` 全部標 Sprint X 待ETL，UI 元件 KPI label 旁 `<span class="muted">待ETL</span>` 等等，user 一眼看穿哪些真哪些假
+6. **Codex review 是 critical bug 抓手**：手動 review 漏掉「點 fire 縣市進 water ViewB」+「water layer 仍顯示」兩個 critical，codex 一眼抓到（PB-08 driver 驗證成功）
+7. **跨 repo migration 拆分**：fire schema 099 已 apply 過，本 session 只加 104 wrapper（atomic + 不動歷史 migration）
+
+### What didn't / 失誤
+
+1. **沒先測 `withSchema("fire")` 能不能跑** — 純 typecheck pass 就寫完所有 query，跑到 dev server 才發現 PostgREST 不 expose fire schema。**rework：寫 migration 104 + 改 4 處 fire.ts `db` 引用 + 改表名 `cause_taxonomy` → `fire_cause_taxonomy`**。應該寫第一個 query 後**立即 dev server 跑一次驗 fetch**
+2. **wrapper RPC 簽名第一次寫錯** — 抄了不存在欄位（street / cause_22_name / cause_5_name / response_minutes），migration 104 apply 報「return type mismatch」，rework 1 次。應該先 `SELECT pg_get_function_result('fire.list_incidents'::regprocedure)` 拿原 RPC 確切簽名再寫 wrapper
+3. **MapView 寫死河川基底層**沒 audit 到 — user 切到 fire 主題才回報「消防圖層有河川」。應該在 fire routing 設計時，**grep `MapView.tsx` 找所有 `map.addLayer` 看哪些是水主題專屬**
+4. **KPI cols-4 響應式漏了** — 沒測過窄頁面，user 截圖才看到 label 被截 + value 強制斷行。應該 implement 時就**拖視窗測過 1100/900/600 三個寬度**
+5. **S4 1fr 320px 雙欄太天真** — 設計圖在桌面寬看起來 OK，但 dashboard pane 只占 viewport 40%，1fr 那欄被 320px 擠到只剩 100px → 表格縣市名變直排。**設計時就該知道 pane 寬 = viewport × 40%**
+6. **`themes/fire.yaml.v1.bak` 留了** — 備份檔該 commit 前刪。已清
+
+### Next-time rules
+
+- **新 schema 第一個 query 寫完後立即 dev server fetch 驗證** — 不能只信 typecheck（PostgREST schema / RLS / RPC overload 都跑得起來才知道）
+- **寫 wrapper RPC 前**：psql 跑 `SELECT pg_get_function_result('schema.rpc'::regprocedure)` 拿確切簽名 + `\df+ schema.rpc` 看 argument 順序
+- **新主題 implement 階段就 grep `MapView.tsx` `map.addLayer` `map.addSource`** 列出所有寫死的水主題層，加 `showXxxBaseLayers` prop
+- **新元件涉及 dashboard pane（窄容器）時，拖視窗測 4 個寬度**：>1500 / 1100-1500 / 900-1100 / <900
+- **dashboard pane 內 grid 永遠用 1fr 或 1fr 1fr，不用固定 px 欄寬**
+- **備份檔（.bak / .old）commit 前一律 rm**
+- **Codex review 在 critical changes 完成後立刻派**（不要等 wrap-up 才補）— PB-08 driver 已驗證有效
+
+### Memory 產出（本 session）
+
+新增（無新 skill / file）。
+更新 8 個 memory 檔：
+- BACKLOG: +7 fire 後續 (B041-B047) + 完成 3 項
+- PRINCIPLES: +2 拍板（PostgREST wrapper / KPI 響應式斷點）
+- PLAYBOOKS: +PB-10 開新主題完整 SOP（跨 3 repo）
+- INCIDENTS: +3 條 fire incidents（PostgREST / MapView / KPI grid）
+- GLOSSARY: +8 詞（4 區塊 / cause_5_id / severity / 民國年 / public.fire_* / dashboard pane / cat-block / 待ETL）
+- REFLECTIONS: 本條
+- CROSS_REPO: 更新 pending（mini 11+ / gis 1 / taipei 1 ahead）
+- STATUS: rewrite（下一步：mock 替換真實，3 條方向）
+- _STATUS.md (root): 加 Session 5 段
+
+### 下一個 session 的目標（user 明說）
+
+**把 fire 主題所有 mock 都替換成真實**。最高優先三條：
+1. TODO-3 MOI 5 表 ETL（解 S1 財損 + 起火處所，3-4 天）
+2. TODO-5/6/7 7 都分隊 + 374 筆 Google geocoding（解 S2，5-7 天）
+3. fire 地圖層 dot + heatmap（用現有 fire.incidents 立即可做，1-2 hr）
+
+詳見 STATUS + BACKLOG B041-B047。
+
 
