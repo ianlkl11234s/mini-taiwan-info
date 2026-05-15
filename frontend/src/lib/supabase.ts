@@ -33,7 +33,17 @@ export const supabase: SupabaseClient = createClient(
 /**
  * 切換到 reference / realtime / metadata schema 取資料
  */
-export function withSchema(schema: "public" | "realtime" | "reference" | "metadata" | "spatial" | "opendata") {
+export type SupabaseSchema =
+  | "public"
+  | "realtime"
+  | "reference"
+  | "metadata"
+  | "spatial"
+  | "opendata"
+  | "fire"
+  | "demographics";
+
+export function withSchema(schema: SupabaseSchema) {
   return createClient(
     url ?? "https://placeholder.supabase.co",
     anonKey ?? "placeholder",
