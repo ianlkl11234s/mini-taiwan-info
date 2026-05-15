@@ -53,6 +53,8 @@ interface MapViewProps {
   /** Cycle E：河川水位站點（圈圈依警戒等級上色） */
   riverStations?: RiverStationFeature[];
   showRiverStations?: boolean;
+  /** 水主題基底層（河川流域線 + 河網），其他主題（如 fire）應傳 false */
+  showWaterBaseLayers?: boolean;
 }
 
 const TW_COUNTIES_URL = "/data/tw-counties.geo.json";
@@ -77,6 +79,7 @@ export function MapView({
   showReservoirs = false,
   riverStations = [],
   showRiverStations = false,
+  showWaterBaseLayers = true,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
@@ -496,6 +499,23 @@ export function MapView({
       : [];
     src.setData({ type: "FeatureCollection", features });
   }, [ready, showRiverStations, JSON.stringify(riverStations)]);
+
+  // 河川基底圖層（流域邊界 + 河網）visibility — 跟著 showWaterBaseLayers
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    const vis = showWaterBaseLayers ? "visible" : "none";
+    for (const id of ["river-basins-line", "river-lines-line"]) {
+      if (map.getLayer(id)) {
+        try {
+          map.setLayoutProperty(id, "visibility", vis);
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn(`[MapView] failed to toggle ${id}`, e);
+        }
+      }
+    }
+  }, [ready, showWaterBaseLayers]);
 
   // Zoom on drill
   useEffect(() => {

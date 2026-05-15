@@ -328,6 +328,7 @@ export default function App() {
               showReservoirs={useRealData && (view === "A" ? pointLayersOn.reservoir : view !== "D")}
               riverStations={riverStationsForMap}
               showRiverStations={useRealData && (view === "A" ? pointLayersOn.riverLevel : view === "B" || view === "C")}
+              showWaterBaseLayers={theme === "water"}
             />
           </ErrorBoundary>
 
