@@ -121,11 +121,89 @@ git log --oneline --since="1 hour ago" -- .claude/memory/
 - Pre-commit hook 失敗 → fix 後開新 commit，**不 amend**
 - 完成後 `git status` 確認 tree clean
 
+### Stage 6: Harness Audit（2026-05-15 加，整個 .claude/ 系統的自我檢視）
+
+> Memory 只記「做什麼」，Harness 才管「怎麼讓 Claude 做得更好」。每次 wrap-up 順便檢視 5 件事。
+
+#### 6-1. Skill 使用率盤點
+
+跑：
+```bash
+ls .claude/skills/*/SKILL.md
+```
+列當前 N 個 skill。比對本 session **實際被觸發次數**（從 conversation 自我觀察）：
+
+| Skill | 本 session 觸發 | 累計 |
+|---|---:|---:|
+| /theme-loop | X | Y |
+| /wrap-up | 1 | Y+1 |
+| /check-schema-exposed | X | Y |
+| ... | ... | ... |
+
+判讀：
+- **0 次但 description 寫了該觸發**：description 不夠 pushy → 提醒 user 改
+- **本該觸發卻沒**：典型 undertrigger，可能 description / trigger 詞要強化
+- **過度觸發**：少見，但若 skill 跟其他 skill 範圍重疊也提
+
+#### 6-2. Hook 健康度
+
+跑：
+```bash
+ls .claude/hooks/*.sh 2>/dev/null && cat .claude/settings.json | jq '.hooks'
+```
+
+檢查：
+- 每個 hook script 是否還執行得通（` 'echo {} | bash <script>'` 試跑）
+- settings.json hook matcher 是否與當前需求對齊
+- 本 session 有沒有觀察到 hook 失靈（沒抓到 typecheck error 之類）
+
+異常立刻列出來給 user 看 + 提建議。
+
+#### 6-3. Permission allow-list 增量
+
+跑：
+```bash
+git diff HEAD~10 .claude/settings.json 2>/dev/null | head -50
+```
+
+檢查：
+- 本 session 有沒有 user 反覆按 allow 同類指令的 pattern → 該加進 allow
+- 有沒有過度寬鬆的 wildcard 該收斂
+
+提示用 `fewer-permission-prompts` skill 自動掃 transcript 補 allow（user 全域 skill 已有）。
+
+#### 6-4. Memory 9 檔健康度
+
+跑：
+```bash
+wc -l .claude/memory/*.md
+```
+
+檢查：
+- 哪個檔超過 500 行可能該重整（INCIDENTS / REFLECTIONS 是 append-only 例外）
+- BACKLOG > 30 項 → 提醒清 P3
+- PRINCIPLES 是否有衝突條目（新舊覆蓋規則沒處理乾淨）
+- GLOSSARY 是否有重複定義
+
+#### 6-5. 新模式提取（最重要）
+
+問自己：本 session 有沒有出現「**做超過 1 次的新動作**」、「**新撞牆**」、「**新意外效率提升**」？
+
+| 信號 | 對策 |
+|---|---|
+| 同個動作做 ≥ 2 次 | 是否該抽成新 skill / 新 PB / 新 hook？ |
+| 撞了新坑 | 已 append INCIDENTS，但若該坑可被預先 lint / hook 攔截 → 寫新 hook |
+| 某 skill 內某段重複出現在不同任務 | 抽出 shared reference |
+| 新人 onboard 看不懂某個慣例 | 加進 GLOSSARY 或 CLAUDE.md must-check |
+
+→ Harness audit 完成後，給 user 看「Skill / Hook / Permission / Memory / 新模式」5 項建議清單，user 拍板才做（不自動改）。
+
 **完成後客製提示**：
 
 - 「要 push 嗎？`git push origin main`」（不自己 push）
 - Stage 2 若標記跨專案事實，列清單問「要同步到全域 memory 嗎？」（等 yes 才寫）
 - 若 CROSS_REPO 有 pending 跨 repo 變動：提醒去對應 repo（gis-platform / taipei-gis-analytics）也跑 wrap-up
+- Stage 6 若有建議：問「現在採用嗎？/ 寫進 BACKLOG 下次做？/ Skip」
 
 ---
 
