@@ -3,9 +3,9 @@
 > **Living document**。每完成一個 task / 做一個決定 / 發現新 backlog，就更新這份檔。
 > 一日一次同步：每天結束時對齊 TaskList tool 與本檔。
 
-**最後更新**：2026-05-14 (Session 3 · Cycle A 完成 · 6/6 KPI 接通真實資料 + 水質 tab 接通)
-**當前 Phase**：Phase 0 已收尾、進入 Cycle Roadmap（見 docs/themes/water-system-cycle.md）
-**當前 Focus**：📍 6/6 KPI 接通真實資料！真 LIVE 2 個（蓄水率 / 雨量 / 派生警戒，collector cron）+ 4 個月/年/靜態 batch
+**最後更新**：2026-05-15 (Session 5 結束 · 消防主題 ViewA Phase 1 上線 · 1 區塊真實 / 3 區塊 mock)
+**當前 Phase**：水主題 Phase 0 已收尾 · 消防主題 **ViewA Phase 1 完成**（4 區塊上線，等 mock → 真實替換）
+**當前 Focus**：📍 消防主題 mock 替換 — 下個 session 把 S2/S3/S4 mock 換真實（B041-B047）
 **用詞守則**：「LIVE」嚴格定義為 collector cron + 上游 realtime；其他用「接通真實資料」
 
 ---
@@ -332,3 +332,129 @@ Cycle 1 前的選項（已併入水循環 Roadmap）：
 - 選 B Phase 0d 月雨量 MV → 變成 Cycle K
 - 選 C 22 縣市 ranking 真實化 → Cycle 1 已完成
 - 選 D 4 主題 v1.1 → 不在水資源體系內（其他主題 roadmap）
+
+---
+
+# 🚒 消防主題（fire）— ViewA Phase 1 上線（2026-05-15 Session 5 完成）
+
+**狀態**：🟢 ViewA 4 區塊上線（1 區塊真實 + 3 區塊 mock placeholder）；下一步把 mock 換真實
+
+## Session 5 完成（2026-05-15）
+
+| 項目 | 內容 | 狀態 |
+|---|---|---|
+| **資料端 TODO-1** | 13764 upload — 48,626 筆 fire.incidents + 4 MV refresh | ✅ |
+| **gis-platform migration 104** | public.fire_* wrapper views + RPCs（PostgREST exposed schema 限制 workaround） | ✅ |
+| **themes/fire.yaml v2** | 對齊 designs/v03 SPEC.md 4 區塊 + 12 KPI + 5 tabs + coverage_notes | ✅ |
+| **frontend: data layer** | lib/queries/fire.ts (370 行) + hooks/useFireData.ts + lib/mock-fire.ts | ✅ |
+| **frontend: components** | 11 個（FireCatHeader / FireBarRow / FireDonut / FireScatter / FireTables / S1-S4 / ViewAFire） | ✅ |
+| **frontend: CSS** | globals.css +~550 行（cat-block / fire-* / 響應式斷點） | ✅ |
+| **frontend: App routing** | theme=fire → ViewAFire；隱藏水主題層；fire choropleth metric | ✅ |
+| **CSS 修補** | 河川基底層隱藏 / KPI grid 響應式 / S4 改單欄 / dashboard pane overflow | ✅ |
+| **Codex review** | 2 critical fix + 6 improvement notes（critical 全修） | ✅ |
+| **agent-browser 截圖** | 9 張 / 4 區塊驗證 | ✅ |
+
+**真實 vs Mock 對映**：
+- ✅ S1 火災發生：年度件數 / 死傷 / 主因 / 時間 4 切片 / 5 大類 22 細項 / 22 縣市排名（**真實**）
+- 🔶 S1 火災財損 + 起火處所（**mock 待 MOI ETL**）
+- 🔶 S2 火災救災 全部（**mock 待 Sprint 2**）
+- 🔶 S3 量能 散布圖 x 軸真實 / y 軸 mock；對照表全 mock（**等 Sprint 3 PostGIS**）
+- 🔶 S4 其他救護 全部（**mock 待 Sprint 4**）
+
+## Session 5 commits
+
+- mini-taiwan-info: 9dfd144 / a5a513b / b9183e6 / 59dc9aa / 8de67df / 29de112 / e3bd381 / b1941a1 (8 commit) + memory commits
+- gis-platform: 93d825f migration 104
+- taipei-gis-analytics: 5c7f061 12_upload_to_supabase.py
+
+**全 ahead origin 未 push**（等 user 拍板）
+
+## 下個 session 目標（user 明說）
+
+**把 fire 主題所有 mock 都替換成真實**。看 BACKLOG B041-B047，三條優先：
+
+1. **B045 fire 地圖層**（1-2 hr，用現有 fire.incidents 立即可做）— heatmap + mock 分隊 dot
+2. **B041 S1 placeholder swap**（3-4 天）— 等 taipei-gis TODO-3 MOI 5 表 ETL → 解 S1 財損 + 起火處所
+3. **B042 S2 placeholder swap**（5-7 天）— 等 taipei-gis Sprint 2 → 解分隊 + 消防栓
+
+---
+
+# 🚒 消防主題（fire）— Phase 1 規劃（2026-05-15 早）
+
+**狀態**：🟢 已落地 Session 5（ViewA），規劃內容保留作 reference  
+**資料端 SSOT**：[`taipei-gis-analytics/docs/systems/fire_tic.md`](../taipei-gis-analytics/docs/systems/fire_tic.md)（6 層架構）  
+**資料端進度**：[`taipei-gis-analytics/docs/memos/fire_progress.md`](../taipei-gis-analytics/docs/memos/fire_progress.md)（4 Sprint）  
+**前端詳規（將大改）**：[`docs/themes/fire.md`](docs/themes/fire.md)
+
+## 5 個拍板（2026-05-15）
+
+| # | 拍板 | 結果 |
+|---|---|---|
+| 1 | 林火風險 collector | 🚫 不做（snapshot import only） |
+| 2 | 缺 15 縣市分隊座標 | user 蒐集名冊 + Google Maps API geocoding（路線見 `fire_stations_geocoding_plan.md`） |
+| 3 | KPI 預設年份 | 113 年最新 + 提供時間軸切換（年/月/日/時） |
+| 4 | 火災財損 KPI | ✅ 做（內政部統計處死傷財損表） |
+| 5 | 既有 `themes/fire.yaml` | 大改保留架構（換 source `datagov_11953` → `datagov_13764`，tab 從 7 砍到 5） |
+
+## 4 區塊 → View 對應（前端顯示分工）
+
+| User 區塊 | mini-taiwan-info View | 資料來源（Supabase） |
+|---|---|---|
+| **1. 火災發生** | View A 主視覺（4 火災 KPI）+ View B tab「火災事件」+ 表格區（縣市/原因/場所排名） | `fire.incidents` + 4 個 MV + `fire.casualty_property_by_county_year` |
+| **2. 火災救災** | View B tab「量能地圖」⭐ | `fire.stations` + `fire.hydrants` |
+| **3. 火災交叉** | View A 量能 3 KPI + 散布圖 + View D 比較 | `fire.stations_density_by_county` + `fire.service_coverage_by_county` |
+| **4. 其他救護山林** | View B tab「其他災害」 | `fire.forest_fire_risk_snapshot` + `fire.ems_stats_*` + `fire.disaster_incidents`（火山移 Backlog 2026-05-15） |
+
+## Phase 1 拆解（前端對齊資料端 4 Sprint）
+
+| Cycle | 對應資料端 Sprint | 前端工作 | 估時 | 狀態 |
+|---|---|---|---|---|
+| **F1-1** | Sprint 1（火災發生 + 治理）| View A 4 火災 KPI 接通真實資料 + 時間軸 / 維度切換爆炸 + 表格區 | 3 天 | ⬜ blocked by Sprint 1 |
+| **F1-2** | Sprint 1（火災發生）| View B tab「火災事件」主體（個案點位 + heatmap + 月度趨勢 + 24h×12月熱力 + donut）| 3 天 | ⬜ blocked by Sprint 1 |
+| **F1-3** | Sprint 2（救災設施）| View B tab「量能地圖」（分隊 + 服務圈 + 消防栓 4 都）| 3 天 | ⬜ blocked by Sprint 2 |
+| **F1-4** | Sprint 3（交叉量能）| View A 量能 3 KPI + 散布圖 + View D 比較 | 2 天 | ⬜ blocked by Sprint 3 |
+| **F1-5** | Sprint 4（其他災害）| View B tab「其他災害」+ 林火 + 火山 + 救護 sub-section | 3 天 | ⬜ blocked by Sprint 4 |
+| **F1-6** | —（純前端） | `themes/fire.yaml` 大改（拍板 5）+ `docs/themes/fire.md` 改版 | 1 天 | 🟡 等 Sprint 1 RPC 名稱定下來 |
+
+**前端總工期估**：~15 天（順序執行）；可與資料端 Sprint 並行縮短
+
+## 前端要的 RPC（資料端寫）
+
+| RPC | 用途 | 區塊 |
+|---|---|---|
+| `aggregate_fire_count(year?, county_id?, cause?)` | View A KPI 1 + 時間/維度 explode | 1 |
+| `aggregate_fire_casualty(year?, county_id?, cause?)` | View A KPI 2 | 1 |
+| `aggregate_fire_property_loss(year?, county_id?)` | View A KPI 3（拍板 4）| 1 |
+| `aggregate_top_cause(year?, county_id?)` | View A KPI 4 | 1 |
+| `list_fire_incidents(county_id?, year_range?, cause?, limit?)` | View B 個案點位 | 1 |
+| `aggregate_fire_by_hour_month(year?, county_id?)` | View B 24h × 12 月熱力 | 1 |
+| `get_service_coverage_by_county(county_id)` | 5min 圈外人口比 | 3 |
+| `get_uncovered_villages(county_id)` | View B 量能地圖 drill-down | 3 |
+| `aggregate_ems_by_county_year(year?)` | View B 其他災害救護 | 4 |
+
+## 缺口（已知，需 user 配合）
+
+1. **22 → 5 大類起火原因 mapping**：Sprint 1 啟動前需 user 拍板分類
+2. **15 縣市分隊名冊蒐集**：user 親自，路線見 `fire_stations_geocoding_plan.md`
+3. **衛福部全國急救醫院**：catalog 無，需手動爬
+4. **15 縣市消防栓**：catalog 無 → 永遠 4 都 only
+
+---
+
+## 🔀 推薦 First Move（消防主題 Phase 1）
+
+```
+> 開始 fire Sprint 1：資料端跑 13764 batch_003 + 上 Supabase + 寫 5 個 MV
+```
+
+或先確認拍板：
+
+```
+> 確認 22 → 5 大類起火原因 mapping
+```
+
+或暫緩消防、繼續水主題 Cycle E：
+
+```
+> /water-loop 跑 Cycle E 河川流量 + map layers
+```
