@@ -84,19 +84,36 @@ mini-taiwan-info/
 4. **回應語言**：繁體中文（技術詞可留英）
 5. **真實資料優先**：所有可接 Supabase 的 KPI 都接，fallback 才 mock；用 `LIVE` badge 標記
 
+## 開發 must-check（Session 5 學到的牆，避免再撞）
+
+**動手前**：
+1. **跨 schema query 前**：寫完第一個 query **立即 dev server fetch 驗證**，不只信 typecheck。PostgREST 預設只 expose `public`，新 schema（fire / demographics ...）會報 `Invalid schema`，必須走 `public.{schema}_*` wrapper migration（見 `.claude/memory/PRINCIPLES.md` 2026-05-15 條）。可呼叫 `/check-schema-exposed`。
+2. **寫 wrapper RPC 前**：psql 跑 `SELECT pg_get_function_result('schema.func'::regprocedure)` 拿確切 RETURNS TABLE 簽名 — 用記憶或文件描述會 apply 報 "return type mismatch"。可呼叫 `/scaffold-rpc-wrapper`。
+3. **新主題加進 ViewA 前**：grep `MapView.tsx` 找所有 `map.addLayer` / `map.addSource`，列出水主題寫死層（如 `river-basins-line` / `river-lines-line`），加 `showXxxBaseLayers` prop 避免污染他主題。
+
+**改完前**：
+4. **任何 dashboard pane 內 KPI / grid 改動**：拖視窗測 4 寬度（>1500 / 1100-1500 / 900-1100 / <900）。Pane = viewport × 40%，1500px 是 cols-4 → 2x2 斷點（見 `.claude/memory/PRINCIPLES.md` KPI grid 響應式條）。
+5. **pane 內 grid 永遠用 fluid 欄寬**（`1fr` / `1fr 1fr`），不用固定 px（如 `1fr 320px`）— 窄 pane 會擠垮 1fr。
+6. **大改動完成**：派 codex review 抓 critical bug（PB-08 driver 已驗證有效）。
+
+---
+
 ## 開發流程
 
-### 開新 view / theme / KPI 流程
+### 開新 view / theme / KPI 流程（建議走 `/theme-loop` skill 自動跑）
 
 ```
 1. 改 themes/{theme}.yaml         加 manifest 定義 + response_shape
 2. 改 docs/themes/{theme}.md      （可選）詳規
-3. 改 frontend/src/lib/queries/   加 Supabase query
-4. 改 frontend/src/hooks/         加 hook
-5. 改 components/views/           接 hook
-6. pnpm typecheck                確認
-7. agent-browser 截圖驗證         必跑（user 喜好）
-8. atomic commit                  feat(scope): xxx
+3. 確認 schema 已 expose          PostgREST 限制，新 schema 要 wrapper migration
+4. 改 gis-platform/migrations/   wrapper views/RPCs（若 schema 非 public）
+5. 改 frontend/src/lib/queries/   加 Supabase query
+6. 改 frontend/src/hooks/         加 hook
+7. 改 components/views/           接 hook
+8. pnpm typecheck                 confirm（PostToolUse hook 已自動跑）
+9. agent-browser 截圖驗證         多寬度（>1500/1100-1500/900-1100/<900）
+10. codex review                  大改動必派
+11. atomic commit                 feat(scope): xxx
 ```
 
 ### Phase 進度看哪邊
@@ -105,14 +122,36 @@ mini-taiwan-info/
 - **TaskList tool**：in-session 即時 task tracking
 - **Session handoff**：`.claude/memory/STATUS.md`（給下一個 Claude session 接續）
 
-## Skills
+## Skills + Agents + Hooks
+
+### 主流程 Skills
 
 | Skill | 觸發詞 | 用途 |
 |---|---|---|
-| `/wrap-up` | `/wrap-up`、收工、收尾、session 結束 | 收尾 + 更新 9 個 memory 檔 + atomic commit |
-| `/water-loop` | `/water-loop`、跑下一輪、迭代水資源、接下個資料、下個 cycle、修一輪 P0 | 半自動 5 階段 cycle：Discovery（3 並行 agent）→ Plan（user 拍板）→ Execute（純前端 fix 或 ETL+migration+frontend）→ Verify（typecheck + agent-browser）→ Commit/Push（atomic + secret scanning fallback）。3 checkpoints 由 user 拍板 |
+| `/theme-loop` | `/theme-loop` / `/water-loop`（alias）/ 跑下一輪 / 迭代 / 接下個資料 / 下個 cycle / 修一輪 P0 / **補 mock 換真實** | 通用主題（水/消防/未來新主題）資料-視覺迭代循環 SOP。5 階段 + 4 checkpoint：Discovery（並行 4 agent，含 schema 預檢 + 多寬度截圖）→ Plan（user 拍板 + 資料缺口處置）→ Execute（4 Mode：P/D/V/S）→ Verify（typecheck + multi-viewport + codex review 三閘）→ Commit/Push（atomic + secret scanning fallback）|
+| `/wrap-up` | `/wrap-up`、收工、收尾、session 結束 | 收尾 + 更新 9 個 memory 檔 + atomic commit + **Stage 6 harness audit**（skill 使用率 / hook 健康度 / permission 增量 / memory 健康 / 新模式提取）|
 
-詳見 `.claude/skills/{wrap-up,water-loop}/SKILL.md`。
+### 輔助 Skills（被 theme-loop 與 wrap-up 自動呼叫，也可獨立）
+
+| Skill | 觸發詞 | 用途 |
+|---|---|---|
+| `/check-schema-exposed` | 寫新主題 query 前 / 撞 "Invalid schema: xxx" 錯誤 | Supabase PostgREST exposed-schemas 預檢 — 偵測該 schema 是否暴露，沒暴露就提示寫 public wrapper migration |
+| `/scaffold-rpc-wrapper` | 「幫我寫 wrapper migration」「scaffold RPC」 | 自動產生 `public.{schema}_*` wrapper migration + 對應 TS query function。psql 拿確切 RPC 簽名避免 `return type mismatch` rework |
+| `/cross-repo-status` | 「3 repo 同步了嗎」「該不該 push」「跨 repo 看一下」 | GIS 三部曲（mini / gis-platform / taipei-gis-analytics）跨 repo divergence + dirty + untracked 盤點，純 read-only |
+
+### Agents（自動 dispatch 場景）
+
+| Agent | 何時用 | 用途 |
+|---|---|---|
+| `schema-drift-auditor` | 主題上線後 / push 前 / 新 session onboarding | 比對 migrations vs frontend queries，找 3 類 drift：orphan RPC / rotten reference / wrapper signature mismatch |
+
+### Hooks（settings.json）
+
+| Event | 行為 |
+|---|---|
+| PostToolUse on Edit/Write/MultiEdit | 若改 `frontend/src/*.{ts,tsx}` → 自動 `pnpm typecheck`，只有 error 才輸出 |
+
+詳見 `.claude/skills/{theme-loop,wrap-up,check-schema-exposed,scaffold-rpc-wrapper,cross-repo-status}/SKILL.md` + `.claude/agents/schema-drift-auditor.md` + `.claude/settings.json` + `.claude/hooks/`。
 
 ## 重要規範
 
