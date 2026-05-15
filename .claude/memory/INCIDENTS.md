@@ -265,6 +265,98 @@ Cycle A 改完 frontend 跑 typecheck pass，agent-browser reload 截圖卻全�
 
 ---
 
+## 2026-05-15 PostgREST 拒絕 fire schema — "Invalid schema: fire"
+
+**現象**：
+Session 5 寫 fire theme，用 `withSchema("fire")` 連 fire.cause_taxonomy 等表，前端 console 顯示
+`PostgrestError: Invalid schema: fire`，整個 ViewAFire 顯示 "消防資料載入失敗"。
+
+**根因**：
+Supabase Cloud 的 PostgREST 預設只 expose `public` schema。其他 schema（reference / fire / ...）
+需要在 Dashboard → Settings → API → "Exposed schemas" 手動加入。這個設定不能用 SQL 改
+（嘗試 `ALTER ROLE authenticator SET pgrst.db_schemas` 失敗 — 該參數無法用 SET 設定）。
+Migration 099 雖然 `GRANT USAGE ON SCHEMA fire TO anon` 給了 schema 權限，但 PostgREST 層仍不 expose。
+
+**對策**：
+寫 migration 104 在 public schema 建 wrapper views + RPC：
+- 5 個 wrapper view (用 `WITH (security_invoker = true)` 保 RLS pass-through)
+- 2 個 wrapper RPC (用 `LANGUAGE sql STABLE SECURITY INVOKER` 包原 RPC)
+- 命名慣例 `public.fire_*`
+- Frontend 改用預設 `supabase` client（public schema）抓 `public.fire_*`
+
+**教訓**：
+- 開新 schema 主題（demographics / safety / ...）前先測 `withSchema("xxx")` 能不能實際 fetch（不只 typecheck）
+- 直接走「public schema wrapper」設計模式（已寫進 PRINCIPLES 2026-05-15 + PB-10）
+- Wrapper RPC 簽名必須跟原 RPC `pg_get_function_result(oid)` 完全一致 — 第一次寫錯 column 數量（多了 street/cause_22_name 等不存在欄位）apply 報 "return type mismatch"，rework 1 次
+
+**Sibling 同類風險**：
+- 任何主題用非 `public` schema 的 RPC（如 `withSchema("realtime")` 取 groundwater）都會撞同問題
+- Migration 103 之前 reference / realtime 之所以「能用」是因為 supabase.ts 雖定義了 `withSchema(...)` exports，但實際前端 query 沒呼叫它（都走 public）→ 沒撞牆而已
+
+---
+
+## 2026-05-15 MapView 寫死河川基底層 — fire 主題地圖有河川
+
+**現象**：
+User 切到 fire 主題後回報「消防圖層有河川」。檢查 MapView.tsx 發現 init 時無條件
+`map.addLayer({ id: 'river-basins-line', ... })` + `'river-lines-line'`，
+跟 theme 無關，所有主題都會顯示這兩個基底層。
+
+**根因**：
+Cycle E（2026-05-14）加河川流域線 + 河網作為水主題「地圖地理 reference」，
+寫死在 init `useEffect`，沒設計成可 toggle。Session 5 開 fire 主題時忘了這兩層也屬於水主題範圍。
+
+**對策**：
+MapView 加 `showWaterBaseLayers?: boolean` prop（預設 true 不破壞水主題），
+新 useEffect 在 prop 變動時 `setLayoutProperty("visibility", "none")` 切兩層。
+App.tsx 傳 `showWaterBaseLayers={theme === "water"}`。
+
+**教訓**：
+- 新主題不只看 component 的 data layer，**所有寫死在 MapView init 的基底層**都要 audit
+- 跨主題 component reuse（MapView 同時服務 water/fire）→ 用 prop 控制水主題專屬元素
+- agent-browser headless 測不到（WebGL 起不來），是 user 真實瀏覽器才會抓到
+
+**Sibling 同類風險**：
+- 未來再開新主題（demographics 等）也會被河川基底層污染 — 都要傳 `showWaterBaseLayers={false}`
+- 將來若加 fire 專屬基底層（如鄉鎮邊界），也要走同 prop 控制模式
+
+---
+
+## 2026-05-15 KPI cols-4 在 dashboard pane 太擠 — 「年度火災件數」label 被截斷
+
+**現象**：
+User 截圖顯示 fire 主題 4 個 KPI 卡在某個視窗寬度下：
+- 「年度火災件數」label 變成「年度火災件」
+- 「175 / 405」value 強制斷行成兩行
+- trend baseline 「較去年」變「較」
+- 「等 MOI 統計處 ETL」變「等」
+
+**根因**：
+1. `.kpi-grid.cols-4` 是寫死 `repeat(4, minmax(0, 1fr))` 沒做響應式
+2. dashboard pane 只占 viewport 40%（左地圖 60% / 右儀錶板 40%），所以 viewport 1186px 時 pane 約 474px，
+   4 個 card + gap + padding 後每張只有 ~98px 內容寬度，32px 字級 value 必爆
+3. 沒設 overflow / text-overflow 處理超出文字
+4. `.dashboard-pane` 沒設 `overflow-x: hidden`，內部超寬時整個 pane 可橫向捲
+
+**對策**：
+- `.kpi-grid.cols-4` 加 `@media (max-width: 1500px) { repeat(2, minmax(0,1fr)) }` 4 → 2x2
+- `@media (max-width: 900px) { 1fr }` 全變單欄
+- `.kpi-value` 字級用 `clamp(22px, 2.4vw, 32px)` 自動縮放
+- `.kpi-label` + `.kpi-trend` 加 `overflow:hidden + text-overflow:ellipsis`
+- `.dashboard-pane` 加 `overflow-x:hidden + min-width:0`
+- `.fire-s4-grid` 從 `1fr 320px` 改 `1fr`（單欄 stacked），避免 320px 固定欄擠垮 1fr 表格欄
+
+**教訓**：
+- KPI 卡的響應式不能用「viewport > 1280」當斷點 — dashboard pane 是 viewport 的 40%，斷點要相應提高
+- 固定 px 欄寬（如 `1fr 320px`）在容器只有 400-500px 時必擠垮 1fr 那欄 → 避免在 pane 內用
+- `.dashboard-pane` 必加 `overflow-x:hidden + min-width:0`（min-width:0 是 grid child 收縮的關鍵，預設 auto 會撐爆）
+
+**Sibling 同類風險**：
+- 將來任何 fire-s5 / s6 / 其他主題 section 用 grid 都要避開固定 px 欄寬
+- 將來新加 KPI cols-5 / cols-6 也要規劃響應式斷點（已寫進 PRINCIPLES 響應式斷點規格）
+
+---
+
 ## (template, 之後用)
 
 ## YYYY-MM-DD 標題
