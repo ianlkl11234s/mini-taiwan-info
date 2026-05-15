@@ -320,3 +320,90 @@
 
 6. 全部 push 完跑各 repo `git status` 確認 tree clean
 ```
+
+## PB-10: 開新主題完整 SOP（跨 3 repo，水→消防 第二輪驗證 2026-05-15）
+
+對應的事：把 disabled 主題（home-basics / safety / demographics / ...）上到 ViewA production。
+
+```
+階段 0：規劃對齊
+- 讀設計 brief（designs/v0X-{theme}-design-brief-YYYY-MM-DD/SPEC.md）
+- 找對應後端 SSOT（taipei-gis-analytics/docs/systems/{theme}_tic.md）
+- 確認 backend ready vs not-ready 清單 → 哪些 KPI 真實 / 哪些要 mock
+
+階段 1：Backend wrapper（若 schema 非 public）
+- 在 gis-platform 寫 wrapper migration 1XX_{theme}_public_wrappers.sql
+  * View 加 WITH (security_invoker = true)
+  * RPC wrapper 命名 public.{theme}_{function}
+  * 對齊原 schema function 的 RETURNS TABLE 簽名（column 數量 + type 完全一致）
+- psql apply + 驗證
+  SELECT COUNT(*) FROM public.{theme}_xxx;
+
+階段 2：Frontend manifest
+- 升級 themes/{theme}.yaml 到 v2 對齊設計 SPEC.md 4 區塊
+- color_metrics 4 個（choropleth 候選）
+- kpis 含 4 區塊全部，placeholder 用 coverage_note 標 Sprint X
+- layers_catalog 4 個圖層
+- meta.version 2.0.0 + coverage_notes 結構化
+- 備份 v1：themes/{theme}.yaml.v1.bak（commit 後刪）
+
+階段 3：Data layer
+- lib/queries/{theme}.ts
+  * 從 supabase（public schema）拉 wrapper views/RPCs
+  * bigint/numeric → number 強制轉
+  * derivation helpers (national / county / cause / 時間切片 / ...)
+- hooks/use{Theme}Data.ts
+  * Promise.all 並行 fetch
+  * { enabled } 旗標控制（只在對應主題啟用）
+- lib/mock-{theme}.ts
+  * 所有 placeholder 數據明標「待 Sprint X ETL」
+
+階段 4：Components（11 個慣性）
+- components/{theme}/
+  * {Theme}CatHeader (numbered section header)
+  * {Theme}BarRow (bar/line 自動切換)
+  * {Theme}Donut + Legend
+  * {Theme}Scatter (若主題有量能落差類別)
+  * {Theme}Tables (1-2 個慣性 table component)
+  * sections/S1{Topic}.tsx 區塊 1（真實）
+  * sections/S2/S3/S4.tsx 區塊 2-4（mock / 半真實）
+- components/views/ViewA{Theme}.tsx 主入口
+  * loading / error / Hero（顯實際 DB count）
+  * 4 區塊組裝
+
+階段 5：CSS
+- styles/globals.css append 區塊樣式
+  * .cat-block / .cat-head / .cat-badge.tone-*
+  * .{theme}-bar-row / donut / scatter / table 系列
+  * S4 grid 用單欄（避免擠垮）
+
+階段 6：App routing
+- App.tsx 加 THEME_ACCENT_VARS.{theme}
+- view === "A" 時 conditional render ViewA / ViewA{Theme}
+- useFireData 等 hook 用 { enabled: theme === '{theme}' } 省 RPC quota
+- TwoSectionLayers 對非水主題傳 pointLayers={[]}（避免誤顯水主題層）
+- goCity 對未實作 ViewB 的主題改 highlight-only
+
+階段 7：驗證
+- pnpm typecheck pass
+- pnpm dev 啟動，agent-browser 截圖 4 區塊
+- Dispatch codex review（critical 必修，improvement 可待）
+- 視覺驗證後再 commit
+
+階段 8：Atomic commits（順序）
+1. feat({theme}-schema): wrapper migration（gis-platform）
+2. feat({theme}-etl): 對應 pipeline / upload script（taipei-gis-analytics，若有）
+3. feat({theme}-manifest): themes/{theme}.yaml v2
+4. feat({theme}-frontend): queries + hook + mock
+5. feat({theme}-frontend): components
+6. feat({theme}-frontend): CSS + App routing
+7. docs({theme}): impl-status memo
+```
+
+**陷阱**（從 fire 學到）：
+- PostgREST `withSchema("xxx")` 報 "Invalid schema" → 改走 public wrapper
+- Wrapper RPC 簽名要跟原 RPC `pg_get_function_result` 完全一致（fire.list_incidents 第一次寫錯 column 數，rework）
+- MapView 寫死的水主題層（river-basins, river-lines）→ 對其他主題加 `show{Theme}BaseLayers` prop
+- KPI 4 欄在 40% dashboard pane 太擠 → cols-4 響應式必加 @media (max-width: 1500px) → 2x2
+
+**配套 PB**：PB-01 升級 v1.1（單檔 yaml）/ PB-02 接 RPC（單 RPC）/ PB-10 整個主題上線
