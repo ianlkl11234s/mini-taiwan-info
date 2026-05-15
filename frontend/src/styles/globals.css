@@ -171,6 +171,15 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   min-height: 0;
 }
 .main > * { min-height: 0; min-width: 0; }
+/* B045 兼修：1100×700 邊界裁切 — 縮 padding / gap / column min 讓 split-view 在 ~1100 寬不溢出。
+   原始 min 520+560 + padding 40 + gap 16 = 1136 需求超過 1100 viewport */
+@media (max-width: 1200px) {
+  .main {
+    grid-template-columns: minmax(460px, 52fr) minmax(500px, 48fr);
+    gap: 12px;
+    padding: 0 12px;
+  }
+}
 .main > .map-cell {
   position: relative;
   border-radius: var(--radius-card-lg);
