@@ -188,6 +188,8 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
 .dashboard-pane {
   overflow-y: auto;
+  overflow-x: hidden;          /* 內部元件超寬時不要產生橫向卷軸（user 拍板 2026-05-15） */
+  min-width: 0;                /* 給 grid child 一個 shrink 基準，避免 1fr 變成 min-content */
   padding-right: 4px;
   padding-bottom: 8px;
   scrollbar-width: thin;
@@ -1748,13 +1750,20 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .fire-table-wrap {
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;            /* 表格本身超寬時內部捲，不擴及 dashboard pane */
+  overflow-y: hidden;
   background: var(--surface);
+  max-width: 100%;
 }
 .fire-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
+}
+.fire-table td:nth-child(2),
+.fire-table th:nth-child(2) {
+  /* 縣市欄位永不換行（避免「新北市」變「新/北/市」直排） */
+  white-space: nowrap;
 }
 .fire-table thead th {
   text-align: left;
@@ -2072,13 +2081,11 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   font-weight: 500;
 }
 
-/* S4 二欄 grid (EMS table + timeline) */
+/* S4 grid — 改為單欄 stacked (table 上 / timeline 下)，
+   原 1fr 320px 在 dashboard pane (40% viewport) 太擠 → 表格欄被壓垮 */
 .fire-s4-grid {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr;
   gap: 18px;
   margin-bottom: var(--section-gap);
-}
-@media (max-width: 1100px) {
-  .fire-s4-grid { grid-template-columns: 1fr; }
 }
