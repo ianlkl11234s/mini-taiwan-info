@@ -13,7 +13,7 @@ import { ThemeSwitcher } from "@/components/chrome/ThemeSwitcher";
 import type { CrumbItem } from "@/components/chrome/Breadcrumb";
 import { MapView } from "@/components/map/MapView";
 import { MapLegend } from "@/components/map/MapLegend";
-import { TwoSectionLayers, type PointLayerToggle } from "@/components/map/TwoSectionLayers";
+import { TwoSectionLayers, type PointLayerToggle, METRIC_NONE } from "@/components/map/TwoSectionLayers";
 import { ViewA } from "@/components/views/ViewA";
 import { ViewAFire } from "@/components/views/ViewAFire";
 import { ViewB } from "@/components/views/ViewB";
@@ -25,7 +25,7 @@ import { useRiverWaterLevel } from "@/hooks/useRiverWaterLevel";
 import { useFireData } from "@/hooks/useFireData";
 import { codeConvert, normalizeCountyName, COUNTIES, byCode3 } from "@/lib/counties";
 import { getNearestCounty } from "@/lib/reverseGeocode";
-import { FIRE_MOCK_BY_COUNTY } from "@/lib/mock-fire";
+import { FIRE_MOCK_BY_COUNTY, FIRE_MOCK_STATIONS } from "@/lib/mock-fire";
 
 // 主題色映射（與 manifest theme.color_accent 對齊）
 const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: string }> = {
@@ -47,6 +47,21 @@ function buildPointLayers(
     { id: "riverLevel", label: "河川水位站", count: riverStationCount, color: "#F59E0B", shape: "dot",    enabled: true,  on: on.riverLevel },
     { id: "polluter",   label: "列管事業",  count: 8420,              color: "#EF4444", shape: "small",  enabled: false, on: on.polluter },
     { id: "wwtp",       label: "汙水處理廠", count: 82,               color: "#64748B", shape: "square", enabled: false, on: on.wwtp },
+  ];
+}
+
+// B045：fire 主題點位圖層定義（heatmap + 分隊 mock 已 enabled，其他待 Sprint 2-4 ETL）
+function buildFirePointLayers(
+  on: Record<string, boolean>,
+  stationCount: number,
+  hotspotCount: number
+): PointLayerToggle[] {
+  return [
+    { id: "hotspots",    label: "火災熱點",          count: hotspotCount,  color: "#DC2626", shape: "small",  enabled: true,  on: on.hotspots },
+    { id: "stations",    label: "消防分隊 (mock)",   count: stationCount,  color: "#DC2626", shape: "dot",    enabled: true,  on: on.stations },
+    { id: "hydrants",    label: "消防栓 (4都)",     count: 101100,        color: "#0EA5E9", shape: "small",  enabled: false, on: on.hydrants },
+    { id: "forestRisk",  label: "林火風險",          count: 1842,          color: "#84CC16", shape: "ring",   enabled: false, on: on.forestRisk },
+    { id: "emsHospital", label: "急救醫院",          count: 178,           color: "#10B981", shape: "square", enabled: false, on: on.emsHospital },
   ];
 }
 
@@ -114,9 +129,13 @@ export default function App() {
     return out;
   }, [useRealData, water.rainStations]);
 
+  // 無染色模式：metric === METRIC_NONE → 不算 metricValues、MapView 渲染灰底
+  const neutralChoropleth = metric === METRIC_NONE;
+
   // 計算 22 縣市 metric values — 真實資料優先，缺則 mock
   const metricValues = useMemo(() => {
     const out: Record<CountyCode3, number | null> = {} as never;
+    if (neutralChoropleth) return out; // 無染色模式不需計算
 
     // 把 governance.{lpcd|sewage}_by_county（key=id_moi）轉成 code3
     const lpcdByCode3: Record<CountyCode3, number> = {} as never;
@@ -181,7 +200,7 @@ export default function App() {
       out[code] = value;
     }
     return out;
-  }, [metric, useRealData, useFireRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates]);
+  }, [metric, neutralChoropleth, useRealData, useFireRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates]);
 
   // Phase 0b+ A-2: 點位圖層 toggle state（目前只 reservoir 有資料，其他 placeholder）
   const [pointLayersOn, setPointLayersOn] = useState<Record<string, boolean>>({
@@ -194,6 +213,17 @@ export default function App() {
   });
   const togglePointLayer = (id: string) =>
     setPointLayersOn((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // B045：fire 主題點位圖層 toggle state（hotspots / stations 預設 on，其他待 Sprint 2-4 ETL）
+  const [pointLayersOnFire, setPointLayersOnFire] = useState<Record<string, boolean>>({
+    hotspots: true,
+    stations: true,
+    hydrants: false,
+    forestRisk: false,
+    emsHospital: false,
+  });
+  const togglePointLayerFire = (id: string) =>
+    setPointLayersOnFire((prev) => ({ ...prev, [id]: !prev[id] }));
 
   // 40 水庫真實點位（給 MapView）
   // View A: 全部 37 座；View B/C: 只顯示該縣市 + 鄰縣（聚焦上下文）
@@ -213,6 +243,33 @@ export default function App() {
     }
     return all;
   }, [useRealData, water.reservoirs, view, county]);
+
+  // B045：fire heatmap 點位（113 年單年 ~12k 件，已 filter lat/lng != null）
+  // View A 顯示全國，View B 才篩該縣市（fire ViewB 未實作，預留）
+  const fireIncidentPointsForMap = useMemo(() => {
+    if (!useFireRealData || !fire.incidentPoints.length) return [];
+    const all = fire.incidentPoints
+      .filter((p) => p.lat != null && p.lng != null)
+      .map((p) => ({ lat: p.lat as number, lng: p.lng as number }));
+    if (view === "B" && county) {
+      const idMoi = byCode3[county]?.id_moi;
+      if (!idMoi) return all;
+      // listIncidents 已附 county_id，但 fireIncidentPointsForMap 已脫光 → 重抓
+      return fire.incidentPoints
+        .filter((p) => p.county_id === idMoi && p.lat != null && p.lng != null)
+        .map((p) => ({ lat: p.lat as number, lng: p.lng as number }));
+    }
+    return all;
+  }, [useFireRealData, fire.incidentPoints, view, county]);
+
+  // B045：消防分隊 mock 點位（22 縣市質心 jitter，Sprint 2 後 swap 真實）
+  const fireStationsForMap = useMemo(() => {
+    if (!useFireRealData) return [];
+    if (view === "B" && county) {
+      return FIRE_MOCK_STATIONS.filter((s) => s.county_id === county);
+    }
+    return FIRE_MOCK_STATIONS;
+  }, [useFireRealData, view, county]);
 
   // Cycle E：河川水位站給 MapView
   // View A: 全國；View B: 只該縣市
@@ -329,12 +386,17 @@ export default function App() {
               riverStations={riverStationsForMap}
               showRiverStations={useRealData && (view === "A" ? pointLayersOn.riverLevel : view === "B" || view === "C")}
               showWaterBaseLayers={theme === "water"}
+              showFireHeatmap={theme === "fire" && pointLayersOnFire.hotspots}
+              showFireStations={theme === "fire" && pointLayersOnFire.stations}
+              fireIncidentPoints={fireIncidentPointsForMap}
+              fireStations={fireStationsForMap}
+              neutralChoropleth={neutralChoropleth}
             />
           </ErrorBoundary>
 
           {/* Phase 0b+ A-2: 著色指標 + 點位圖層控制
-              - water：完整 6 個點位 layer
-              - fire：只顯著色指標選單（Sprint 2 完成後加分隊/熱點/消防栓 layer） */}
+              - water：6 個點位 layer
+              - fire：5 個點位 layer（hotspots / stations 已 enabled，其他待 Sprint 2-4） */}
           {view === "A" && manifest.overview.color_metrics && (
             <TwoSectionLayers
               metric={metric}
@@ -343,9 +405,15 @@ export default function App() {
               pointLayers={
                 theme === "water"
                   ? buildPointLayers(pointLayersOn, water.reservoirs.length, river.stations.length)
-                  : []
+                  : theme === "fire"
+                    ? buildFirePointLayers(
+                        pointLayersOnFire,
+                        fireStationsForMap.length,
+                        fireIncidentPointsForMap.length
+                      )
+                    : []
               }
-              onTogglePoint={togglePointLayer}
+              onTogglePoint={theme === "fire" ? togglePointLayerFire : togglePointLayer}
             />
           )}
 

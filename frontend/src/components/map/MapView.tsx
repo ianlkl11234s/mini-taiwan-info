@@ -34,6 +34,19 @@ export interface RiverStationFeature {
   lng: number;
 }
 
+export interface FireIncidentPoint {
+  lat: number;
+  lng: number;
+}
+
+export interface FireStationFeature {
+  id: string;
+  name: string;
+  county_name: string;
+  lat: number;
+  lng: number;
+}
+
 interface MapViewProps {
   metric: string;
   rampName: string;
@@ -53,8 +66,18 @@ interface MapViewProps {
   /** Cycle E：河川水位站點（圈圈依警戒等級上色） */
   riverStations?: RiverStationFeature[];
   showRiverStations?: boolean;
-  /** 水主題基底層（河川流域線 + 河網），其他主題（如 fire）應傳 false */
+  /** 水主題基底層（河川流域線 + 河網 + 水庫 + 水位站），其他主題（如 fire）應傳 false */
   showWaterBaseLayers?: boolean;
+  /** B045：火災 heatmap 可見性（fire 主題 + user toggle） */
+  showFireHeatmap?: boolean;
+  /** B045：消防分隊 dot + label 可見性（fire 主題 + user toggle） */
+  showFireStations?: boolean;
+  /** B045：火災個案點位（給 heatmap source；只用 lat/lng） */
+  fireIncidentPoints?: FireIncidentPoint[];
+  /** B045：消防分隊點位（mock 過渡，Sprint 2 後 swap 真實） */
+  fireStations?: FireStationFeature[];
+  /** 「無染色」模式 — 22 縣市 fill 變灰底（想專心看 heatmap / 點位時用） */
+  neutralChoropleth?: boolean;
 }
 
 const TW_COUNTIES_URL = "/data/tw-counties.geo.json";
@@ -80,6 +103,11 @@ export function MapView({
   riverStations = [],
   showRiverStations = false,
   showWaterBaseLayers = true,
+  showFireHeatmap = false,
+  showFireStations = false,
+  fireIncidentPoints = [],
+  fireStations = [],
+  neutralChoropleth = false,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
@@ -303,6 +331,86 @@ export function MapView({
           },
         });
 
+        // ── B045: 火災主題基底層（heatmap + 消防分隊 dot + 分隊 label）──
+        // SPEC.md 拍板「始終 on」，由 showFireBaseLayers prop 控 visibility
+        // heatmap z-order：插在 counties-border 之前（壓在 fill 上），讓邊線 + 標籤 + 分隊 dot 仍在熱力圖之上
+        map.addSource("fire-hotspots", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer({
+          id: "fire-hotspots-heat",
+          type: "heatmap",
+          source: "fire-hotspots",
+          maxzoom: 13,
+          layout: { visibility: "none" },
+          paint: {
+            // 113 年 ~12k 點在 default zoom 全島都會疊飽和；降 weight + intensity 拉開漸層
+            "heatmap-weight": 0.6,
+            "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 6, 0.25, 10, 1.5],
+            "heatmap-radius":    ["interpolate", ["linear"], ["zoom"], 6, 6,    10, 20],
+            "heatmap-opacity":   ["interpolate", ["linear"], ["zoom"], 6, 0.78, 12, 0.55],
+            // 7 個 color stop：低密度顯黃綠、中等橘、高密度才深紅
+            "heatmap-color": [
+              "interpolate", ["linear"], ["heatmap-density"],
+              0,    "rgba(255,255,255,0)",
+              0.05, "rgba(254,243,199,0.55)",  // 淺黃 amber-100
+              0.20, "rgba(253,224,71,0.72)",   // 黃 yellow-300
+              0.40, "rgba(253,186,116,0.85)",  // 橘 orange-300
+              0.60, "rgba(249,115,22,0.92)",   // 橘紅 orange-500
+              0.80, "rgba(220,38,38,0.95)",    // 紅 red-600
+              1.00, "rgba(127,29,29,1)",       // 深紅 red-900
+            ],
+          },
+        }, "counties-border");
+        map.addSource("fire-stations", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer({
+          id: "fire-stations-pt",
+          type: "circle",
+          source: "fire-stations",
+          layout: { visibility: "none" },
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 2.5, 8, 4, 11, 7],
+            "circle-color": "#DC2626",
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 6, 0.8, 10, 1.6],
+            "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5.5, 0.7, 8, 0.95],
+          },
+        });
+        map.addLayer({
+          id: "fire-stations-label",
+          type: "symbol",
+          source: "fire-stations",
+          minzoom: 8.5,
+          layout: {
+            visibility: "none",
+            "text-field": ["get", "name"],
+            "text-size": 10,
+            "text-anchor": "top",
+            "text-offset": [0, 0.85],
+            "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+            "text-allow-overlap": false,
+          },
+          paint: { "text-color": "#7F1D1D", "text-halo-color": "#FFFFFF", "text-halo-width": 1.4 },
+        });
+
+        // 消防分隊 hover tooltip（mock 過渡期不顯示數值，標 "Sprint 2 待ETL"）
+        map.on("mousemove", "fire-stations-pt", (e) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          map.getCanvas().style.cursor = "pointer";
+          const p = f.properties as { name: string; county_name: string };
+          setTooltip({
+            x: e.point.x,
+            y: e.point.y,
+            name: `${p.name} · ${p.county_name}`,
+            value: null,
+            valueLabel: "Sprint 2 待ETL",
+            valueUnit: "",
+          });
+        });
+        map.on("mouseleave", "fire-stations-pt", () => {
+          map.getCanvas().style.cursor = "";
+          setTooltip(null);
+        });
+
         // River station hover tooltip — 用 valueLabel/valueUnit override，避免被 choropleth metric 單位污染
         const ALERT_LBL: Record<string, string> = { "1": "一級警戒", "2": "二級警戒", "3": "三級警戒", "0": "正常" };
         map.on("mousemove", "river-stations-pt", (e) => {
@@ -396,6 +504,13 @@ export function MapView({
     const map = mapRef.current;
     if (!map.getLayer("counties-fill")) return;
 
+    // 無染色模式：22 縣市灰底（讓 fire heatmap / 點位視覺不被 ramp 紅吃掉）
+    if (neutralChoropleth) {
+      map.setPaintProperty("counties-fill", "fill-color", "#E5E9F0" as never);
+      map.setPaintProperty("counties-fill", "fill-opacity", 0.55);
+      return;
+    }
+
     const ramp = COLOR_RAMPS[rampName] ?? COLOR_RAMPS.blues;
     const colors = rampDirection === "reverse" ? [...ramp].reverse() : ramp;
     const [min, max] = domain;
@@ -436,7 +551,7 @@ export function MapView({
       ] as never);
       map.setPaintProperty("counties-fill", "fill-opacity", 0.92);
     }
-  }, [ready, metric, rampName, rampDirection, JSON.stringify(domain), JSON.stringify(metricValues), highlightCounties.join(","), JSON.stringify(highlightColors)]);
+  }, [ready, neutralChoropleth, metric, rampName, rampDirection, JSON.stringify(domain), JSON.stringify(metricValues), highlightCounties.join(","), JSON.stringify(highlightColors)]);
 
   // Update selected outline
   useEffect(() => {
@@ -500,12 +615,20 @@ export function MapView({
     src.setData({ type: "FeatureCollection", features });
   }, [ready, showRiverStations, JSON.stringify(riverStations)]);
 
-  // 河川基底圖層（流域邊界 + 河網）visibility — 跟著 showWaterBaseLayers
+  // 水主題基底圖層（流域邊界 + 河網 + 水庫 + 水位站）visibility — 跟著 showWaterBaseLayers
+  // 2026-05-16：reservoirs-pt / reservoirs-label / river-stations-pt 也納入 gate，
+  // 避免 fire 主題下 hover 隱形 source 仍冒水主題 tooltip
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     const map = mapRef.current;
     const vis = showWaterBaseLayers ? "visible" : "none";
-    for (const id of ["river-basins-line", "river-lines-line"]) {
+    for (const id of [
+      "river-basins-line",
+      "river-lines-line",
+      "reservoirs-pt",
+      "reservoirs-label",
+      "river-stations-pt",
+    ]) {
       if (map.getLayer(id)) {
         try {
           map.setLayoutProperty(id, "visibility", vis);
@@ -516,6 +639,76 @@ export function MapView({
       }
     }
   }, [ready, showWaterBaseLayers]);
+
+  // B045：火災 heatmap visibility（單獨 toggle）
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    if (!map.getLayer("fire-hotspots-heat")) return;
+    try {
+      map.setLayoutProperty(
+        "fire-hotspots-heat",
+        "visibility",
+        showFireHeatmap ? "visible" : "none"
+      );
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("[MapView] failed to toggle fire-hotspots-heat", e);
+    }
+  }, [ready, showFireHeatmap]);
+
+  // B045：消防分隊 dot + label visibility（一起 toggle）
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    const vis = showFireStations ? "visible" : "none";
+    for (const id of ["fire-stations-pt", "fire-stations-label"]) {
+      if (map.getLayer(id)) {
+        try {
+          map.setLayoutProperty(id, "visibility", vis);
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn(`[MapView] failed to toggle ${id}`, e);
+        }
+      }
+    }
+  }, [ready, showFireStations]);
+
+  // B045：火災 heatmap source data — 從 props 同步，不受 toggle 影響（toggle 只控 visibility 避免重 fetch）
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    const src = map.getSource("fire-hotspots") as mapboxgl.GeoJSONSource | undefined;
+    if (!src) return;
+    const features = fireIncidentPoints
+      .filter((p) => p.lat != null && p.lng != null)
+      .map((p) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
+        properties: {},
+      }));
+    src.setData({ type: "FeatureCollection", features });
+  }, [ready, fireIncidentPoints]);
+
+  // B045：消防分隊 source data
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    const src = map.getSource("fire-stations") as mapboxgl.GeoJSONSource | undefined;
+    if (!src) return;
+    const features = fireStations
+      .filter((p) => p.lat != null && p.lng != null)
+      .map((p) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
+        properties: {
+          id: p.id,
+          name: p.name,
+          county_name: p.county_name,
+        },
+      }));
+    src.setData({ type: "FeatureCollection", features });
+  }, [ready, fireStations]);
 
   // Zoom on drill
   useEffect(() => {

@@ -21,6 +21,9 @@ export interface PointLayerToggle {
   on: boolean;
 }
 
+/** sentinel：選此值代表「不染色 / 灰底」，App.tsx 接到時不算 metricValues、MapView 渲染灰 fill */
+export const METRIC_NONE = "_none_";
+
 interface Props {
   metric: string;
   metricOptions: ColorMetric[];
@@ -37,6 +40,7 @@ export function TwoSectionLayers({
   onTogglePoint,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const isNeutral = metric === METRIC_NONE;
   const activeMetric = metricOptions.find((m) => m.id === metric);
   const activeLayerCount = pointLayers.filter((l) => l.on && l.enabled).length;
 
@@ -72,7 +76,7 @@ export function TwoSectionLayers({
         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {expanded ? "圖層控制" : (
             <>
-              <b>{activeMetric?.label ?? metric}</b>
+              <b>{isNeutral ? "無染色" : activeMetric?.label ?? metric}</b>
               {activeLayerCount > 0 && (
                 <span className="muted" style={{ marginLeft: 4, fontSize: 10.5 }}>
                   · {activeLayerCount} 點位層
@@ -90,6 +94,18 @@ export function TwoSectionLayers({
           <div className="ml-section" style={{ padding: "10px 12px 8px" }}>
             <h4 style={{ fontSize: 10.5, margin: "0 0 6px 0" }}>著色指標</h4>
             <div className="ml-rows" style={{ gap: 1 }}>
+              {/* 「無染色」灰底 — 想專心看點位 / 熱力圖時用 */}
+              <label className="layer-row radio" style={layerRowStyle}>
+                <input
+                  type="radio"
+                  name="color-metric"
+                  checked={isNeutral}
+                  onChange={() => onMetricChange(METRIC_NONE)}
+                  style={{ marginRight: 6 }}
+                />
+                <span className="lbl" style={{ fontSize: 11.5 }}>無染色</span>
+                <span className="unit" style={{ fontSize: 10, color: "var(--text-tertiary)" }}>灰底</span>
+              </label>
               {metricOptions.map((m) => (
                 <label key={m.id} className="layer-row radio" style={layerRowStyle}>
                   <input

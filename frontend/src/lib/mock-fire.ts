@@ -9,6 +9,7 @@
  */
 
 import type { CountyCode3 } from "./types";
+import { COUNTIES } from "./counties";
 
 // ────────────────────────────────────────────────────────
 // 設計來源：data-fire.js（v03 design bundle）
@@ -155,3 +156,58 @@ export const FIRE_SEVERITY_COLORS: Record<string, string> = {
   low:     "#10B981",
   unknown: "#9CA3AF",
 };
+
+// ────────────────────────────────────────────────────────
+// 消防分隊 mock 點位（B045 過渡，Sprint 2 後 swap 真實資料）
+// ────────────────────────────────────────────────────────
+
+export interface FireStationMockPoint {
+  id: string;
+  name: string;
+  county_id: CountyCode3;
+  county_name: string;
+  lat: number;
+  lng: number;
+}
+
+// 從 seed 字串 derive 0..1 偽亂數（每次 build 結果一致）
+function pseudoRandom(seed: string, salt: number): number {
+  let h = salt;
+  for (let i = 0; i < seed.length; i++) {
+    h = (h << 5) - h + seed.charCodeAt(i);
+    h |= 0;
+  }
+  h = Math.abs(h * 9301 + 49297) % 233280;
+  return h / 233280;
+}
+
+/**
+ * 22 縣市消防分隊 mock 點位（總計 ≈629）
+ * 用縣市質心 + jitter 散布；範圍依 area_km2 調整（離島小範圍）
+ * Sprint 2 真實 ETL 後請拿掉本 const 並改走 query
+ */
+export const FIRE_MOCK_STATIONS: FireStationMockPoint[] = (() => {
+  const out: FireStationMockPoint[] = [];
+  for (const c of COUNTIES) {
+    const code = c.code3 as CountyCode3;
+    const meta = FIRE_MOCK_BY_COUNTY[code];
+    if (!meta) continue;
+    const count = meta.stations;
+    // jitter 半徑（degree）：大縣 0.12（≈ 13km）／小縣或離島 0.04（≈ 4km）／連江 0.02
+    const range =
+      (c.area_km2 ?? 0) < 50 ? 0.02 : (c.area_km2 ?? 0) < 200 ? 0.04 : 0.12;
+    for (let i = 0; i < count; i++) {
+      const dx = (pseudoRandom(code + "_lng_" + i, 17) - 0.5) * 2 * range;
+      const dy = (pseudoRandom(code + "_lat_" + i, 31) - 0.5) * 2 * range;
+      out.push({
+        id: `${code}-${String(i + 1).padStart(3, "0")}`,
+        name: `${c.name_zh}分隊 ${String(i + 1).padStart(2, "0")}`,
+        county_id: code,
+        county_name: c.name_zh,
+        lng: c.centroid_lng + dx,
+        lat: c.centroid_lat + dy,
+      });
+    }
+  }
+  return out;
+})();

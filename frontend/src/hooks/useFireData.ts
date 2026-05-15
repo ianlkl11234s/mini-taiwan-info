@@ -12,6 +12,7 @@ import {
   fetchIncidentsByCauseYear,
   fetchIncidentsByHourMonth,
   fetchIncidentsByDayOfYear,
+  listIncidents,
   deriveNationalSummary,
   deriveCountyAggregates,
   deriveCauseAggregates,
@@ -28,6 +29,7 @@ import {
   type IncidentsByCauseYearRow,
   type IncidentsByHourMonthRow,
   type IncidentsByDayOfYearRow,
+  type IncidentRow,
 } from "@/lib/queries/fire";
 
 export interface FireDataState {
@@ -40,6 +42,9 @@ export interface FireDataState {
   hourMonth: IncidentsByHourMonthRow[];
   dayOfYear: IncidentsByDayOfYearRow[];
   taxonomy: CauseTaxonomyRow[];
+
+  /** 個案點位（最新年）— heatmap 用 */
+  incidentPoints: IncidentRow[];
 
   /** Derived */
   summary: FireNationalSummary | null;
@@ -60,6 +65,7 @@ const EMPTY_STATE: FireDataState = {
   hourMonth: [],
   dayOfYear: [],
   taxonomy: [],
+  incidentPoints: [],
   summary: null,
   countyAggregates: [],
   causeAggregates: [],
@@ -82,7 +88,7 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
     let cancelled = false;
     (async () => {
       try {
-        const [taxonomy, countyYear, causeYear, hourMonth, dayOfYear] =
+        const [taxonomy, countyYear, causeYear, hourMonth, dayOfYear, incidentPoints] =
           await Promise.all([
             fetchCauseTaxonomy(),
             fetchIncidentsByCountyYear(),
@@ -90,6 +96,8 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
             fetchIncidentsByHourMonth(),
             // 最新民國年 365 點：取 113 一年（壓縮 payload）
             fetchIncidentsByDayOfYear(113),
+            // B045：113 年單年個案點位給 map heatmap（~12k 點，gzip ~400KB）
+            listIncidents({ yearMin: 113, yearMax: 113, limit: 50000 }),
           ]);
         if (cancelled) return;
 
@@ -104,6 +112,7 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
           hourMonth,
           dayOfYear,
           taxonomy,
+          incidentPoints,
           summary,
           countyAggregates: deriveCountyAggregates(countyYear),
           causeAggregates: deriveCauseAggregates(causeYear, latest),
