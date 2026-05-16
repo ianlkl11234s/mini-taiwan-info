@@ -293,9 +293,12 @@ export async function fetchSewageHistory(countyId: string): Promise<SewageRow[]>
  * 取全國 LPCD 歷年（22 縣市 avg by year）。給 KPI sparkline + time explode。
  */
 export async function fetchLpcdNationalHistory(): Promise<Array<{ year: number; lpcd_avg: number }>> {
+  // 限近 20 年 — 防全表拉爆 quota（22 縣市 × 20 年 ≈ 440 列）
+  const earliestYear = new Date().getFullYear() - 20;
   const { data, error } = await supabase
     .from("water_usage_yearly")
-    .select("year, lpcd");
+    .select("year, lpcd")
+    .gte("year", earliestYear);
   if (error) return [];
   const byYear = new Map<number, number[]>();
   for (const row of (data ?? []) as LpcdRow[]) {
