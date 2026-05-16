@@ -62,6 +62,11 @@
 | B051 | P3 | **24-column stacked totals overlap** | 待開工 | Session 7 B047 hour×county 截圖：24 個柱寬 ~32px 但 totals number ~40px 寬橫向 overlap。修法：rotate 90deg / 隔列 show / hover-only / 移到柱內。約 30min。Reference: FireStackedBar.tsx :32-44 fbr-num |
 | B052 | P2 | **B047 擴展：其他 fire KPI 也支援爆炸** | 待開工 | 目前只「年度火災件數」可爆炸。死傷 / 財損 / 主因 3 KPI 也應套同模式（需各自的 metric 聚合邏輯）。1-2 天 |
 | B053 | P3 | **B047 擴展：drill-down 二級爆炸** | 待開工 | 點柱 → 該年該縣市 by 原因 / 該原因 by 縣市。03-exploded-view-pattern 規格 Phase 3，user 拍板暫不做。0.5-1 天 |
+| B054 | P2 | **ViewAWater @800 響應式破洞** | 待開工 | Stage 4 截圖 2026-05-16：800px 寬章 2 two-up / 章 3 alert-grid 4 燈號 / 章 5 usage-split 雙欄都水平 overflow。修法：加 `@media (max-width: 900px)` 規則把 grid 改成 1 欄。約 30min |
+| B055 | P2 | **reservoir vs 上月同期 wrapper RPC** | 待開工 | S2Storage `vs 上月對比資料累積中` footnote。realtime.reservoir_status 30 天 snapshot 已有資料但 schema 未 expose；需寫 `public.get_reservoir_storage_by_region_at_time(p_at TIMESTAMP)` wrapper migration。約 1 hr |
+| B056 | P3 | **drought_alert 過去 5 年 timeline** | 待開工 | S3Drought 顯示「資料累積中」占位，等 collector 累積 30+ 筆 history（預計 6 個月）後實作真正 timeline 繪製 |
+| B057 | P2 | **淹水 200/500mm 情境接通** | 待開工 | S6Disaster 切換 200/350/500mm，目前只 350 接 useWaterKpis.flood。要嘛改 hook 並行 fetch 3 個情境，要嘛動態 refetch |
+| B058 | P3 | **用水結構 sector 拆解資料** | 待開工 | S5Usage「用水結構」目前 mock + badge「結構估算」。datagov 可能有民生/工業/農業細分，未確認；現用 DB 無 sector 欄位 |
 
 ---
 
