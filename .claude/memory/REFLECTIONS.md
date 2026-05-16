@@ -563,3 +563,60 @@ User 帶 design bundle handoff URL（claude.ai/design 匯出的 6.4MB gzip tar�
 2. **B054 ViewAWater @800 響應式修補**（30min 純前端 fix，B055/B057 一起也合理）
 3. **開新主題（demographics / safety）**— 沿 PB-10 + PB-13 SOP
 4. **B048-B051 響應式 / 視覺小 bug 一次掃**（< 2 hr）
+
+---
+
+## Session 9 反省（2026-05-16 · fire 主題 ViewA + ViewB 去 mock 化）
+
+User 一句話 task「依資料盤點結果，把可以換成真實資料的部分都換成真實資料」。範圍跨 2 repo (gis-platform migration 109 + 14 wrapper view + frontend 7 檔重寫)。最終 11 atomic commits（gis-platform 1 + mini-taiwan-info 10）。
+
+### 做對的
+
+1. **動手前先做 2 件事**：
+   - 派 2 並行 Explore agent（A: 列 fire mocks 與所需資料 / B: 列 migration 106/107/108 對應 wrapper 狀態）— 30 sec 拿到全貌
+   - 然後 psql `\d` 直接驗 12 張表實際欄位，不信規劃 doc — 避免 Session 8 PB-14 的 schema drift 二度
+2. **wrapper migration 一次寫 14 個**（PB-16 新 pattern）— `BEGIN/COMMIT` block + IF NOT EXISTS + 統一 GRANT 收尾，比過去一張一張寫快 8x
+3. **詢問用戶 2 個關鍵決策**前才動手（apply migration / 缺資料處置）— pattern「拍板後不再回頭」對 user 偏好
+4. **Promise.allSettled 17 fetch hook** + queryNames 對應 array — 沿用 PB-13 教訓，沒撞 Session 8 那道 BLOCKER
+5. **第二輪「B 類順手修」**：完成 A 類後幫 user 識別「能改但 Session 範圍外」4 項（label / choropleth / radar）— user 拍板採用其中 3 件，雷達圖修完才發現之前 mock_avg 拉的差距是 artifact（INCIDENTS 第 1 條）
+6. **誠實 footnote 接通真實 > 假裝 mock**：A 類缺資料採 user 拍板「接通 + footnote 揭露」— 顯示「2020 only」「僅 X 縣市完整」「待 ETL」比假裝有資料對使用者誠實（PRINCIPLES 新拍板）
+
+### 做錯 / 漏的
+
+1. **沒在 cycle 開頭跑 cross-repo audit**：直接接 user task 沒先 `/cross-repo-status`，wrap-up Stage 1 才發現其他 session 已建 migration 110/111/112 + Sprint G ETL — 本 session 「fire 去 mock」原本可以一起對接 emergency_hospitals + service_coverage MV。INCIDENTS 第 2 條
+2. **手動 grep / git log 取代輔助 skill**：累計 `/cross-repo-status` 0 次、`/check-schema-exposed` 0 次、`/scaffold-rpc-wrapper` 0 次 — 這些 skill 本該觸發但我心智用熟手動指令 → skill description 不夠 pushy / 設計 trigger 不明顯
+3. **disaster_incidents dedup 第一輪沒做**：fetch 200 筆全是同名颱風 spam，user 看截圖才發現問題 → bump limit 2000 + 加 dedup-by-name helper（PB-17）。**首次 fetch event-table 預設要先 unique audit**
+4. **災變 timeline 沒主動加 footnote**：「共 50 筆 · 顯示最近 2 筆」這種揭露 user 拍板「A 類處置」前我沒寫；EMS 表「只 2 縣市」也是 user 提示後才補
+5. **screenshot agent reload 後重新點 tab 沒記憶**：fire theme URL param `?theme=fire` 沒被 App.tsx 解析、reload 一定 reset 回 water → 改 `agent-browser` 流程要 reload 後 1 sec 點消防 tab。可加進 PB-03
+
+### Skill 觸發本 session 統計
+
+| Skill | 本 session | 累計 | 觀察 |
+|---|---:|---:|---|
+| /theme-loop | 0 | 6 | user 直接給 task，未走 SOP（範圍清楚不需要） |
+| /wrap-up | 1 | 9 | mode B 第 7 次 |
+| /cross-repo-status | 0 | 2 | 本該開頭跑（漏） |
+| /check-schema-exposed | 0 | 0 | wrapper migration 我直接寫，未過 audit skill |
+| /scaffold-rpc-wrapper | 0 | 0 | 14 view 批量寫，沒走 scaffold |
+
+→ 兩個輔助 skill 累計 0 次 + cross-repo-status 漏跑 = 設計上 trigger 不主動。下次 wrap-up 考慮：是否在 SKILL.md description 加入更強的 trigger，或在 wrap-up Stage 1 自動 inline 跑這些 audit
+
+### Harness 健康度
+
+- **Memory 9 檔行數**：BACKLOG 102（OK）/ INCIDENTS 558（append-only，OK）/ PLAYBOOKS 542（append-only，OK）/ REFLECTIONS 565（將達 600+ 後考慮歸檔早期 session）/ PRINCIPLES 289（OK）
+- **Hooks**：PostToolUse pnpm typecheck 本 session 跑 ~10 次無誤
+- **Permissions**：本 session 沒撞 prompt（psql / agent-browser 都已 allow）
+
+### 對 /wrap-up skill 的反省
+
+第 9 次跑：
+- Stage 1 跨 repo log 比對首次發現「本 session 漏對接其他 session 已完成 ETL」的 case — 應強化成「Stage 1 寫死跑 cross-repo + DB 對比」（不只列 commit）
+- 跨專案事實本次 0 條同步全域（fire 主題太 mini-taiwan-info-specific）
+- BACKLOG 達 102 行 / 70+ 項 — 開始接近 P3 該收的時機，下次清
+
+### 下一個 session 的合理開頭
+
+1. **接通 migration 110/111/112 跨 session ETL 成果**（B066-B068，1 day 純前端）— 解 fire 主題剩下 3 個 placeholder（急救醫院 / 5min 圈外 / 圈外村里）
+2. **B054 ViewAWater @800 響應式修補**（30min 純前端）
+3. **B042 後段補完**：fire.hydrants 其他 3 都欄位 mapping bug（taipei-gis pipeline 修）
+4. **開新主題 demographics**（design bundle handoff 第 3 次跑 PB-13）
