@@ -39,13 +39,15 @@ import { fmt } from "@/lib/format";
 import { byCode3, COUNTIES } from "@/lib/counties";
 import type { CountyCode3 } from "@/lib/types";
 import type { FireDataState } from "@/hooks/useFireData";
+import { useFireCountyData, type FireCountyDataState } from "@/hooks/useFireCountyData";
 import { deriveCountyCauseAggregates } from "@/lib/queries/fire";
+import type {
+  FireStationRow,
+  EmergencyShelterRow,
+  DisasterIncidentRow,
+} from "@/lib/queries/fire";
 import {
   FIRE_MOCK_BY_COUNTY,
-  FIRE_MOCK_STATIONS,
-  FIRE_HYDRANT_STATS,
-  FIRE_DISASTER_TIMELINE,
-  FIRE_NATIONAL_MOCK,
   FIRE_SEVERITY_COLORS,
   FIRE_KHH_OUTOF_VILLAGES,
 } from "@/lib/mock-fire";
@@ -118,16 +120,50 @@ export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps
     [data.countyAggregates, idMoi]
   );
 
-  // 該縣市 mock placeholder（待 Sprint 2-4 ETL）
+  // 該縣市 lazy fetch 4 類資料（stations / shelters / hydrant count / disasters）
+  const countyData = useFireCountyData(idMoi);
+
+  // 該縣市 mock placeholder（5min 圈外 / 山林風險點仍待 PostGIS）
   const mock = FIRE_MOCK_BY_COUNTY[county];
 
-  // 合併真實 + mock（real 優先）
+  // 合併真實資料（real 優先；ETL 缺的 fallback 到 mock）
   const merged = useMemo(() => {
     const incidents = cAgg?.incidents ?? 0;
     const deaths = cAgg?.deaths ?? 0;
     const injuries = cAgg?.injuries ?? 0;
     const density = c.pop_2024_wan > 0 ? incidents / c.pop_2024_wan : 0;
     const deathRatePerMille = incidents > 0 ? (deaths / incidents) * 1000 : 0;
+
+    // ─── 真實接通 ───
+    const stations = countyData.stations.length;
+    const stationsPerWan = c.pop_2024_wan > 0 ? stations / c.pop_2024_wan : 0;
+    const stationsPer100km2 = c.area_km2 > 0 ? (stations / c.area_km2) * 100 : 0;
+    const hydrants = countyData.hydrantCount;
+
+    // EMS by county latest year（從 useFireData 全國 emsYearlyRows filter）
+    const emsRowsForCounty = data.emsYearlyRows.filter((r) => r.county_id === idMoi);
+    const emsLatest =
+      emsRowsForCounty.length > 0
+        ? emsRowsForCounty.reduce((a, b) => (a.year > b.year ? a : b))
+        : null;
+    const emsTrips = emsLatest?.dispatch_count ?? 0;
+    const ohca = emsLatest?.ohca_count ?? 0;
+
+    // 該縣市財損（fire.casualty_property_by_county_year，目前只有 2020）
+    const casualtyRowsForCounty = data.casualtyRows.filter((r) => r.county_id === idMoi);
+    const casualtyLatest =
+      casualtyRowsForCounty.length > 0
+        ? casualtyRowsForCounty.reduce((a, b) => (a.year > b.year ? a : b))
+        : null;
+    // 千元 → 百萬：÷ 1000
+    const damageMillion =
+      casualtyLatest != null
+        ? (casualtyLatest.loss_total_thousand ?? 0) / 1000
+        : 0;
+
+    // 避難所數量（已 fetch）
+    const sheltersCount = countyData.shelters.length;
+
     return {
       incidents,
       deaths,
@@ -135,19 +171,21 @@ export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps
       density,
       deathRatePerMille,
       avgResponseMin: cAgg?.avg_response_minutes ?? null,
-      // 以下 mock（待 ETL）
-      stations: mock?.stations ?? 0,
-      stationsPerWan: mock?.stationsPerWan ?? 0,
-      stationsPer100km2: mock?.stationsPer100km2 ?? 0,
-      outOf5MinPct: mock?.outOf5MinPct ?? 0,
-      hydrants: mock?.hydrants ?? 0,
-      damageMillion: mock?.damageMillion ?? 0,
-      ohca: mock?.ohca ?? 0,
-      emsTrips: mock?.emsTrips ?? 0,
-      hospitals: mock?.hospitals ?? 0,
-      riskPoints: mock?.riskPoints ?? 0,
+      // ─── 真實接通 ───
+      stations,
+      stationsPerWan,
+      stationsPer100km2,
+      hydrants,
+      emsTrips,
+      ohca,
+      damageMillion,
+      sheltersCount,
+      // ─── 仍 placeholder ───
+      outOf5MinPct: mock?.outOf5MinPct ?? 0,   // 等 Sprint 3 PostGIS
+      hospitals: mock?.hospitals ?? 0,         // 衛福部名冊缺
+      riskPoints: mock?.riskPoints ?? 0,       // 山林風險點未對應到縣市
     };
-  }, [cAgg, mock, c.pop_2024_wan]);
+  }, [cAgg, mock, c.pop_2024_wan, c.area_km2, countyData, data.emsYearlyRows, data.casualtyRows, idMoi]);
 
   const latestYear = data.summary?.latest_year_minguo ?? 113;
 
@@ -233,13 +271,24 @@ export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps
         <IncidentsTab data={data} idMoi={idMoi} county={c} merged={merged} latestYear={latestYear} />
       )}
       {tab === "response"  && (
-        <ResponseTab county={county} cname={c.name_zh} merged={merged} />
+        <ResponseTab
+          county={county}
+          cname={c.name_zh}
+          merged={merged}
+          countyData={countyData}
+        />
       )}
       {tab === "service"   && (
         <ServiceTab county={county} popWan={c.pop_2024_wan} merged={merged} />
       )}
       {tab === "others"    && (
-        <OthersTab county={county} cname={c.name_zh} popWan={c.pop_2024_wan} merged={merged} />
+        <OthersTab
+          county={county}
+          cname={c.name_zh}
+          popWan={c.pop_2024_wan}
+          merged={merged}
+          countyData={countyData}
+        />
       )}
     </div>
   );
@@ -266,6 +315,7 @@ interface MergedCountyData {
   emsTrips: number;
   hospitals: number;
   riskPoints: number;
+  sheltersCount: number;
 }
 
 function FireRadarCard({
@@ -797,22 +847,21 @@ function IncidentsTab({
 // ─────────────────────────────────────────────────
 
 function ResponseTab({
-  county,
   cname,
   merged,
+  countyData,
 }: {
   county: CountyCode3;
   cname: string;
   merged: MergedCountyData;
+  countyData: FireCountyDataState;
 }) {
-  const stations = useMemo(
-    () => FIRE_MOCK_STATIONS.filter((s) => s.county_id === county),
-    [county]
+  // 真實分隊資料（fire.stations）— sorted by name
+  const stations: FireStationRow[] = useMemo(
+    () => [...countyData.stations].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
+    [countyData.stations]
   );
-  const has4Hydrant = (["TPE", "TCH", "TNN", "KHH"] as CountyCode3[]).includes(county);
-  const hydStat = has4Hydrant
-    ? FIRE_HYDRANT_STATS.find((s) => s.code === county) ?? null
-    : null;
+  const hasHydrant = merged.hydrants > 0;
 
   return (
     <>
@@ -823,16 +872,16 @@ function ResponseTab({
           value={merged.stations}
           unit="個"
           trend={{
-            delta: `${merged.stationsPerWan.toFixed(1)}/萬人`,
+            delta: `${merged.stationsPerWan.toFixed(2)}/萬人`,
             direction: "flat",
-            baseline: "待 Sprint 2 ETL",
+            baseline: "fire.stations",
             sentiment: "neutral",
           }}
         />
         <KPICard
           icon={<Activity size={13} />}
           label="面積密度"
-          value={merged.stationsPer100km2.toFixed(1)}
+          value={merged.stationsPer100km2.toFixed(2)}
           unit="隊/100km²"
           trend={{
             delta: merged.stationsPer100km2 < 2 ? "偏低" : "正常",
@@ -843,15 +892,19 @@ function ResponseTab({
         />
         <KPICard
           icon={<Droplet size={13} />}
-          label="消防栓"
-          value={has4Hydrant && hydStat ? fmt.num(hydStat.total) : "—"}
+          label={
+            hasHydrant ? (
+              <>消防栓</>
+            ) : (
+              <>消防栓 <span className="muted" style={{ fontSize: 9 }}>無資料</span></>
+            )
+          }
+          value={hasHydrant ? fmt.num(merged.hydrants) : "—"}
           unit="個"
           trend={{
-            delta: has4Hydrant && hydStat
-              ? `密度 ${hydStat.densityPerKm2.toFixed(1)}/km²`
-              : "資料未開放",
+            delta: hasHydrant ? "fire.hydrants" : "資料未開放",
             direction: "flat",
-            baseline: has4Hydrant ? "" : "限 4 都",
+            baseline: hasHydrant ? "" : "限高雄已接通",
             sentiment: "neutral",
           }}
         />
@@ -861,28 +914,41 @@ function ResponseTab({
         <div className="section-head">
           <div className="section-title">
             <span className="pre">STATIONS</span>
-            {cname} 消防分隊清單（mock）
+            {cname} 消防分隊清單
           </div>
           <div className="muted" style={{ fontSize: 11.5 }}>
-            共 {stations.length} 個分隊 · 左側地圖顯示位置
+            {countyData.loading
+              ? "載入中 ..."
+              : `共 ${stations.length} 個分隊 · 左側地圖顯示位置`}
           </div>
         </div>
-        <div className="fire-station-grid">
-          {stations.slice(0, 20).map((s) => (
-            <div key={s.id} className="fsg-card">
-              <MapPin size={11} color="var(--accent)" />
-              <span>{s.name.replace(cname, "").trim()}</span>
-            </div>
-          ))}
-          {stations.length > 20 && (
-            <div className="fsg-card fsg-more">
-              + 其他 {stations.length - 20} 個
-            </div>
-          )}
-        </div>
+        {stations.length === 0 && !countyData.loading ? (
+          <div className="muted" style={{ padding: "12px 4px", fontSize: 12.5 }}>
+            無分隊資料
+          </div>
+        ) : (
+          <div className="fire-station-grid">
+            {stations.slice(0, 30).map((s) => (
+              <div key={s.station_id} className="fsg-card" title={s.address ?? undefined}>
+                <MapPin size={11} color="var(--accent)" />
+                <span>{s.name.replace(cname, "").trim() || s.name}</span>
+                {s.type && (
+                  <span className="muted" style={{ fontSize: 9.5, marginLeft: 4 }}>
+                    {s.type}
+                  </span>
+                )}
+              </div>
+            ))}
+            {stations.length > 30 && (
+              <div className="fsg-card fsg-more">
+                + 其他 {stations.length - 30} 個
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {!has4Hydrant && (
+      {!hasHydrant && (
         <div
           className="insight"
           style={{ background: "var(--warning-soft)", borderColor: "#FDE68A" }}
@@ -894,8 +960,9 @@ function ResponseTab({
             ⚠
           </div>
           <div className="body">
-            <b>{cname}</b> 消防栓資料尚未開放（目前僅 北 / 中 / 南 / 高 4 都）。
-            左側地圖切到本縣市時，「消防栓」layer 會自動標示為「無資料」。
+            <b>{cname}</b> 消防栓資料目前僅高雄市已完整接通（39,395 個）。
+            北/中/南/南源 dataset 欄位 mapping 待修；其他 18 縣市無公開資料。
+            地圖切到本縣市時「消防栓」layer 自動標示「無資料」。
           </div>
         </div>
       )}
@@ -1065,25 +1132,58 @@ function ServiceTab({
 // Tab: 其他救護（EMS + 災變 + 山林風險）
 // ─────────────────────────────────────────────────
 
+function classifyDisasterTag(name: string, type: string | null): {
+  tag: string;
+  cls: "typhoon" | "quake" | "accident";
+} {
+  const lower = (type ?? "").toLowerCase();
+  if (name.includes("颱風") || lower.includes("typhoon")) return { tag: "颱風", cls: "typhoon" };
+  if (name.includes("地震") || lower.includes("earthquake")) return { tag: "地震", cls: "quake" };
+  if (name.includes("豪雨") || name.includes("暴雨") || name.includes("水災")) return { tag: "豪雨", cls: "typhoon" };
+  return { tag: type ?? "事故", cls: "accident" };
+}
+
 function OthersTab({
-  county,
   cname,
   popWan,
   merged,
+  countyData,
 }: {
   county: CountyCode3;
   cname: string;
   popWan: number;
   merged: MergedCountyData;
+  countyData: FireCountyDataState;
 }) {
-  // 該縣市相關災變（mock — 簡單用 charCode 篩）
-  const events = useMemo(
-    () =>
-      FIRE_DISASTER_TIMELINE.filter(
-        (d) => (d.year + county.charCodeAt(0)) % 3 === 0
-      ).slice(0, 3),
-    [county]
+  // 該縣市真實災變（fire.disaster_incidents filter by county_id；
+  // dedup by disaster_name 避免 timeline spam 同名颱風，SUM deaths/injuries）
+  const events: DisasterIncidentRow[] = useMemo(() => {
+    const acc = new Map<string, DisasterIncidentRow>();
+    for (const d of countyData.disasters) {
+      const prev = acc.get(d.disaster_name);
+      if (!prev) {
+        acc.set(d.disaster_name, { ...d });
+      } else {
+        const merged = {
+          ...prev,
+          deaths: (prev.deaths ?? 0) + (d.deaths ?? 0),
+          injuries: (prev.injuries ?? 0) + (d.injuries ?? 0),
+        };
+        if (d.occurred_date > prev.occurred_date) merged.occurred_date = d.occurred_date;
+        acc.set(d.disaster_name, merged);
+      }
+    }
+    return [...acc.values()]
+      .sort((a, b) => (a.occurred_date > b.occurred_date ? -1 : 1))
+      .slice(0, 6);
+  }, [countyData.disasters]);
+
+  // 該縣市避難所 sample (前 8 個，作 list preview)
+  const sheltersSample: EmergencyShelterRow[] = useMemo(
+    () => countyData.shelters.slice(0, 8),
+    [countyData.shelters]
   );
+
   const emsPerThousand = popWan > 0
     ? (merged.emsTrips / (popWan * 10000)) * 1000
     : 0;
@@ -1093,25 +1193,29 @@ function OthersTab({
       <div className="kpi-grid cols-3">
         <KPICard
           icon={<HeartPulse size={13} />}
-          label="救護出勤"
-          value={fmt.bigNum(merged.emsTrips)}
+          label={
+            merged.emsTrips > 0 ? (
+              <>救護出勤</>
+            ) : (
+              <>救護出勤 <span className="muted" style={{ fontSize: 9 }}>無縣市資料</span></>
+            )
+          }
+          value={merged.emsTrips > 0 ? fmt.bigNum(merged.emsTrips) : "—"}
           unit="次/年"
           trend={{
-            delta: `${emsPerThousand.toFixed(0)} 件/千人`,
+            delta: merged.emsTrips > 0 ? `${emsPerThousand.toFixed(0)} 件/千人` : "—",
             direction: "flat",
-            baseline: "待 Sprint 4 ETL",
+            baseline: "ems_stats_by_county_year",
             sentiment: "neutral",
           }}
         />
         <KPICard
           icon={<HeartPulse size={13} />}
           label="OHCA 件數"
-          value={merged.ohca}
+          value={merged.ohca > 0 ? merged.ohca : "—"}
           unit="件"
           trend={{
-            delta: (["KHH", "YUN"] as CountyCode3[]).includes(county)
-              ? "資料完整"
-              : "估算值",
+            delta: merged.ohca > 0 ? "已接通真實" : "—",
             direction: "flat",
             baseline: "",
             sentiment: "neutral",
@@ -1119,11 +1223,11 @@ function OthersTab({
         />
         <KPICard
           icon={<HeartPulse size={13} />}
-          label="急救責任醫院"
-          value={merged.hospitals}
-          unit="家"
+          label="避難收容處所"
+          value={merged.sheltersCount > 0 ? fmt.num(merged.sheltersCount) : "—"}
+          unit="處"
           trend={{
-            delta: county === "YUN" ? "資料完整" : "其他 placeholder",
+            delta: countyData.loading ? "載入中" : "safety.emergency_shelters",
             direction: "flat",
             baseline: "",
             sentiment: "neutral",
@@ -1135,44 +1239,48 @@ function OthersTab({
         <div className="section-head">
           <div className="section-title">
             <span className="pre">EVENTS</span>
-            {cname} 災變紀錄（mock 篩選）
+            {cname} 中央災變紀錄
           </div>
           <div className="muted" style={{ fontSize: 11.5 }}>
-            近 6 年中央災變紀錄（Sprint 4 補真實 ETL）
+            {countyData.loading
+              ? "載入中 ..."
+              : `共 ${countyData.disasters.length} 筆 · 顯示最近 ${events.length} 筆 · fire.disaster_incidents`}
           </div>
         </div>
         {events.length > 0 ? (
           <div className="fire-timeline">
-            {events.map((d) => (
-              <div
-                key={d.date}
-                className={`ftl-row tag-${
-                  d.tag === "颱風" ? "typhoon" : d.tag === "地震" ? "quake" : "accident"
-                }`}
-              >
-                <div className="ftl-yr">{d.year}</div>
-                <div className="ftl-dot" />
-                <div className="ftl-body">
-                  <div className="ftl-head">
-                    <b>{d.name}</b>
-                    <span className="ftl-tag">{d.tag}</span>
-                  </div>
-                  <div className="ftl-date">{d.date}</div>
-                  <div className="ftl-stat">
-                    {d.deaths > 0 && (
-                      <span className="ftl-stat-death">死 {d.deaths}</span>
-                    )}
-                    {d.injuries > 0 && (
-                      <span className="ftl-stat-inj">傷 {d.injuries}</span>
-                    )}
+            {events.map((d) => {
+              const { tag, cls } = classifyDisasterTag(d.disaster_name, d.incident_type);
+              const year = d.occurred_date.slice(0, 4);
+              return (
+                <div key={d.incident_id} className={`ftl-row tag-${cls}`}>
+                  <div className="ftl-yr">{year}</div>
+                  <div className="ftl-dot" />
+                  <div className="ftl-body">
+                    <div className="ftl-head">
+                      <b>{d.disaster_name}</b>
+                      <span className="ftl-tag">{tag}</span>
+                    </div>
+                    <div className="ftl-date">
+                      {d.occurred_date}
+                      {d.town && <span className="muted"> · {d.town}</span>}
+                    </div>
+                    <div className="ftl-stat">
+                      {(d.deaths ?? 0) > 0 && (
+                        <span className="ftl-stat-death">死 {d.deaths}</span>
+                      )}
+                      {(d.injuries ?? 0) > 0 && (
+                        <span className="ftl-stat-inj">傷 {d.injuries}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="muted" style={{ padding: 14, fontSize: 13 }}>
-            近 6 年無中央紀錄之重大災變
+            該縣市 2022-09 以後尚無中央紀錄之重大災變
           </div>
         )}
       </div>
@@ -1180,26 +1288,34 @@ function OthersTab({
       <div className="section">
         <div className="section-head">
           <div className="section-title">
-            <span className="pre">RISK</span>
-            山林火災高風險點
+            <span className="pre">SHELTERS</span>
+            {cname} 避難收容處所
+          </div>
+          <div className="muted" style={{ fontSize: 11.5 }}>
+            {countyData.loading
+              ? "載入中"
+              : `共 ${merged.sheltersCount} 處 · 顯示前 ${sheltersSample.length} 處 sample`}
           </div>
         </div>
-        <div className="fire-risk-bar">
-          <div className="frb-track">
-            <div
-              className="frb-fill"
-              style={{
-                width: `${Math.min(100, merged.riskPoints / 2)}%`,
-              }}
-            />
+        {sheltersSample.length > 0 ? (
+          <div className="fire-station-grid">
+            {sheltersSample.map((s) => (
+              <div key={s.shelter_id} className="fsg-card" title={s.address ?? undefined}>
+                <MapPin size={11} color="var(--accent)" />
+                <span>{s.name}</span>
+                {s.capacity != null && s.capacity > 0 && (
+                  <span className="muted" style={{ fontSize: 9.5, marginLeft: 4 }}>
+                    容 {fmt.num(s.capacity)}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
-          <div className="frb-stat">
-            <b>{merged.riskPoints}</b> 處
-            <span className="muted">
-              全國 {FIRE_NATIONAL_MOCK.forestRiskPoints} 處中
-            </span>
+        ) : (
+          <div className="muted" style={{ padding: "12px 4px", fontSize: 12.5 }}>
+            無避難所資料
           </div>
-        </div>
+        )}
       </div>
     </>
   );
