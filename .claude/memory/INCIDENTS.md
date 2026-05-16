@@ -5,6 +5,56 @@
 
 ---
 
+## 2026-05-16 Fire heatmap addLayer 沒加 beforeId → 蓋掉縣市標籤
+
+**現象**：B045 fire 主題切過去，火災 heatmap 渲染在 county-fill / county-border / county-labels 之上，深紅熱區把縣市名 + 邊線都壓掉。
+
+**根因**：`map.addLayer({ id: "fire-hotspots-heat", ... })` 沒帶第二參數 `beforeId`，Mapbox 預設 append 到 layer stack 最頂，後加的在最上面。
+
+**對策**：`addLayer(..., "counties-border")` 把 heatmap 插在 counties-fill 之上、counties-border 之下，邊線 + 標籤 + station dot 保持在熱力圖之上。
+
+**Codex review 抓到**（PB-08 driver 第 3 次抓 critical bug）。
+
+---
+
+## 2026-05-16 雷達圖 norm() 對 lower-better 軸方向錯 → 視覺意義反向
+
+**現象**：B046 ViewB Fire 縣市雷達圖混 5 軸（火災密度 / 致死率 / 分隊密度 / 5min 圈外 / 栓 km²），其中 3 個 lower-better、2 個 higher-better。直接抄 view-b-fire.jsx 用 `v / max` 公式 → 高雄火災密度 14/萬人 → 外圈 = 「最危險」，但同圖內分隊密度 14/萬人 → 外圈 = 「最好」。同一個 polygon 外圈代表的意義矛盾，user 看不出整體體質。
+
+**根因**：直接 copy design bundle 公式沒思考混軸視覺一致性。
+
+**對策**：統一 score 系統 — `lower-better: 1 - v/max` 反轉。外圈永遠 = 表現好，整體 polygon 大 = 體質好。Verdict 簡化 `diff > 0 = better`，goodDir 變數不再需要。
+
+寫進 PRINCIPLES 2026-05-16「雷達 score-unified」條目。Codex review 抓到。
+
+---
+
+## 2026-05-16 hydrants=0 對 18 縣市被當真實密度 → verdict 永遠誤判
+
+**現象**：mock-fire.ts 對非 4 都（北中南高）縣市 hydrants = 0（沒這個 dataset），雷達圖直接拿 hydrants / area_km2 = 0 當 density，higher-better 軸下 → 18 縣市永遠是「比全國差」，整 polygon 在該軸塌陷。
+
+**根因**：mock 用 0 表示「無資料」，跟「真實密度=0」混淆。
+
+**對策**：hydrants > 0 才算 density，否則設 null；雷達 city polygon 對 null 軸 fallback 到 avg 位置（不塌陷）；avg 計算過濾 null（4 都樣本平均）；verdict 排除 null 軸。
+
+寫進 PRINCIPLES 2026-05-16「mock 0 vs 真實 0 區分」條目。Codex review 抓到。
+
+---
+
+## 2026-05-16 移植 design bundle 元件沒同步 CSS → 看起來只是文字 list
+
+**現象**：B046 ViewBFire.tsx 寫完 1170 行 typecheck 過，dev server 看起來「跟 word 沒兩樣」一片純文字。User 截圖回報「設計稿應該有設計過的」。
+
+**根因**：JSX className（`.fire-radar-card` / `.frc-svg` / `.fcm-row` / `.fire-station-grid` / `.fire-buffer-legend` / `.fire-risk-bar` / `.fbl-sw` 等 9 組）對應的 styles.css 段在 design bundle 內，但 globals.css 沒這些 rule → fallback 成預設 div block layout（無 grid / 無 background / 無 border）。
+
+**對策**：grep `/tmp/fire_design/.../styles.css` 找對應段（line 2629-2810，184 行）→ append 到 globals.css 對應主題段 + 加 `--accent-fire-deep` / `--accent-fire-soft` CSS 變數（design 用了 globals 沒）+ 加 dashboard pane 窄時 fire-radar-card 單欄 stack media query。
+
+**根本對策**：寫進 PRINCIPLES 2026-05-16「design bundle 必含 CSS」+ 寫進 PLAYBOOK PB-12「移植 design bundle 元件 SOP」4 步。
+
+**反省**：Session 5 移植 fire ViewA 時就該一勞永逸把整套 fire-* CSS append 到 globals，當時只移植了 fire-bar-row / fire-table / fire-timeline / S4 grid 等 ViewA 用到的，等 ViewB 加雷達 / station grid / buffer / risk bar 才爆。
+
+---
+
 ## 2026-05-14 LPCD pipeline 把「空表」誤判成「表不存在」
 
 **現象**
