@@ -25,17 +25,18 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 ## Pending 同步（未 commit 到對應 repo 或未 push）
 
-**Session 7（2026-05-16 B047 fire KPI 爆炸視圖）pending**：
+**Session 8（2026-05-16 water ViewA 6 章敘事重寫）pending**：
 
-- **mini-taiwan-info**: **15 commits ahead origin/main**（B046 + Session 6 memory 8 個 + B047 + Session 7 wrap-up memory 6 個）— **待 user push**
-- **gis-platform**: 本 session **未動**（migration 105 在 Session 6 末已 push）
-- **taipei-gis-analytics**: 本 session **未動**（其他 session 的工作 dirty + untracked，不關本 wrap-up）
+- **mini-taiwan-info**: **28 commits ahead origin/main**（S6 8 + S7 6 + S8 5 + S8 wrap-up 7 + 本次 wrap-up 餘下幾個）— **待 user push**
+- **gis-platform**: 本 session **未動**（migration 098-102 在 5/15 commit `d06ae9f` 已 apply + push）
+- **taipei-gis-analytics**: 本 session **未動**（其他 session 工作 dirty + untracked，不關本 wrap-up）
+- **data-collectors**: 本 session **未動**
 
 **A2 pipeline 仍未 run**：taipei-gis 88353ae，~1-2 小時 / 約 30k reading（待 user 拍板）
 
 **TODO-2 batch_003 未上傳**：taipei-gis fire batch_003 在 2026-04-28 已產出但 user 還沒手動上傳 TGOS web（1-3 天回應期）
 
-**Session 7 跨 repo 變動**：無。本 cycle 純 frontend（FireKpiExplode + FireStackedBar + S1Incidents wire + globals.css），不需 gis-platform migration 也不需 taipei-gis pipeline。
+**Session 8 跨 repo 變動**：無。本 cycle 純 frontend（ViewAWater + 6 sections + WaterCatHeader + water-overview.ts + useWaterKpis 改 + App.tsx 分派 + globals.css +568 行 CSS）。後端 90% 完成度（migration 098-102 + 14 RPC + 7 ETL 表）在 5/15 commit `d06ae9f` 已 apply。
 
 ---
 
@@ -43,6 +44,7 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 | 日期 | Repo | 動作 | Commit |
 |---|---|---|---|
+| 2026-05-16 (S8) | mini-taiwan-info | feat(water-ui) ViewAWater 6 章敘事 + App 主題分派 — 5 atomic commits | 53b425d / 27607e0 / 255b359 / 6b621e1 / 410b20c |
 | 2026-05-16 (S7) | mini-taiwan-info | feat(fire) B047 KPI 爆炸視圖 — 年度件數卡 time × dim 大圖 | 9ebd2b2 |
 | 2026-05-16 (S6) | mini-taiwan-info | feat(map) B045 fire 地圖層 heatmap+stations + neutral fill + point panel | 5edd8fd / 5c34f3c / f0c6d73 (push 完) |
 | 2026-05-16 (S6) | mini-taiwan-info | feat(view) B046 fire ViewB 縣市儀錶板（待 push） | 37fc213 |
