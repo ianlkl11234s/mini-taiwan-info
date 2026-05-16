@@ -498,6 +498,53 @@ Reference: water S8 Discovery Agent B 報告「重大修正 user 認知：5/15 c
 
 ---
 
+## 2026-05-16: 比較視覺（雷達 / scatter）avg vs city 不同 source 造成假差距
+
+**現象**：fire ViewBFire FireRadarCard 顯示高雄 vs 全國平均「致死率 76% ↑、分隊/萬人 41% ↓」，user 直覺異常 — 高雄不應比全國平均差這麼多。Session 9 接通真實後 verdict 變「火災密度 42%」單一軸，其他軸差距變小（合理）。
+
+**根因**：原雷達圖 avg 從 FIRE_MOCK_BY_COUNTY 抓（mock 值 stationsPerWan ~3 / outOf5MinPct ~10）+ 兩條軸 (fireDensity=7.0, deathRate=1.2) hardcoded；city 那側用真實 countyAggregates derive（fireDensity ~9.85 / deathRate ~19）— **avg 跟 city 來自不同尺度的資料 source**，norm 後拉開的差距不是真實縣市表現差，是 source 錯位 artifact。
+
+**對策**：
+1. 任何「比較類視覺」（雷達 / scatter / 對照表）的 avg 跟 city **必須從同一個 source derive**
+2. 雷達圖 4/5 軸已改真實：fireDensity / deathRate / stationDensity 從 countyAggregates 算全國 mean、hydrantDensity 從 fire.stations + COUNTIES 算
+3. 5min 圈外仍 mock（等 Sprint 3 PostGIS）— 這軸 city/avg 都是同源 mock 所以差距還可信
+
+**教訓**：
+1. 比較視覺的 avg 不可圖方便 hardcode — 假數字會造成假洞察、誤導 user
+2. 雷達圖 / scatter 設計時要明確：兩條 series 必須同 source
+3. 改 mock → 真實時，**比較軸的 avg 也必須一起換**，不然會 mixed-source 比較
+
+Reference: ViewBFire.tsx `FireRadarCard` Session 9 改寫；commit `0009ca0`。
+
+---
+
+## 2026-05-16: Cross-session schema drift 第二次撞牆（其他 session 已建 ETL/MV，本 session 不知）
+
+**現象**：Session 9 結尾 wrap-up Stage 1 跨 repo audit 才發現：
+- taipei-gis-analytics master 已有 commit `6e10015 / 70b4cf5` Sprint G 衛福部全國急救醫院 ETL（252 家 / 22 縣市齊全）
+- gis-platform main 已有 migration 110/111/112（admin.villages 7975 polygon + fire density MV + safety.emergency_hospitals 表）
+
+但本 session 修 ViewA S4 時，急救責任醫院 KPI 仍標「待ETL · 衛福部名冊缺」、ViewBFire OthersTab 5min 圈外仍標「Sprint 3 placeholder」— **資料源已在另一個 session 跑完，前端不知**。
+
+**根因**：
+1. Session 8 INCIDENTS 已記過一次「規劃 doc vs 實際 schema drift」（5/16）— 但那次解法只是「Discovery 階段 psql 驗 schema」，沒涵蓋「跨 repo 其他 session 進度可能改變待辦定義」
+2. 本 session 進入時沒跑 cross-repo audit（user 直接給 task），所以本 session 「fire 主題去 mock」的範圍沒包含 110-112 對接
+3. STATUS.md「Skill 使用率」表 `/cross-repo-status` 累積 2 次使用 — 本該由它在 cycle 開頭跑掉的，但沒主動派
+
+**對策**：
+1. **每次 cycle 開頭強制跑跨 repo + DB schema audit**（不只前端 typecheck），即使 user 直接給 task
+2. 把這個 audit 加入 `/theme-loop` Stage 1 Discovery 強制動作（4 agent 改 5 — Agent E = cross-session/cross-repo audit）
+3. wrap-up Stage 1 已有跨 repo log 比對機制，把這 pattern「發現後 → 寫新 BACKLOG」明文化進 wrap-up SKILL.md
+
+**教訓**：
+1. 「待 ETL」這類 placeholder badge 是 **時間敏感**的 — 可能跑完 mid-cycle 就過期
+2. 不能 trust 自家 memory「最後狀態快照」是當前真相 — 必須跨 repo grep + psql 雙驗
+3. 每跑大 cycle（如「fire 主題去 mock」）開頭 audit 30 秒 vs Cycle 結束才發現遺漏的成本，前者明顯 ROI 高
+
+Reference: Session 9 wrap-up Stage 1 跨 repo audit；taipei-gis-analytics commits `6e10015 / 70b4cf5`；gis-platform commits `19f01a3 / e5ddad0 / 3f146bc`。
+
+---
+
 ## (template, 之後用)
 
 ## YYYY-MM-DD 標題
