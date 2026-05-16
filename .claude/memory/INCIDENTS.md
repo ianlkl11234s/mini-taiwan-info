@@ -424,6 +424,80 @@ Reference: FireKpiExplode.tsx:91, KPICard.tsx:42。
 
 ---
 
+## 2026-05-16 (S8): useWaterKpis Promise.all 任一 throw → 整個 hook 掛 → ViewAWater 全炸
+
+**現象**：water S8 6 章敘事重寫時，useWaterKpis 從 4 fetch 擴成 16 fetch。codex review 抓到：若 `fetchReservoirStatusLatest` 或 `fetchRainGaugeLatest`（向下相容 ViewA/ViewB 仍 throw）失敗，整個 `await Promise.all([...])` reject → hook 進 catch → state 設 EMPTY_STATE + error → ViewAWater 顯示「水資源資料載入失敗」即使其他 14 個 fetch 都成功。
+
+**根因**：Promise.all 是「all-or-nothing」語意。每個 query 函數內部雖然有 fallback（return []），但兩個「不向下相容到 try/catch」的還會 throw，把整個 hook 拖下水。
+
+**對策**：改用 `Promise.allSettled` + type-safe helper `get<T>(idx, fallback)` 從 settled results 取 fulfilled value，rejected 走 console.warn。每個失敗的 query 名稱印出來給 dev 看，不阻塞 UI。
+
+**教訓**：
+1. **多 fetch hook 並行 ≥ 3 個 query 一律用 allSettled**（已寫進 PRINCIPLES 2026-05-16）
+2. **codex review 抓 hook 級的 throw 傳播 bug** 第 4 次驗證（PB-08 driver），是靜態碼分析能抓的範圍
+3. 「query 內部已有 fallback」≠「整個 hook 安全」— 向下相容某些 query 仍 throw 時，hook 層級必須再加一層 allSettled 安全網
+
+Reference: useWaterKpis.ts Session 8 改造；codex review BLOCKER。
+
+---
+
+## 2026-05-16 (S8): 規劃 doc vs 實際 schema 不同步 → query 欄名錯 → 兩個 KPI 用 fallback 而非真實
+
+**現象**：water S8 寫 `fetchTreatmentPlantsLarge` 跟 `fetchWaterLossRate` query 時參考規劃 doc `taipei-gis-analytics/docs/topic-research/water-overview/kpi-data-status.md`：
+- 規劃寫 `water_treatment_plants_large` schema 含 `id` / `name` / `capacity_cmd`
+- 規劃寫 `water_loss_rate_yearly` schema 含 `area` + `year` + `loss_rate_pct`
+
+實際 deploy schema（5/15 commit d06ae9f migration 100 apply 完）跟 doc 不同：
+- 實際 `water_treatment_plants_large` PK=`plant_name`，**沒 `id` 也沒 `name`** 欄
+- 實際 `water_loss_rate_yearly` 是**全國單表** PK=`year`，**沒 `area`** 欄，欄位是 `loss_pct` 不是 `loss_rate_pct`
+
+dev server console 報 2 個 Supabase 400 error（`column does not exist`），ViewAWater 章 4 淨水場數值是 fallback、章 5 漏水率整塊空白。typecheck 看不出來。
+
+**根因**：
+1. 規劃 doc 是 2026-05-15 提前寫的「打算建這些表」，實際 migration apply 時欄位設計改了沒回頭同步 doc
+2. Claude 寫 query 時參考 doc 而非實際 schema（沒 psql 驗）
+3. typecheck + codex review 都看不到實際 DB schema，截圖 agent 的 console 才抓到
+
+**對策**：psql `\d water_treatment_plants_large` + `\d water_loss_rate_yearly` 確認實際 schema → 修 query：
+- `select("plant_name, capacity_cmd, county")` 不是 `id, name, capacity_cmd`
+- `select("year, loss_pct")` 不加 area filter，直接取全國最新年
+
+**教訓**：
+1. **Discovery 階段 Agent B 必須 psql 直查實際 schema**，不只信 docs/topic-research/*.md 等規劃檔（已寫進 PB-13 階段 2 ⚠️ 註）
+2. **寫 new query 時 psql `\d table_name` 確認實際 schema** 是寫對的成本最低的方法（30 秒）
+3. **codex review 對 schema mismatch 是盲區** — codex 讀靜態程式碼，看不到實際 DB 表結構。截圖 agent 的 dev server console 才能抓到「column does not exist」400 error
+4. **Verify 三閘缺一不可**：typecheck（過）+ codex（過）+ 截圖 agent（**唯一抓到的**）
+
+Reference: water-overview.ts Session 8 寫 query 時誤用規劃 doc 欄名；截圖 agent console 抓 2 個 P0 400 error。
+
+---
+
+## 2026-05-16 (S8): user 認知「資料已處理完」vs 實際後端 90% 狀態 → 我過度懷疑
+
+**現象**：water S8 開場 user 說「水資源資料應該都已處理完成了」，要重構 ViewA。我看到 `taipei-gis-analytics/docs/topic-research/water-overview/kpi-data-status.md` 是 2026-05-15 才建的「規劃清單」列了 7 個動作項，**誤判 user 認知錯**，準備在 plan 階段告訴 user「實際後端只是規劃，沒做」。
+
+派 Discovery Agent B 實際 query Supabase 才發現：5/15 commit `d06ae9f` 一次推完 migration 098-102 + 14 RPC，pipelines 全跑、collector 上線、water_facts_official 7 列、twc 7 表全有資料。**後端實際完成度 ~90%**，user 認知對的是我錯。
+
+**根因**：
+1. 規劃 doc 沒同步「已完成」狀態（kpi-data-status.md 仍是「規劃」格式，沒勾「已 apply」）
+2. user 在另一個 session 跑完 migration 但沒回頭更新規劃 doc
+3. Claude 看 doc 找 ground truth，沒 psql 直查
+
+**對策**：Discovery Agent B 用 psql 實際驗 migrations 已 apply / pipelines 跑過 / 表內容 COUNT，跟 doc 對齊。Audit 結論「實際完成度 ~90%」校正了 user 認知 vs 我認知的衝突。
+
+**教訓**：
+1. **user 對自家專案後端狀態的認知通常比 doc 準** — 因為他知道哪些 commit 已 apply / 哪些 pipeline 已跑
+2. **規劃 doc（topic-research/*.md / kpi-data-status.md / data-shopping-list.md）跟實際狀態可能脫鉤** — 寫規劃 doc 是「要做什麼」，更新「做完什麼」常被遺漏
+3. **Discovery 階段優先信「實際 query」> 規劃 doc**：
+   - psql `\d` + COUNT > 看 docs/*.md
+   - git log gis-platform/migrations/ > 看 docs/data-inventory.md
+   - 兩者衝突時以實際為準
+4. 對 user 認知 vs doc 衝突的場景，**默認信 user 然後派 agent 驗**，不要先預設 user 錯
+
+Reference: water S8 Discovery Agent B 報告「重大修正 user 認知：5/15 commit d06ae9f 一次推 4 migration，完成度 ~90%，不是『規劃中』」。
+
+---
+
 ## (template, 之後用)
 
 ## YYYY-MM-DD 標題
