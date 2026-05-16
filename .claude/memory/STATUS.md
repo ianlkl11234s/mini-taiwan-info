@@ -3,91 +3,98 @@
 > 每次 `/wrap-up` 完整 rewrite。只保留當下的「下個 session 接什麼」。
 > User-facing Phase 進度看 root `_STATUS.md`，完整接手書看 `HANDOFF.md`。
 
-**最後更新**：2026-05-16（Session 8 結束 · water ViewA 6 章敘事重寫完成）
+**最後更新**：2026-05-16（Session 9 結束 · fire 主題 ViewA + ViewB 去 mock 化）
 
 ---
 
 ## 一句話現況
 
-Water 主題 ViewA 從「manifest-driven 6 KPI grid」整個重寫成「6 章敘事結構」（現況/儲存/水情燈號/處理/使用/災防），design bundle handoff 第 2 次跑（fire S5 + water S8）成功抽 PB-13。8 新檔 + 2 改檔 + 568 行 CSS verbatim 移植 + 16 fetch Promise.allSettled hook，**~28/33 元素接通真實 Supabase**（migration 098-102 在 5/15 已 apply）。Codex 抓 1 BLOCKER + 1 HIGH 修，截圖 agent 抓 2 P0 schema 欄名錯（規劃 doc vs 實際 schema 不同步）修。5 atomic commit 本地保留不 push。下個 session 候選：B041 MOI ETL / B054 響應式修補 / 開新主題。
+Fire 主題 ViewA（S1-S4 全 4 區塊）+ ViewB（hero + radar + ResponseTab + OthersTab）整輪去 mock 化完成。gis-platform migration 109 一次 14 wrapper view（fire/safety/ems）apply + 驗證；frontend `lib/queries/fire.ts` +683 行、`useFireData` 17 fetch Promise.allSettled、新 `useFireCountyData` lazy hook、ViewA 4 sections + ViewB merged{} + 2 tabs rewrite、App.tsx 3 fix（label / choropleth / map layer），雷達圖全國平均也接通真實。User 拍板「DB 稀疏時誠實 footnote 接通真實 > mock」進 PRINCIPLES。剩 3 個 placeholder（急救醫院 / 5min 圈外 / 圈外村里）其實 DB 表已被其他 session 建好（migration 110/111/112 + Sprint G），下 session 純前端 1 day 對接完。11 atomic commits 跨 2 repo + 7 wrap-up，**44+ commits ahead origin/main 待 user push**。
 
 ## 跑得起來的東西
 
 `cd frontend && pnpm dev` → http://localhost:5173
 
 ### View A
-- **water 主題（NEW S8）**：**6 章敘事結構**
-  - 章 1 現況：6 stat tile（37 / 26 / 2041km / 116 / 2449 / 1309 全真實）
-  - 章 2 儲存：4 區容量加權 bar + 5 大水庫排行 + 24hr 雨量 KPI + 警戒水庫數 + PointProfile 40 水庫
-  - 章 3 水情燈號：4 級當前燈號 + 過去 5 年 timeline placeholder（collector 累積中）
-  - 章 4 處理：A→B→C→D flow（17 淨水場 / 68k km 管線 / 786 萬戶 / 82 汙水廠）+ 最新月供水 2.67 億 m³ + 接管率
-  - 章 5 使用：LPCD 273L + 17 年趨勢 + 用水結構 mock（DB 無 sector）+ 漏水率 + TOP/BOTTOM 5
-  - 章 6 災防：淹水（200/350/500mm，只 350 接通）+ 河川警戒 lv1/2/3 split + 雨量警報 + 滯洪池（5 縣市 + 3 園區）+ 地層下陷描述行
-- **fire 主題**：4 區塊 + heatmap + 分隊 dot + 無染色灰底 + 5 點位 toggle + B047 KPI 爆炸
+- **fire 主題（NEW S9 接通真實）**：4 區塊全 swap mock
+  - S1 火災發生：年度件數 15384 / 死傷 175-405 / 財損 3.9 億（2020 only badge）/ 主因 36.4% — 全真實
+  - S1 時間長條 4 scale + 5 dim donut + B047 KPI 爆炸 — 真實
+  - S1 縣市排名表 22 縣（incidents/deaths/injuries/density/damage 全真實，財損 column 加「· 2020」year suffix）
+  - S2 全國分隊 716 + 栓 39395 KPI + 4 都消防栓+分隊表 — 真實（footnote「限高雄 + 4 都待補」）
+  - S3 分隊密度 0.31/萬人 + 1.98/100km² + scatter Y 軸真實 + 22 縣量能對照表 — 真實（5min 圈外仍 placeholder）
+  - S4 救護 1.8 萬 + 山林高風險 172 處 + 22 縣 EMS 表（footnote「僅 X 縣市完整」）+ 災變 timeline dedup-by-name — 真實
+  - 急救責任醫院 KPI 仍 placeholder「待 ETL」（B066 下 session 接通）
+- **water 主題（S8）**：6 章敘事 — 不動
+- **App.tsx map layer**：fire.stations 716 個分隊真實點層；hydrants 39395 限高雄；shelters 5947；forest_risk 10000
 
 ### View B
-- **water 主題**：IA v2 7 tabs（概覽 / 水庫 / 河川 / 地下水 / 防洪 / 用水與配送 / 排名）— 不動，本 cycle 範圍只 ViewA
-- **fire 主題**：Hero + FireRadarCard 5 軸 vs 全國 + 5 tabs
+- **fire 主題（NEW S9 接通真實）**：
+  - Hero：273.4 萬人 · 分隊 53 · 火災 1139 件 · 死亡 22（高雄 sample）
+  - Radar 5 軸：4/5 軸全國平均真實算（火災密度 / 致死率 / 分隊密度 / 栓密度），1 軸 mock（5min 圈外，等 Sprint 3）
+  - ResponseTab：53 分隊清單 + 栓 39395 + 1.80 隊/100km² — 真實 from useFireCountyData hook
+  - OthersTab：OHCA 6807 + 避難 500 處 + 災變 50 筆 dedup — 真實
+  - ServiceTab 圈外村里 Top 10 仍 KHH mock（B068 接 admin.villages PostGIS RPC）
+- **water 主題**：IA v2 7 tabs — 不動
 
 ### View C
 - 水庫詳情頁 4 stat + 1 年 trend（fire 未支援）
 
-## Water 主題真實 vs Mock 對映（給下個 session 看）
+## Fire 主題真實 vs Mock 對映（給下個 session 看）
 
-| 元件 | 資料來源 | Real / Mock |
-|---|---|---|
-| 章 1 6 stat tile | water_facts_official + COUNT | ✅ 真實 |
-| 章 2 4 區加權蓄水率 | reservoirs 前端 weighted avg | ✅ 真實 |
-| 章 2 5 大供水水庫 | reservoirs sort by capacity | ✅ 真實 |
-| 章 2 24hr 雨量 / 警戒水庫 | get_rain_gauge_latest / aggregateWaterKpis | ✅ 真實 |
-| 章 2 PointProfile 40 水庫 | water_reservoirs_with_status | ✅ 真實 |
-| 章 2 vs 歷年同期 | — | 🔶 footnote「對比資料累積中」（B055 缺 wrapper RPC）|
-| 章 3 4 級當前燈號 | drought_alert_current | ✅ 真實 |
-| 章 3 5 年 timeline | drought_alert_history（薄）| 🔶 placeholder「collector 累積 6 個月後」（B056）|
-| 章 4 4-step flow | water_treatment_plants_large + water_pipe_length_yearly + twc_customer_yearly + sewage_treatment_plants COUNT | ✅ 真實 |
-| 章 4 月供水量 | twc_supply_system_monthly 2026-03 | ✅ 真實（單月）|
-| 章 4 接管率 + trend | sewage_coverage_yearly | ✅ 真實 |
-| 章 5 LPCD + 17 年趨勢 | water_usage_yearly + fetchLpcdNationalHistory | ✅ 真實 |
-| 章 5 用水結構 | mock + badge「結構估算」| 🔶 DB 無 sector 欄位（B058）|
-| 章 5 漏水率 | water_loss_rate_yearly | ✅ 真實 |
-| 章 5 ranking TOP/BOTTOM 5 | LPCD 22 縣市 | ✅ 真實 |
-| 章 6 淹水 350mm | flood_hazard_pct_by_county | ✅ 真實 |
-| 章 6 淹水 200/500mm | — | 🔶 placeholder「待 RPC 擴充」（B057）|
-| 章 6 河川警戒 lv1/2/3 split | useRiverWaterLevel + classifyAlertLevel | ✅ 真實 |
-| 章 6 雨量警報 ≥50mm/hr | rainStations.precipitation_1hr filter | ✅ 真實 |
-| 章 6 滯洪池 | detention_basins GROUP BY county | ✅ 真實 |
-| 章 6 地層下陷 | land_subsidence_stations + readings TOP 5 | ✅ 真實 |
+| 元件 | 資料來源 | Real / Mock | 揭露 |
+|---|---|---|---|
+| S1 火災件數 / 死傷 / 主因 | incidents_by_county_year + cause_year MV | ✅ 真實 | 民 113 (2024) |
+| S1 火災財損 KPI | fire.casualty_property_by_county_year | ✅ 真實 | footnote「2020 only」（DB 只 1 年）|
+| S1 起火處所 donut + table | fire.incidents_by_location_type | ✅ 真實 | 「2022 年」footnote（DB 只 1 年）|
+| S1 縣市排名 財損 column | 同 casualty | ✅ 真實 | header「· 2020」 |
+| S2 全國分隊 / 栓 KPI | fire.stations / fire.hydrants COUNT | ✅ 真實 | 栓「限高雄」footnote |
+| S2 4 都栓+分隊表 | fire.hydrants groupBy + fire.stations groupBy | ✅ 部分 | 高雄已通、其他 3 都「待 ETL 補欄位」 |
+| S3 分隊密度 / 面積密度 KPI | fire.stations + COUNTIES pop/area | ✅ 真實 | — |
+| S3 scatter Y 軸 | 同上 | ✅ 真實 | — |
+| S3 5min 圈外人口 | — | 🔶 placeholder | 「·待Sprint3」(實已建 → B067) |
+| S4 救護出勤 + OHCA | fire.ems_stats_by_county_year SUM | ✅ 真實 | — |
+| S4 山林高風險 | fire.forest_fire_risk_snapshot risk_level >=3 | ✅ 真實 | — |
+| S4 急救責任醫院 | — | 🔶 placeholder「待ETL」 | 252 家已 in DB → B066 |
+| S4 22 縣市 EMS 表 | fire.ems_stats_by_county_year | ✅ 真實 | footnote「僅 X 縣市完整」（DB 只 2 縣）|
+| S4 災變 timeline | fire.disaster_incidents dedup-by-name | ✅ 真實 | 顯示 unique events |
+| ViewB Hero | 全部真實 | ✅ 真實 | — |
+| ViewB Radar 4/5 軸 | countyAggregates + fire.stations 真實 mean | ✅ 真實 | — |
+| ViewB Radar outOf5Min | mock | 🔶 placeholder | 等 Sprint 3（→ B067） |
+| ViewB Response 分隊清單 | useFireCountyData.stations | ✅ 真實 | — |
+| ViewB Response 栓 KPI | useFireCountyData.hydrantCount | ✅ 真實 | KHH 才有 |
+| ViewB Others EMS/OHCA/災變/避難所 | data.emsYearlyRows + countyData | ✅ 真實 | 各自 footnote |
+| ViewB Service 圈外村里 Top 10 | KHH mock | 🔶 placeholder | admin.villages 已建 → B068 |
 
 ## 下一個 session 的合理開頭
 
-讀本檔 + `_CYCLE_water_viewa.md`，挑下面之一：
+讀本檔 + REFLECTIONS Session 9，挑下面之一：
 
-1. **B041 MOI 5 表 ETL**（Mode D 跨 3 repo，3-4 天）
-   - taipei-gis-analytics 寫 `pipelines/environment/fire/07_fetch_moi_stats.py`
-   - gis-platform 寫 `migrations/106_fire_moi_stats_tables.sql`（5 張表 + RPC）
-   - 解 ViewA / ViewB 火災財損 KPI + 起火處所 placeholder
+1. **接通 110/111/112 跨 session ETL 成果**（B066/B067/B068，1 day 純前端）
+   - 寫 wrapper migration（safety_emergency_hospitals + fire_service_coverage_by_county 2 view）
+   - 加 query function + 接 ViewA S4 急救醫院 KPI + ViewA S3 5min 圈外 KPI + ViewB ServiceTab
+   - admin.villages 圈外村里需新 PostGIS RPC
 
-2. **B054-B058 water ViewA 補完**（1-2 hr 純前端 polish）
-   - B054 @800 響應式修（章 2/3/5 加 `@media (max-width: 900px) { 1fr }`）
-   - B055 reservoir vs 上月同期 wrapper RPC（1 hr 後端 + 前端接）
-   - B057 200/500mm 淹水情境接通（hook 加 2 fetch）
+2. **B069 fire.hydrants 4 都欄位 mapping bug 修**（taipei-gis Sprint B2 pipeline，0.5 day）
+   - 修完 4 都消防栓資料齊全，ViewA S2 + ViewBFire ResponseTab 自動受益
 
-3. **B052 fire KPI 爆炸擴展到其他 3 KPI**（1-2 天純前端，沿 B047 pattern）
+3. **B054 ViewAWater @800 響應式修補**（30min 純前端）
 
-4. **開新主題：demographics 或 safety**
-   - 沿 PB-10（初次上 production）+ PB-13（design bundle handoff 重寫）SOP
+4. **開新主題：demographics 或 safety**（沿 PB-10 + PB-13 SOP）
+
+5. **B048-B051 響應式 / 視覺小 bug 一次掃**（< 2 hr）
 
 ## 跑得起來但還沒接的
 
-- **28+ commits ahead origin/main**（S6 + S7 + S8 + wrap-up memory）— 待 user push
+- **44+ commits ahead origin/main**（S6 + S7 + S8 + S9 + 2 輪 wrap-up memory）— 待 user push
 - A2 pipeline 仍未 run（taipei-gis 88353ae，1-2 hr）
 - TGOS batch_003 待 user 手動上傳（1-3 天回應期）
 - demographics / socioeconomic / home-basics 主題 yaml 仍 v1.0 spec（B003-B005）
 
 ## 等用戶執行
 
-- Push mini-taiwan-info（**28+ commits ahead**）
-- 拍板下個 cycle 方向（B041 / B054-B058 / B052 / 新主題）
+- Push mini-taiwan-info（**44+ commits ahead**）
+- Push gis-platform（migration 109 + 110/111/112，3 commits ahead）
+- 拍板下個 cycle 方向（B066-B068 / B069 / 新主題 / B054）
 - 上傳 TGOS batch_003
 
 ## 開發環境
@@ -99,39 +106,40 @@ Water 主題 ViewA 從「manifest-driven 6 KPI grid」整個重寫成「6 章敘
 - Dev server: localhost:5173（VITE_DEFAULT_THEME=water 默認進水主題）
 - Mapbox dev token 在 .env.local
 
-## 跨 4 repo 狀態（Session 8 結束）
+## 跨 4 repo 狀態（Session 9 結束）
 
-- **mini-taiwan-info**: **28+ commits ahead origin/main**（S6 8 + S7 6 + S8 5 + S8 wrap-up 7+）— 待 push
-- **gis-platform**: **2 commits ahead + dirty**（migration 107 / images，其他 session 工作）
-- **taipei-gis-analytics**: 6 ahead master + dirty（其他 session 工作）
-- **data-collectors**: clean + 1 dirty README（其他 session 工作）
+- **mini-taiwan-info**: **44+ commits ahead origin/main**（S6+S7+S8+S9+wrap-up）— 待 push
+- **gis-platform**: **3 commits ahead origin/main**（109 本 session + 110/111/112 其他 session）
+- **taipei-gis-analytics**: 6+ ahead master + dirty（其他 session 工作，Sprint G 已 commit）
+- **data-collectors**: clean（其他 session 工作）
 
 ## 已知小瑕疵（不阻塞）
 
 - `home-basics.yaml` / `socioeconomic.yaml` 仍 v1.0 spec
 - `scripts/regen-counties.ts` 沒寫
 - agent-browser headless 沒 WebGL，無法驗證地圖 heatmap / 分隊 dot（要 user 真實瀏覽器驗）
-- B048（800×600 stack 缺）/ B049（Donut 圖例溢位）/ B050（KPI 單位緊貼）/ B051（24 column totals overlap）四個響應式/視覺 bug 留 backlog
-- B054-B058 water ViewA 新加 5 backlog（@800 響應式 / vs 上月 RPC / timeline / 200·500mm 淹水 / sector 拆解）
-- BACKLOG 95 行 58 項接近上限，下次 wrap-up 應清 P3 已完成項
+- B048-B051 + B054-B058 響應式/視覺 bug 留 backlog
+- B042 後段：消防栓其他 3 都欄位 mapping bug
+- B070 fire.ems 只 2 縣市 / B072 forest_risk 無 county_id（DB 限制）
+- BACKLOG 107 行 / 70+ 項接近上限，下次 wrap-up 應清 P3 已完成項
 
 ## Skill 狀態
 
-| Skill | 版本 | 跑過幾次 | 待修 |
-|---|---|---|---|
-| `/theme-loop` | v1.0 | 5（本 session 1 — water S8）| Stage 2 結尾加 Mini-audit 階段；Stage 4 列 codex review 4 類盲區 |
-| `/wrap-up` | v1.1 | 8（含本次）| Stage 2 事件分類表已加「規劃 doc vs 實際 schema 不同步」類別 |
-| `/cross-repo-status` | v1.0 | 2（本 session 0 — Stage 5 手動 git rev-list）| 在 wrap-up Stage 1 自動派？ |
-| `/check-schema-exposed` | v1.0 | 0 | 累積 0 次使用，可能太隱性 |
-| `/scaffold-rpc-wrapper` | v1.0 | 0 | 累積 0 次使用，可能太隱性 |
+| Skill | 版本 | 跑過幾次 | 本 session | 待修 |
+|---|---|---|---|---|
+| `/theme-loop` | v1.0 | 6 | 0（user 直接給 task）| Stage 1 Discovery 加 cross-repo + DB 對比 Agent E |
+| `/wrap-up` | v1.1 | 9（含本次）| 1 | Stage 1 強化「跨 session 已建未對接」audit |
+| `/cross-repo-status` | v1.0 | 2 | 0（漏跑）| 在 wrap-up Stage 1 自動 inline 派？ |
+| `/check-schema-exposed` | v1.0 | 0 | 0 | 累積 0 次使用，description 太隱性 |
+| `/scaffold-rpc-wrapper` | v1.0 | 0 | 0 | 同上 |
 
-兩個輔助 skill 累積 0 次，下個 cycle 涉及新 schema 時主動派看看效用。
+兩個輔助 skill 累積 0 次 + cross-repo-status 漏跑 = 都是「設計上 trigger 不主動」問題。下個 cycle 涉及新 schema 時主動派看看效用。
 
-## 本 session 學到的關鍵（看 REFLECTIONS Session 8 完整版）
+## 本 session 學到的關鍵（看 REFLECTIONS Session 9 完整版）
 
-1. **用戶對自家後端狀態的認知優先於 doc** — user 說「已處理完」我看 doc 過度懷疑，Agent B psql 才證實 user 對的是我
-2. **規劃 doc vs 實際 schema 不同步** 是新發現的撞牆 — query 寫前 psql `\d` 30 秒驗
-3. **codex review 對 schema mismatch 是盲區**（第 4 類限制 + S7 DOM 事件流 + S6 CSS 缺失 + S8 Promise.all race）— Verify 三閘 → 四閘
-4. **Mini-audit 在 Plan 後 / Execute 前**是新發現的中間階段，抓 spec 不能直接做的場景
-5. **Per-theme view 已是 confirmed pattern**（fire ✓ water ✓），原 ViewA.tsx 留 fallback 給未做專屬版主題
-6. **Promise.allSettled for multi-fetch hook** 必用（codex 抓的 BLOCKER 教訓）
+1. **比較視覺 avg 跟 city 必須同 source** — 雷達圖 mock_avg vs real_city 拉假差距是 artifact（INCIDENTS 第 1 條）
+2. **Cross-session schema drift 二度** — 其他 session 已建 ETL/MV 但本 session 不知，cycle 開頭強制跨 repo audit（INCIDENTS 第 2 條）
+3. **誠實 footnote > 假裝 mock** — user 拍板 PRINCIPLES：DB 稀疏時接通真實 + 揭露範圍
+4. **Supabase count:exact head:true** — 避免下載大表拿 COUNT（PB-15）
+5. **Batch wrapper migration** — 一次 14 view + BEGIN/COMMIT + IF NOT EXISTS（PB-16）
+6. **County-level event-table dedup-by-name** — 55k row 只 ~15 unique disaster_name，前端 dedup 模式（PB-17）
