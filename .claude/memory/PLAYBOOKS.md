@@ -540,3 +540,124 @@ done
 - PB-10：第一次上 production（schema 待擴）
 - PB-12：移植 design component（防純文字 fallback）
 - PB-13：本檔（既有主題 ViewA 重寫）
+
+---
+
+## PB-15: Supabase count-only fetch（避免下載大表）
+
+對應的事：要顯示全國某 KPI 的 COUNT（如「全國消防栓 39,395」），但表很大（39k+ 列）不想 download 全部 row。
+
+```ts
+const { count, error } = await db
+  .from("table_name")
+  .select("primary_key_col", { count: "exact", head: true });
+if (error) throw error;
+return count ?? 0;
+```
+
+關鍵：
+1. `head: true` — 只回 metadata + count，不回 row data
+2. `count: "exact"` — 精確值（vs `estimated` 快但近似）
+3. `.select("某欄位")` 必須給一個欄位（通常 PK），即使 head=true 也要
+4. 回傳是 `{ count, error, data: null }`，typecheck 注意 `count` 是 `number | null`
+
+何時用：
+- KPI 卡只顯示 COUNT，不需要明細
+- 表 > 1000 row（< 1000 直接 fetch all 也 OK 反正不慢）
+- 要 by-county count 仍要 fetch 全表 + 前端 reduce（PostgREST 沒原生 GROUP BY），這時 count-only 不適用
+
+例：`fetchFireHydrantNationalCount` / `fetchShelterNationalCount` / `fetchFireStationsNationalCount`（Session 9）。
+
+---
+
+## PB-16: Batch wrapper migration（一次包多個 public.X view）
+
+對應的事：一次新增 N 張 schema 表（fire / safety / ems）都要曝光到 public 給 PostgREST，逐張寫 migration 太碎。
+
+**模式**（取自 `gis-platform/migrations/109_fire_safety_public_wrappers_batch.sql`）：
+
+```sql
+BEGIN;
+
+-- 1) 分組註解（點位 / 統計 / EMS / 災變）
+DROP VIEW IF EXISTS public.fire_xxx;
+CREATE VIEW public.fire_xxx WITH (security_invoker = true) AS
+  SELECT col1, col2, ... FROM fire.xxx;
+-- (重複 N 個)
+
+-- 2) GRANT 集中收尾
+GRANT SELECT ON public.fire_xxx TO anon, authenticated;
+-- ...
+
+-- 3) COMMENT 集中收尾
+COMMENT ON VIEW public.fire_xxx IS 'public-schema wrapper of fire.xxx (N rows, ...)';
+-- ...
+
+COMMIT;
+```
+
+關鍵：
+1. `DROP VIEW IF EXISTS + CREATE VIEW` 冪等（重跑無副作用）
+2. `security_invoker = true` 讓 RLS 跟著呼叫者（底層表已 anon SELECT policy）
+3. `BEGIN/COMMIT` 包整段 — 任一失敗全 rollback（資料一致）
+4. COMMENT 寫實際 row count 跟覆蓋率 footnote（如「2020 only」「KHH-only」）給未來 audit 看
+5. Apply 後立即 `SELECT * FROM public.X LIMIT 1` 驗 14/14
+
+何時用：
+- 一次 ≥ 3 個新 schema 表要曝光
+- 同主題系列（fire 系列 / safety 系列）一起做
+
+**陷阱**：批次跑失敗，整段全 rollback。所以**寫完先 psql `\d xxx`**驗每張表欄位確實存在，不憑記憶。
+
+例：Session 9 migration 109 一次 14 view。
+
+---
+
+## PB-17: County-granularity event-table dedup-by-name
+
+對應的事：fetch event 類 table（如 `fire.disaster_incidents` 55,798 county-level row），用於 timeline UI 顯示「最近 N 個事件」。row 數很大但 unique disaster 才 ~15 — 直接 ORDER BY date DESC LIMIT 6 拿到的全是同名颱風重複。
+
+**現象**：UI 顯示「天兔颱風 / 天兔颱風 / 天兔颱風 / 天兔颱風 / 天兔颱風 / 天兔颱風」（全是同一颱風在不同縣市的 record）。
+
+**對策 — 前端 dedup**：
+
+```ts
+const acc = new Map<string, AggRow>();
+for (const d of fetched) {
+  const prev = acc.get(d.disaster_name);
+  if (!prev) acc.set(d.disaster_name, { ...d });
+  else {
+    prev.deaths = (prev.deaths ?? 0) + (d.deaths ?? 0);
+    prev.injuries = (prev.injuries ?? 0) + (d.injuries ?? 0);
+    if (d.occurred_date > prev.occurred_date) prev.occurred_date = d.occurred_date;
+  }
+}
+return [...acc.values()].sort((a, b) => a.occurred_date > b.occurred_date ? -1 : 1).slice(0, N);
+```
+
+關鍵：
+1. **fetch limit 要 bump**：N=6 dedup 結果需要拿到 ≥ 6 unique disaster_name，所以 fetch `limit: 2000` 確保涵蓋（fetch 200 不夠）
+2. **SUM deaths/injuries** 跨縣市加總 — 表 county-level，總和才是事件全面影響
+3. **保留較新 date** — 同名事件可能跨日，timeline 取最新
+
+何時用：
+- Event-type table（disaster / incident / report 類），row granularity = county or town
+- UI 是 timeline / news-card 不該重複的場景
+
+**反模式**：用 `.select('disaster_name', { count: 'exact' })` 試圖 server-side distinct — PostgREST 不支援 DISTINCT。要 server-side 唯一就寫 RPC：
+
+```sql
+CREATE FUNCTION public.fire_disaster_unique_recent(p_limit INT)
+RETURNS TABLE(disaster_name TEXT, latest_date DATE, total_deaths BIGINT, ...)
+LANGUAGE sql STABLE AS $$
+  SELECT disaster_name, MAX(occurred_date), SUM(deaths), ...
+  FROM fire.disaster_incidents
+  GROUP BY disaster_name
+  ORDER BY MAX(occurred_date) DESC
+  LIMIT p_limit;
+$$;
+```
+
+但 11 row 結果用 RPC 過度（前端 dedup 也 OK）— Trade-off：< 5000 row 前端 dedup 簡單可控；> 5000 走 RPC 省 bandwidth。
+
+例：Session 9 `S4Others.tsx` `disasterTimeline` + `ViewBFire.tsx OthersTab events`。
