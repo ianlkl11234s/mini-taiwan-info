@@ -49,10 +49,10 @@
 | B038 | P2 | Cycle I 防洪 4 section 完整化 | 待開工 | 淹水場景 switcher / 滯洪池 polygon / 雨水下水道 layer / 即時雨量站 |
 | B039 | P2 | Cycle J View A 水循環 Sankey 圖 | 待開工 | 一張總圖視覺化水循環流量 |
 | B040 | P2 | Cycle B / C datagov 45136 / 45134 / 45135 / 89034 (4 pipeline) | 未做 | 治理層補強 |
-| B041 | P1 | **fire-S1 區塊 1 placeholder swap** | 待開工 | 火災財損 KPI + 起火處所表 → 等 taipei-gis TODO-3 內政部統計處 5 表 ETL（07_fetch_moi_stats.py + migration 100），3-4 天 |
-| B042 | P1 | **fire-S2 區塊 2 placeholder swap** | 待開工 | 消防分隊 + 消防栓 → 等 Sprint 2 TODO-5/6/7/8（7 都分隊 + 374 筆 Google geocoding + 4 都消防栓）5-7 天 |
-| B043 | P2 | **fire-S3 區塊 3 placeholder swap** | 待開工 | 分隊密度 / 5min 圈外人口 / 量能對照 → 等 Sprint 3 PostGIS 衍生表（stations_density / service_coverage）3-4 天 |
-| B044 | P2 | **fire-S4 區塊 4 placeholder swap** | 待開工 | 救護 / 急救醫院 / 林火 / 災變 → 等 Sprint 4 多源 ETL（衛福部全國急救醫院 catalog 缺，需手爬）3-5 天 |
+| ~~B041~~ | ~~P1~~ | ~~fire-S1 placeholder swap~~ | ✅ 2026-05-16 (S9) | 財損 / 處所 / 縣市排名表已接通 fire.casualty_property + incidents_by_location_type（含 footnote 揭露 2020/2022 only） |
+| B042 | P1 | **fire-S2 部分完成** — 消防栓其他 3 都欄位 mapping bug | 待開工 | 分隊 716 已接通；消防栓只高雄完整（B2 dataset 北/中/南/南源欄位 mapping bug → taipei-gis pipeline 修 0.5 day） |
+| ~~B043~~ | ~~P2~~ | ~~fire-S3 placeholder swap~~ | ✅ 部分 2026-05-16 (S9) | 分隊密度 / 面積密度 / scatter 接真實 fire.stations；5min 圈外仍 placeholder，但 gis-platform migration 111 已建 service_coverage_by_county MV，剩前端接（→ B067） |
+| ~~B044~~ | ~~P2~~ | ~~fire-S4 placeholder swap~~ | ✅ 部分 2026-05-16 (S9) | 救護 / 山林 / 災變 timeline 接通 fire.ems / forest_risk / disaster_incidents；急救醫院仍標 placeholder，但 safety.emergency_hospitals 已建（→ B066） |
 | ~~B045~~ | ~~P1~~ | ~~fire 地圖層：消防分隊 dot + 火災 heatmap~~ | ✅ 2026-05-16 完成 | 見已完成區 |
 | ~~B046~~ | ~~P1~~ | ~~fire ViewB 縣市儀錶板~~ | ✅ 2026-05-16 完成 | 見已完成區 |
 | ~~B047~~ | ~~P2~~ | ~~fire KPI 爆炸視圖~~ | ✅ 2026-05-16 完成 | 見已完成區 |
@@ -74,6 +74,13 @@
 | B063 | P1 | **ViewB get_river_stations_by_county / get_river_lines_by_county RPC** | 待開工 | gis-platform 1.5 day。章 1 流量站 + 河川條數，要 ST_Contains spatial join |
 | B064 | P1 | **flood_hazard_townships RPC** | 待開工 | gis-platform 0.5 day。flood_hazard_zones 已有 town 欄位，純 GROUP BY town RPC 包裝即可。章 6 淹水展開鄉鎮里直接可做 |
 | B065 | P3 | **iot_wra_stations.county_name strip 省份前綴** | 待開工 | gis-platform 0.5 day。「臺灣省 / 福建省」前綴 normalize，章 1 替代河川站用 |
+| B066 | **P1** | **接通 safety.emergency_hospitals 到 ViewA S4 + ViewBFire OthersTab** | 待開工 | 252 家 22 縣齊全已 in DB（migration 112 + taipei-gis Sprint G）。寫 public wrapper + query function + 取代 ViewAFire S4 「急救責任醫院」KPI 的 placeholder。約 2 hr 純前端 + 0.5 hr wrapper migration |
+| B067 | **P1** | **接通 fire.service_coverage_by_county MV 到 ViewA S3 + ViewBFire ServiceTab** | 待開工 | migration 111 已建 fire density/coverage 4 MV（其他 session 跑完）。寫 wrapper + 接通「5min 圈外人口比」KPI（取代 mock）。約 2 hr |
+| B068 | **P1** | **接通 admin.villages 7975 polygon 到 ViewBFire ServiceTab 圈外村里 Top 10** | 待開工 | migration 110 已建。要 PostGIS RPC `public.fire_outof_villages_by_county(p_county)`：村里 polygon × stations 6km buffer 反算最遠 10 個村里。約 4 hr 跨 gis-platform + frontend |
+| B069 | P2 | **fire.hydrants B2 dataset 4 都欄位 mapping bug 修** | 待開工 | taipei-gis Sprint B2 4 都 dataset 全 dropped_no_coord。修 pipeline `pipelines/environment/fire/04_load_hydrants.py` 欄位 mapping，rerun ETL 補完 21 縣市消防栓。約 0.5 day |
+| B070 | P2 | **fire.ems_stats_by_county_year 補完 22 縣市** | 待開工 | 目前只 2 縣市。要找替代 dataset 或內政部統計處年度 ETL。約 1 day |
+| B071 | P2 | **fire.disaster_unique_recent RPC（server-side dedup-by-name）** | 待開工 | 取代前端 fetch 2000 + dedup。寫 RPC GROUP BY disaster_name 直接返 N 個 unique event。約 1 hr，sm payload 省 bandwidth |
+| B072 | P3 | **fire.forest_fire_risk_snapshot 補 county_id 欄位** | 待開工 | gis-platform migration 加 county_id（從 region/lat/lng 推算 ST_Contains）。讓 ViewBFire OthersTab 顯示「該縣市山林高風險點 X 處」（目前完全空）。約 2 hr |
 
 ---
 
@@ -81,6 +88,7 @@
 
 | 日期 | ID | 摘要 |
 |---|---|---|
+| 2026-05-16 | B041/B043/B044 (S9) | **Fire 主題 ViewA + ViewB 去 mock 化** — gis-platform migration 109 14 wrapper view + frontend 10 commits（queries +683 / useFireData rewrite Promise.allSettled / 新 useFireCountyData hook / S1-S4 sections rewrite / ViewBFire merged{} + Response/Others tabs / App.tsx 3 fixes / radar national avg 接真實）。火災財損 / 起火處所 / EMS / 災變 timeline / 避難所 / 分隊密度 / 山林高風險全接通，含 footnote 揭露稀疏資料。仍 placeholder：急救醫院、5min 圈外、圈外村里（其他 session 已建 ETL/MV → B066-B068）|
 | 2026-05-16 | B047 (S7) | **Fire KPI 爆炸視圖** — FireKpiExplode.tsx ~260 行 + FireStackedBar.tsx ~100 行 + S1Incidents wire + globals.css 130 行。fire S1「年度火災件數」KPI 點擊就地展開（grid-column 1/-1），4 scale × 4 dim = 16 組合切換 + 圖型自動 + 6 個缺資料組合 inline reason。Codex 抓 1 blocker + 2 nice-to-have 全修；agent-browser 互動發現 KPICard bubble bug（codex 盲區）。User 拍板收斂：只 1 KPI / 不 drill-down / inline 展開 |
 | 2026-05-16 | B046 (S6) | **Fire ViewB 縣市儀錶板** — gis-platform migration 105 incidents_by_county_cause_year MV + frontend ViewBFire.tsx 1170 行（Hero + Radar 5 軸 + 5 sub-tabs）+ query/hook/mock/App route + 設計稿 fire-* CSS 184 行補齊。Codex 抓 2 critical 全修（norm 方向 / hydrants null）。跨 2 repo 2 commits push |
 | 2026-05-16 | B045 (S6) | **Fire 地圖層 heatmap + 分隊 dot** — MapView 加 fire-incidents-heatmap + fire-stations-pt + label，補水主題 gate 漏網之魚（reservoirs/river-stations），加 METRIC_NONE「無染色」radio + buildFirePointLayers 5 toggle panel，兼修 1100×700 邊界裁切，z-order fix (beforeId='counties-border')，heatmap paint 漸層調 7-stop。4 commits mini-taiwan-info push |
