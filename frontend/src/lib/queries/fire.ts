@@ -156,6 +156,45 @@ export async function fetchIncidentsByHourMonth(): Promise<IncidentsByHourMonthR
 }
 
 // ─────────────────────────────────────────────────
+// 4b. 縣市 × 年 × 5+22 起火原因（B046 ViewB 用）
+// ─────────────────────────────────────────────────
+// Backend: migration 105_fire_incidents_by_county_cause_year.sql
+// 跟 4 的 IncidentsByCauseYearRow 只差一個 county_id 維度
+
+export interface IncidentsByCountyCauseYearRow {
+  county_id: string;          // id_moi
+  data_year_minguo: number;
+  cause_5_id: Cause5Id | null;
+  cause_5_name: string | null;
+  cause_22_id: string | null;
+  cause_22_name: string | null;
+  incident_count: number;
+  total_deaths: number;
+  total_injuries: number;
+}
+
+export async function fetchIncidentsByCountyCauseYear(): Promise<IncidentsByCountyCauseYearRow[]> {
+  const { data, error } = await db
+    .from("fire_incidents_by_county_cause_year")
+    .select("*");
+  if (error) {
+    console.error("[fire] incidents_by_county_cause_year failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    county_id: String(r.county_id),
+    data_year_minguo: Number(r.data_year_minguo),
+    cause_5_id: r.cause_5_id == null ? null : (String(r.cause_5_id) as Cause5Id),
+    cause_5_name: r.cause_5_name == null ? null : String(r.cause_5_name),
+    cause_22_id: r.cause_22_id == null ? null : String(r.cause_22_id),
+    cause_22_name: r.cause_22_name == null ? null : String(r.cause_22_name),
+    incident_count: Number(r.incident_count),
+    total_deaths: Number(r.total_deaths),
+    total_injuries: Number(r.total_injuries),
+  }));
+}
+
+// ─────────────────────────────────────────────────
 // 5. 365 點折線（day scale 用）
 // ─────────────────────────────────────────────────
 
@@ -443,6 +482,32 @@ const CAUSE_5_ORDER: Cause5Id[] = [
   "careless",
   "other",
 ];
+
+/**
+ * 縣市版 5+22 cause aggregate — 給 ViewBFire 用
+ * 用 `incidents_by_county_cause_year` MV，filter 該 county_id 後沿用 deriveCauseAggregates 邏輯
+ *
+ * null cause（taxonomy LEFT JOIN miss）合進 'other' / 22→'99' 不明，避免靜默漏算總件數
+ */
+export function deriveCountyCauseAggregates(
+  rows: IncidentsByCountyCauseYearRow[],
+  countyId: string,
+  yearFilter?: number
+): FireCauseAggregate[] {
+  const filtered = rows
+    .filter((r) => r.county_id === countyId)
+    .map((r) => ({
+      data_year_minguo: r.data_year_minguo,
+      cause_5_id: (r.cause_5_id ?? "other") as Cause5Id,
+      cause_5_name: r.cause_5_name ?? "其他不明",
+      cause_22_id: r.cause_22_id ?? "99",
+      cause_22_name: r.cause_22_name ?? "不明",
+      incident_count: r.incident_count,
+      total_deaths: r.total_deaths,
+      total_injuries: r.total_injuries,
+    }));
+  return deriveCauseAggregates(filtered, yearFilter);
+}
 
 export function deriveCauseAggregates(
   causeYear: IncidentsByCauseYearRow[],

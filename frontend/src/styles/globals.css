@@ -27,6 +27,8 @@
   --accent-home-ramp-6: #334155;
 
   --accent-fire: #DC2626;
+  --accent-fire-deep: #991B1B;
+  --accent-fire-soft: #FEF2F2;
   --accent-population: #8B5CF6;
   --accent-transport: #F97316;
   --accent-medical: #10B981;
@@ -2098,3 +2100,192 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   gap: 18px;
   margin-bottom: var(--section-gap);
 }
+
+/* ============================================================
+   B046 ViewB Fire — 縣市儀錶板專屬樣式（從 design bundle 拷貝）
+   ============================================================ */
+
+/* === View B Radar === */
+.fire-radar-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  margin-bottom: var(--section-gap);
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  gap: 24px;
+  align-items: center;
+}
+.frc-svg {
+  display: flex;
+  justify-content: center;
+}
+.frc-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.frc-title b { font-weight: 700; }
+.frc-title .muted { font-size: 11.5px; }
+.frc-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.frc-legend i {
+  display: inline-block;
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.frc-legend .lg-city { background: var(--accent-fire); }
+.frc-legend .lg-avg  { background: var(--text-tertiary); border-bottom: 1px dashed var(--text-tertiary); }
+.frc-verdict {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.frc-verdict li {
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.frc-verdict b { font-weight: 700; margin-right: 4px; }
+.frc-verdict .worse  { color: var(--accent-fire-deep); }
+.frc-verdict .better { color: #047857; }
+
+/* dashboard pane (40% viewport) 窄時雷達卡單欄 stack，避免 290px svg + verdict 列擠垮 */
+@media (max-width: 1200px) {
+  .fire-radar-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px;
+  }
+}
+
+/* === City overview cause mini list === */
+.fire-cause-mini {
+  display: grid;
+  gap: 8px;
+}
+.fcm-row {
+  display: grid;
+  grid-template-columns: 10px 80px 1fr 56px 70px;
+  gap: 10px;
+  align-items: center;
+  font-size: 12.5px;
+}
+.fcm-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.fcm-lbl { color: var(--text); font-weight: 500; }
+.fcm-bar {
+  height: 7px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.fcm-bar > div { height: 100%; border-radius: 4px; }
+.fcm-pct {
+  text-align: right;
+  font-weight: 700;
+}
+.fcm-est {
+  text-align: right;
+  font-size: 11px;
+}
+
+/* === City service buffer legend === */
+.fire-buffer-legend {
+  display: grid;
+  gap: 10px;
+  padding: 4px 2px;
+}
+.fbl-row {
+  display: grid;
+  grid-template-columns: 22px 100px 1fr;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+.fbl-sw {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1.5px dashed;
+}
+.fbl-3km { background: #FEF3C7; border-color: #F59E0B; }
+.fbl-6km { background: #F1F5F9; border-color: #94A3B8; }
+.fbl-out {
+  background: var(--accent-fire-soft);
+  border: 1.5px solid var(--accent-fire);
+  border-style: solid;
+}
+.fbl-row b { font-weight: 600; }
+.fbl-row .muted { font-size: 11.5px; }
+
+/* === City station grid === */
+.fire-station-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+}
+.fsg-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--text);
+}
+.fsg-card.fsg-more {
+  justify-content: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: transparent;
+  border-style: dashed;
+}
+
+/* === Risk bar === */
+.fire-risk-bar {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 18px;
+  align-items: center;
+}
+.frb-track {
+  height: 14px;
+  background: var(--surface-3);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.frb-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #F59E0B, var(--accent-fire));
+  border-radius: 7px;
+}
+.frb-stat {
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.frb-stat b {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--accent-fire-deep);
+}
+.frb-stat .muted { font-size: 11.5px; }

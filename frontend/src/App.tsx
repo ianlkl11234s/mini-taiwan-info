@@ -17,6 +17,7 @@ import { TwoSectionLayers, type PointLayerToggle, METRIC_NONE } from "@/componen
 import { ViewA } from "@/components/views/ViewA";
 import { ViewAFire } from "@/components/views/ViewAFire";
 import { ViewB } from "@/components/views/ViewB";
+import { ViewBFire } from "@/components/views/ViewBFire";
 import { ViewC } from "@/components/views/ViewC";
 import { getMockMetricValue } from "@/lib/mock-data";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -313,11 +314,7 @@ export default function App() {
     setComparing(false);
   };
   const goCity = (code: CountyCode3) => {
-    // Fire 主題目前只有 ViewA — 點縣市改為 highlight only（不進 View B，因 fire View B 未實作）
-    if (theme === "fire") {
-      setCounty(county === code ? null : code);
-      return;
-    }
+    // B046: fire ViewB 已上線（migration 105 + ViewBFire 5 tabs + 雷達），點縣市進 ViewB
     setCounty(code);
     setView("B");
     setComparing(false);
@@ -472,21 +469,30 @@ export default function App() {
                 }}
               />
             ) : view === "B" && county ? (
-              <ViewB
-                manifest={manifest}
-                county={county}
-                allReservoirs={useRealData ? water.reservoirs : []}
-                nationalLpcd={useRealData ? water.governance?.lpcd_national_avg ?? null : null}
-                nationalSewage={useRealData ? water.governance?.sewage_national_avg ?? null : null}
-                lpcdByCountyId={useRealData ? water.governance?.lpcd_by_county ?? {} : {}}
-                sewageByCountyId={useRealData ? water.governance?.sewage_by_county ?? {} : {}}
-                onBack={goHome}
-                onAddCompare={() => { setComparing(true); }}
-                onDrillReservoir={(id) => {
-                  setReservoirId(id);
-                  setView("C");
-                }}
-              />
+              theme === "fire" ? (
+                <ViewBFire
+                  data={fire}
+                  county={county}
+                  onBack={goHome}
+                  onAddCompare={() => { setComparing(true); }}
+                />
+              ) : (
+                <ViewB
+                  manifest={manifest}
+                  county={county}
+                  allReservoirs={useRealData ? water.reservoirs : []}
+                  nationalLpcd={useRealData ? water.governance?.lpcd_national_avg ?? null : null}
+                  nationalSewage={useRealData ? water.governance?.sewage_national_avg ?? null : null}
+                  lpcdByCountyId={useRealData ? water.governance?.lpcd_by_county ?? {} : {}}
+                  sewageByCountyId={useRealData ? water.governance?.sewage_by_county ?? {} : {}}
+                  onBack={goHome}
+                  onAddCompare={() => { setComparing(true); }}
+                  onDrillReservoir={(id) => {
+                    setReservoirId(id);
+                    setView("C");
+                  }}
+                />
+              )
             ) : (
               <div className="hero">
                 <h1>View {view}</h1>

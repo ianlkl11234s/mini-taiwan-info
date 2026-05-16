@@ -157,6 +157,26 @@ export const FIRE_SEVERITY_COLORS: Record<string, string> = {
   unknown: "#9CA3AF",
 };
 
+/** B046 ViewB Service tab — 圈外村里 Top 10（高雄市 placeholder，Sprint 3 後 swap PostGIS 衍生表） */
+export interface FireOutOfBufferVillage {
+  name: string;
+  distance: number;     // 距最近分隊 km
+  population: number;
+}
+
+export const FIRE_KHH_OUTOF_VILLAGES: FireOutOfBufferVillage[] = [
+  { name: "桃源區拉芙蘭里",   distance: 28.4, population:  142 },
+  { name: "茂林區萬山里",     distance: 22.6, population:  246 },
+  { name: "三民區興安里",     distance: 18.2, population:  583 },
+  { name: "六龜區寶來里",     distance: 16.8, population: 1240 },
+  { name: "甲仙區關山里",     distance: 14.2, population:  892 },
+  { name: "杉林區木梓里",     distance: 12.6, population: 1108 },
+  { name: "美濃區福安里",     distance: 11.4, population: 1456 },
+  { name: "桃源區建山里",     distance: 10.8, population:  328 },
+  { name: "內門區金竹里",     distance:  9.6, population:  724 },
+  { name: "茂林區茂林里",     distance:  8.9, population:  412 },
+];
+
 // ────────────────────────────────────────────────────────
 // 消防分隊 mock 點位（B045 過渡，Sprint 2 後 swap 真實資料）
 // ────────────────────────────────────────────────────────

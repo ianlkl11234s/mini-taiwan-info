@@ -10,6 +10,7 @@ import {
   fetchCauseTaxonomy,
   fetchIncidentsByCountyYear,
   fetchIncidentsByCauseYear,
+  fetchIncidentsByCountyCauseYear,
   fetchIncidentsByHourMonth,
   fetchIncidentsByDayOfYear,
   listIncidents,
@@ -27,6 +28,7 @@ import {
   type FireCauseAggregate,
   type IncidentsByCountyYearRow,
   type IncidentsByCauseYearRow,
+  type IncidentsByCountyCauseYearRow,
   type IncidentsByHourMonthRow,
   type IncidentsByDayOfYearRow,
   type IncidentRow,
@@ -39,6 +41,8 @@ export interface FireDataState {
   /** Raw MV rows（給進階聚合 / county view 用） */
   countyYear: IncidentsByCountyYearRow[];
   causeYear: IncidentsByCauseYearRow[];
+  /** B046: 縣市 × 年 × 5+22 cause — ViewBFire 縣市 5+22 起火原因表用 */
+  countyCauseYear: IncidentsByCountyCauseYearRow[];
   hourMonth: IncidentsByHourMonthRow[];
   dayOfYear: IncidentsByDayOfYearRow[];
   taxonomy: CauseTaxonomyRow[];
@@ -62,6 +66,7 @@ const EMPTY_STATE: FireDataState = {
   error: null,
   countyYear: [],
   causeYear: [],
+  countyCauseYear: [],
   hourMonth: [],
   dayOfYear: [],
   taxonomy: [],
@@ -88,11 +93,13 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
     let cancelled = false;
     (async () => {
       try {
-        const [taxonomy, countyYear, causeYear, hourMonth, dayOfYear, incidentPoints] =
+        const [taxonomy, countyYear, causeYear, countyCauseYear, hourMonth, dayOfYear, incidentPoints] =
           await Promise.all([
             fetchCauseTaxonomy(),
             fetchIncidentsByCountyYear(),
             fetchIncidentsByCauseYear(),
+            // B046：縣市 × 年 × 5+22 起火原因（migration 105）— ViewBFire 用
+            fetchIncidentsByCountyCauseYear(),
             fetchIncidentsByHourMonth(),
             // 最新民國年 365 點：取 113 一年（壓縮 payload）
             fetchIncidentsByDayOfYear(113),
@@ -109,6 +116,7 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
           error: null,
           countyYear,
           causeYear,
+          countyCauseYear,
           hourMonth,
           dayOfYear,
           taxonomy,
