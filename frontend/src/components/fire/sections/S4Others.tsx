@@ -174,7 +174,12 @@ export function S4Others({ data, selectedCounty, onCountyClick }: S4Props) {
               22 縣市救護統計
             </div>
             <div className="muted" style={{ fontSize: 11.5 }}>
-              {emsYear ? `${emsYear} 年資料 · OHCA / 創傷 件數` : "資料載入中"}
+              {emsYear ? (
+                <>
+                  {emsYear} 年 · 目前公開資料僅 <b>{new Set(data.emsYearlyRows.map((r) => r.county_id)).size}</b> 縣市完整，
+                  其他標 「—」等 ETL
+                </>
+              ) : "資料載入中"}
               {data.emsYearlyRows.length === 0 && " · 等 ETL"}
             </div>
           </div>
