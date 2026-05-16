@@ -25,18 +25,17 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 ## Pending 同步（未 commit 到對應 repo 或未 push）
 
-**Session 6（2026-05-16 B045 fire 地圖層 + B046 fire ViewB）pending**：
+**Session 7（2026-05-16 B047 fire KPI 爆炸視圖）pending**：
 
-- **mini-taiwan-info**: B045 4 commits **已 push**（5edd8fd / 5c34f3c / f0c6d73 + Session 5 殘 905d486）
-  - B046 + memory 8 個 commits **本次 wrap-up 後待 user push**（37fc213 + memory: × 8）
-- **gis-platform**: migration 105 **已 push**（095cd5d）
-- **taipei-gis-analytics**: 本 session **未動**（仍 2 commits ahead origin/master 為其他 session 的工作）
+- **mini-taiwan-info**: **15 commits ahead origin/main**（B046 + Session 6 memory 8 個 + B047 + Session 7 wrap-up memory 6 個）— **待 user push**
+- **gis-platform**: 本 session **未動**（migration 105 在 Session 6 末已 push）
+- **taipei-gis-analytics**: 本 session **未動**（其他 session 的工作 dirty + untracked，不關本 wrap-up）
 
 **A2 pipeline 仍未 run**：taipei-gis 88353ae，~1-2 小時 / 約 30k reading（待 user 拍板）
 
 **TODO-2 batch_003 未上傳**：taipei-gis fire batch_003 在 2026-04-28 已產出但 user 還沒手動上傳 TGOS web（1-3 天回應期）
 
-**Memory 9 檔 commit 完待 push**：B046 cycle 全套（migration 105 + ViewBFire + memory）— 跨 2 repo（gis-platform 已 push / mini-taiwan-info 待 push）
+**Session 7 跨 repo 變動**：無。本 cycle 純 frontend（FireKpiExplode + FireStackedBar + S1Incidents wire + globals.css），不需 gis-platform migration 也不需 taipei-gis pipeline。
 
 ---
 
@@ -44,11 +43,11 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 | 日期 | Repo | 動作 | Commit |
 |---|---|---|---|
+| 2026-05-16 (S7) | mini-taiwan-info | feat(fire) B047 KPI 爆炸視圖 — 年度件數卡 time × dim 大圖 | 9ebd2b2 |
 | 2026-05-16 (S6) | mini-taiwan-info | feat(map) B045 fire 地圖層 heatmap+stations + neutral fill + point panel | 5edd8fd / 5c34f3c / f0c6d73 (push 完) |
 | 2026-05-16 (S6) | mini-taiwan-info | feat(view) B046 fire ViewB 縣市儀錶板（待 push） | 37fc213 |
 | 2026-05-16 (S6) | gis-platform | feat(migration) 105 fire incidents_by_county_cause_year MV | 095cd5d (push 完) |
 | 2026-05-15 (S5) | mini-taiwan-info | feat(fire-frontend) ViewA Phase 1 — 8 commits | 9dfd144..b1941a1 |
-| 2026-05-15 (S5) | gis-platform | feat(fire-schema) migration 104 public wrappers | 93d825f |
 | 2026-05-15 (S5) | taipei-gis-analytics | feat(fire-etl) 12_upload_to_supabase.py | 5c7f061（48,626 筆 fire.incidents + 4 MV refresh）|
 | 2026-05-14 (S4) | mini-taiwan-info | feat(view-b) Cycle B IA 重組 7 tabs | d96f69e + 462feac |
 | 2026-05-14 (S4) | gis-platform | feat(migration) 097 water_quality RPCs | 995efec |
