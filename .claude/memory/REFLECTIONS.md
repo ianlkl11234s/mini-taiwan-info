@@ -445,4 +445,36 @@ User 開場：「接續做 fire 主題資料端 TODO-1 → 完成後接著做 �
 
 詳見 STATUS + BACKLOG B041-B047。
 
+---
 
+## 2026-05-16 Session 7 — B047 fire KPI 爆炸視圖（純前端 1 cycle）
+
+**做完**：FireKpiExplode（~260 行）+ FireStackedBar（~100 行）+ S1Incidents wire + globals.css 130 行。fire S1 「年度火災件數」KPI 卡點擊就地展開（grid-column 1/-1 撐滿），4 scale × 4 dim = 16 組合切換 + 圖型自動 + 6 個缺資料組合 inline reason。User 拍板 B047 收斂：只做 1 個 KPI、不做 drill-down、inline 展開（不 modal）。
+
+**這次學到**：
+
+1. **codex review 對 DOM 事件流盲區**（新發現的 codex 限制）
+   codex 抓到 1 blocker（unknown cause_5 silently 漏資料）+ 2 nice-to-have（dead branch / hardcoded count）— 全是靜態碼層級分析。**漏掉 KPICard onClick bubble 收回卡片**這個關鍵 runtime bug，要 agent-browser 互動 + `document.querySelectorAll('.kpi-card.expanded').length` 計數查驗才測到。教訓：Verify 階段不能省 agent-browser 互動 — codex + typecheck 對「父子事件 bubble / cleanup / focus management」這類 runtime DOM 行為看不到。寫進 INCIDENTS + PRINCIPLES。
+
+2. **inline-expand 的 CSS 機制**：`.kpi-card.expanded { grid-column: 1 / -1 }` 是 KPI 卡撐滿 dashboard 寬度的關鍵 — 用既有機制就好，不用另寫 modal/drawer。爆炸內容 root 加 `onClick={e => e.stopPropagation()}` 配合無痛。
+
+3. **「資料不足」inline reason 比 disable toggle 好**：16 組合中 6 個無對應 MV（如 月×cause / 日×any-dim）。一開始想 disable button，但 disable 不教育 user 為何不能。改成 toggle 任點，缺資料的組合顯示「⏳ 資料不足以爆炸展開」+ 原因（「月/時段 × 5 大類原因 缺對應 MV」）— 既符合 03-exploded-view-pattern §6 規範，又讓 user 知道資料限制 + 替代方案。
+
+4. **PB-08 codex review SOP 第 4 次驗證有效**：B045（heatmap z-order）、B046（雷達 norm + hydrant null）、B047（unknown enum 漏資料）連 4 次抓 critical。但這次新發現 codex 不抓 runtime 事件流 bug — 補一個 PB-08 衍生：「**Verify 三閘 = typecheck + agent-browser 互動 + codex review**」，不可三選二，每閘抓不同面向。
+
+5. **24 column stacked bar 的 totals overlap**：時段（24h）× 縣市 stacked 時，每柱寬度 ~32px 但 totals number 占 40px 寬會橫向 overlap（截圖見過）。未來主題遇到 ≥ 24 column 要重新評估 label 策略（rotate 90deg / 隔列 show / hover-only / 移到柱內）。先 backlog（B051 候選），不阻塞 B047 完成。
+
+**對應寫回**：
+- INCIDENTS: 本次 KPICard bubble 條
+- PRINCIPLES: stopPropagation 規則條
+- REFLECTIONS: 本條
+- CROSS_REPO: Session 7 純 frontend 無跨 repo
+- BACKLOG: B047 移已完成
+- STATUS: rewrite（B047 done，下一步 B041/B043/新主題）
+
+### 下一個 session 的合理選項（user 5/16 晚對話）
+
+1. **B041 MOI 5 表 ETL**（3-4 天，跨 3 repo Mode D）— 解 ViewA 火災財損 KPI + 起火處所 placeholder
+2. **B043 PostGIS 服務圈**（依賴 B042 真實 stations，blocker 多，**不建議現在做**）
+3. **開新主題（demographics / safety）**— fire 還有大片 mock 但 ViewA/B 視覺骨架已成型
+4. **B051（新）**：24 column stacked bar totals overlap 修法 — 30min 純前端 fix
