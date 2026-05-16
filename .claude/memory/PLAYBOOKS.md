@@ -407,3 +407,62 @@
 - KPI 4 欄在 40% dashboard pane 太擠 → cols-4 響應式必加 @media (max-width: 1500px) → 2x2
 
 **配套 PB**：PB-01 升級 v1.1（單檔 yaml）/ PB-02 接 RPC（單 RPC）/ PB-10 整個主題上線
+
+---
+
+## PB-12: 移植 design bundle 元件 4 步 SOP（防純文字 fallback）
+
+對應的事：從 `/tmp/{theme}_design/.../js/{view}.jsx` 移植元件到 `frontend/src/components/`。
+
+**問題出現**：B046 ViewBFire.tsx 寫完 typecheck 過、dev server 看起來「跟 word 沒兩樣」一片純文字。grid / background / border 全 fallback 預設，因為 JSX className 對應的 styles.css section 沒移植過來。
+
+**4 步流程**：
+
+```bash
+# 1. Read 完整 jsx file（不是只 grep 結構）
+Read /tmp/{theme}_design/.../js/{view}.jsx
+
+# 2. Grep 對應 styles.css 的所有 className 區段
+grep -n "className=\"[^\"]*\"" /tmp/.../{view}.jsx | \
+  sed -E 's/.*className="([^"]*)".*/\1/' | tr ' ' '\n' | sort -u
+# 取得 className list，再 grep:
+grep -n "^\.{class1}\|^\.{class2}\|..." /tmp/.../styles.css
+
+# 3. TS strict 化 JSX 寫到 frontend/src/components/views/{ViewName}.tsx
+#    - 把 window.* 全域 → import
+#    - 把 mock data 替換成真實 fetch（migration 對應的）
+#    - 加 TypeScript Props interface + null handling
+
+# 4. Append CSS 到 globals.css 對應主題段
+Read 對應 styles.css 區段（line A-B）
+# Append 到 globals.css 末尾的 "/* ============ {theme} 主題 ============ */" 段
+
+# 5. 確認 design 用的 CSS 變數在 globals.css :root 已定義
+grep "var(--accent-{theme}" /tmp/.../styles.css | sort -u
+grep "^  --accent-{theme}" frontend/src/styles/globals.css
+# 缺的補進 :root
+
+# 6. 加響應式 media query 防 dashboard pane 窄時擠垮
+# 多欄 grid 元件加：
+@media (max-width: 1200px) {
+  .{component}-card { grid-template-columns: 1fr; }
+}
+```
+
+**陷阱**（從 Session 5 + 6 學到）：
+- Session 5 移植 fire ViewA 時只 append 用到的 fire-* CSS → ViewB 加新元件爆。**一勞永逸**做法：跑步驟 2 取完整 className list 後，把整套主題 CSS 一次 append（即使本 cycle 只用到部分）
+- design bundle 的 CSS 變數命名可能跟 globals 不一致（如 `--accent-fire-deep` vs `--accent-deep`）→ 步驟 5 一定要驗
+- `dashboard-pane` 內 fixed-px column 在 < 1200px 會擠垮 → 響應式 media 必加
+
+**自驗指令**：
+```bash
+# 寫完 component 後，grep 全部用到的 fire-* className 有沒對應 CSS rule:
+for cls in $(grep -oE 'className="[^"]*"' frontend/src/components/views/ViewBFire.tsx | \
+             grep -oE '[a-z]+-[a-z0-9-]+' | sort -u); do
+  count=$(grep -c "\.$cls" frontend/src/styles/globals.css)
+  echo "$cls: $count"
+done
+# 0 表示該 className 沒 CSS rule → 必補
+```
+
+**配套 PB**：PB-10 開新主題（含設計階段）+ PB-12 移植 component（執行階段）
