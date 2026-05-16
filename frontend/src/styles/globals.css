@@ -2428,3 +2428,571 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   .fire-explode-row { align-items: flex-start; }
   .fire-explode-row .toggle-group { flex-wrap: wrap; }
 }
+
+/* ============================================================
+   WATER THEME — ViewA 6 章敘事 sections
+   (現況 / 儲存 / 水情燈號 / 處理 / 使用 / 災防)
+   來源: design bundle handoff 2026-05-16, verbatim
+   ============================================================ */
+
+/* ----- Section 1: Stat Grid 6 tiles ----- */
+.stat-grid-6 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.stat-tile {
+  padding: 16px 16px 14px;
+  background: var(--surface);
+  display: grid;
+  gap: 4px;
+  position: relative;
+}
+.stat-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--accent-ramp-0) 0%, transparent 65%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.stat-tile > * { position: relative; z-index: 1; }
+.stat-tile-ico {
+  width: 24px; height: 24px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-deep);
+  display: grid; place-items: center;
+  margin-bottom: 4px;
+}
+.stat-tile-num {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1.1;
+  display: flex; align-items: baseline; gap: 4px;
+}
+.stat-tile-num .unit {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.stat-tile-label {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+.stat-tile-ds {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* ----- Section 2: 4-Region Storage Gauges ----- */
+.reg-gauge-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+}
+.reg-gauge-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.reg-gauge-head .nat {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.reg-gauge-head .nat b {
+  color: var(--text); font-size: 17px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin: 0 4px;
+}
+.reg-gauge-head .nat .delta-neg { color: #B91C1C; font-weight: 600; }
+.reg-gauge-head .nat .delta-pos { color: #047857; font-weight: 600; }
+
+.reg-rows {
+  display: grid;
+  gap: 10px;
+}
+.reg-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 64px 100px;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+}
+.reg-row .lbl {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13.5px;
+}
+.reg-row .bar-wrap {
+  height: 14px;
+  background: var(--surface-3);
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+}
+.reg-row .bar {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.5s var(--ease-out);
+  background: var(--accent);
+  position: relative;
+}
+.reg-row .bar.crit { background: #EF4444; }
+.reg-row .bar.warn { background: #F59E0B; }
+.reg-row .bar.ok   { background: #10B981; }
+.reg-row .bar-mark {
+  position: absolute;
+  top: -2px; bottom: -2px;
+  width: 2px;
+  background: var(--text);
+  opacity: 0.45;
+  border-radius: 1px;
+}
+.reg-row .val {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.reg-row .delta {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.reg-row .delta b { font-weight: 600; }
+.reg-row .delta.neg b { color: #B91C1C; }
+.reg-row .delta.pos b { color: #047857; }
+.reg-gauge-footnote {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  display: flex; gap: 14px; align-items: center;
+}
+
+/* ----- Section 2: 5 大供水水庫 (HBar list) ----- */
+.big5-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+}
+.big5-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 56px 84px 60px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.big5-row:last-child { border-bottom: none; }
+.big5-row .nm {
+  font-weight: 600;
+  color: var(--text);
+}
+.big5-row .nm .region {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  margin-top: 1px;
+}
+.big5-row .bar-wrap {
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.big5-row .bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+.big5-row .bar.crit { background: #EF4444; }
+.big5-row .bar.warn { background: #F59E0B; }
+.big5-row .rate {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.big5-row .cap {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.big5-row .vsly {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-weight: 600;
+}
+.big5-row .vsly.pos { color: #047857; }
+.big5-row .vsly.neg { color: #B91C1C; }
+
+/* Two-col split (region gauge | 5 reservoirs) */
+.two-up {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.two-up > * { min-width: 0; }
+
+/* ----- Section 3: drought alert tiles ----- */
+.alert-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.alert-tile {
+  position: relative;
+  padding: 14px 14px 14px;
+  border-radius: var(--radius-card);
+  border: 1px solid;
+  background: var(--surface);
+  display: grid;
+  gap: 6px;
+  overflow: hidden;
+}
+.alert-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.85;
+}
+.alert-tile > * { position: relative; z-index: 1; }
+.alert-tile .lvl {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.alert-tile .lvl .swatch {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.alert-tile .cnt {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.alert-tile .cnt .unit { font-size: 12px; color: var(--text-secondary); margin-left: 3px; font-weight: 500; }
+.alert-tile .desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.alert-tile .rgns {
+  font-size: 11.5px;
+  color: var(--text);
+  font-weight: 500;
+  margin-top: 2px;
+  min-height: 16px;
+}
+.alert-tile .rgns:empty::after { content: "—"; color: var(--text-tertiary); }
+.alert-tile.lv-red    { border-color: #FCA5A5; background: #FEF2F2; }
+.alert-tile.lv-orange { border-color: #FED7AA; background: #FFF7ED; }
+.alert-tile.lv-yellow { border-color: #FDE68A; background: #FFFBEB; }
+.alert-tile.lv-green  { border-color: #BBF7D0; background: #F0FDF4; }
+.alert-tile.lv-red    .lvl { color: #B91C1C; } .alert-tile.lv-red    .lvl .swatch { background: #DC2626; }
+.alert-tile.lv-orange .lvl { color: #C2410C; } .alert-tile.lv-orange .lvl .swatch { background: #F97316; }
+.alert-tile.lv-yellow .lvl { color: #A16207; } .alert-tile.lv-yellow .lvl .swatch { background: #EAB308; }
+.alert-tile.lv-green  .lvl { color: #15803D; } .alert-tile.lv-green  .lvl .swatch { background: #22C55E; }
+.alert-tile.is-zero .cnt { color: var(--text-tertiary); }
+
+/* drought timeline */
+.drought-timeline {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 18px 16px;
+}
+.dt-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.dt-head .t {
+  font-size: 13px; font-weight: 600;
+  color: var(--text);
+}
+.dt-head .last-red {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.dt-head .last-red b { color: var(--text); font-weight: 600; }
+.dt-axis {
+  position: relative;
+  height: 38px;
+  background: linear-gradient(to right, var(--surface-3) 0%, var(--surface-3) 100%);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.dt-seg {
+  position: absolute;
+  top: 6px; bottom: 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.dt-seg:hover { transform: scaleY(1.08); }
+.dt-seg.lv-red    { background: #DC2626; }
+.dt-seg.lv-orange { background: #F97316; }
+.dt-seg.lv-yellow { background: #EAB308; }
+.dt-ticks {
+  margin-top: 6px;
+  display: flex; justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- Section 4: treatment infra (sankey-style flow) ----- */
+.flow-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+}
+.flow-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  align-items: stretch;
+  position: relative;
+}
+.flow-step {
+  padding: 4px 14px;
+  display: grid;
+  gap: 6px;
+  position: relative;
+}
+.flow-step + .flow-step::before {
+  content: "→";
+  position: absolute;
+  left: -8px; top: 18px;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.6;
+}
+.flow-step .stage {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.flow-step .num {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  display: flex; align-items: baseline; gap: 4px;
+  line-height: 1;
+}
+.flow-step .num .unit { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.flow-step .lbl {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.flow-step .trend {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+.flow-step .spark {
+  margin-top: 2px;
+  height: 18px;
+}
+.flow-step.is-sewage { background: var(--surface-2); border-radius: 8px; }
+.flow-step.is-sewage .stage { color: var(--text-secondary); }
+
+/* ----- Section 5: usage trend ----- */
+.usage-split {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.usage-split > * { min-width: 0; }
+.lpcd-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px 14px;
+}
+.lpcd-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.lpcd-big {
+  display: flex; align-items: baseline; gap: 8px;
+}
+.lpcd-big .num {
+  font-size: 38px; font-weight: 700; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.lpcd-big .unit { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+.lpcd-big .delta {
+  font-size: 11.5px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: var(--positive-soft);
+  color: #047857;
+  font-weight: 600;
+}
+.lpcd-meta { font-size: 11.5px; color: var(--text-tertiary); }
+.lpcd-meta .gap b { color: var(--accent-deep); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.side-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.side-stat .lbl { font-size: 12px; color: var(--text-secondary); }
+.side-stat .num {
+  font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.side-stat .num .unit { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.side-stat .meta { font-size: 11px; color: var(--text-tertiary); }
+.side-stat .bar-row {
+  display: flex; gap: 1px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+/* Compact usage-structure stacked bar */
+.usage-stack {
+  display: flex; height: 18px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.usage-stack-legend {
+  display: flex; flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.usage-stack-legend i {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: 0;
+}
+.usage-stack-legend b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Section 6 disaster - 4 KPIs */
+.disaster-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.disaster-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 14px;
+  display: grid;
+  gap: 5px;
+  position: relative;
+}
+.disaster-tile.tone-warn { border-color: color-mix(in srgb, #F59E0B 35%, var(--border)); }
+.disaster-tile .lbl {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  display: flex; align-items: center; gap: 6px;
+}
+.disaster-tile .lbl .ico {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-deep);
+}
+.disaster-tile.tone-warn .lbl .ico { background: var(--warning-soft); color: #B45309; }
+.disaster-tile.tone-crit .lbl .ico { background: var(--danger-soft);  color: #B91C1C; }
+.disaster-tile .num {
+  font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.disaster-tile .num .unit { font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-left: 3px; }
+.disaster-tile .sub {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+.disaster-tile .scen {
+  display: inline-flex;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  margin-top: 4px;
+}
+.disaster-tile .scen button {
+  font-size: 10.5px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.disaster-tile .scen button.active {
+  background: var(--accent);
+  color: white;
+}
+.disaster-tile .split {
+  display: flex; gap: 2px;
+  margin-top: 6px;
+}
+.disaster-tile .split .seg {
+  height: 6px;
+  border-radius: 2px;
+}
+.disaster-tile .split .seg.lv1 { background: #DC2626; }
+.disaster-tile .split .seg.lv2 { background: #F97316; }
+.disaster-tile .split .seg.lv3 { background: #EAB308; }
+.disaster-tile .pills {
+  display: flex; gap: 4px;
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.disaster-tile .pills span {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
