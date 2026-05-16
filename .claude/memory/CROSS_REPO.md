@@ -25,18 +25,26 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 ## Pending 同步（未 commit 到對應 repo 或未 push）
 
-**Session 8（2026-05-16 water ViewA 6 章敘事重寫）pending**：
+**Session 9（2026-05-16 fire 主題 ViewA + ViewB 去 mock 化）pending**：
 
-- **mini-taiwan-info**: **28 commits ahead origin/main**（S6 8 + S7 6 + S8 5 + S8 wrap-up 7 + 本次 wrap-up 餘下幾個）— **待 user push**
-- **gis-platform**: 本 session **未動**（migration 098-102 在 5/15 commit `d06ae9f` 已 apply + push）
-- **taipei-gis-analytics**: 本 session **未動**（其他 session 工作 dirty + untracked，不關本 wrap-up）
+- **mini-taiwan-info**: **44+ commits ahead origin/main**（S6 8 + S7 6 + S8 5 + S8 wrap-up 7+ + S9 10 + S9 wrap-up 7+）— **待 user push**
+- **gis-platform**: **3+ commits ahead origin/main**（migration 109 本 session + migration 110/111/112 其他 session 已 commit 未 push 或已 push 待確認）
+- **taipei-gis-analytics**: 本 session **未動**（其他 session 跑了 Sprint G 急救醫院 + 其他 dirty，不關本 wrap-up；Sprint G `6e10015 / 70b4cf5` 已 commit）
 - **data-collectors**: 本 session **未動**
+
+**跨 session 已建但前端未對接（next session 重點）**：
+- ✅ `gis-platform/migrations/110` admin.villages 7975 polygon（B068 接通）
+- ✅ `gis-platform/migrations/111` fire density / service_coverage MV（B067 接通）
+- ✅ `gis-platform/migrations/112` safety.emergency_hospitals（B066 接通）
+- ✅ `taipei-gis-analytics` Sprint G 252 家急救醫院 ETL（同 B066 同步）
 
 **A2 pipeline 仍未 run**：taipei-gis 88353ae，~1-2 小時 / 約 30k reading（待 user 拍板）
 
 **TODO-2 batch_003 未上傳**：taipei-gis fire batch_003 在 2026-04-28 已產出但 user 還沒手動上傳 TGOS web（1-3 天回應期）
 
-**Session 8 跨 repo 變動**：無。本 cycle 純 frontend（ViewAWater + 6 sections + WaterCatHeader + water-overview.ts + useWaterKpis 改 + App.tsx 分派 + globals.css +568 行 CSS）。後端 90% 完成度（migration 098-102 + 14 RPC + 7 ETL 表）在 5/15 commit `d06ae9f` 已 apply。
+**Session 9 跨 repo 變動**：
+- gis-platform commit `92ec3fa`：migration 109 — 14 wrapper view（fire/safety/ems）已 apply remote DB + 驗 14/14
+- mini-taiwan-info 10 commits + 7 wrap-up commits
 
 ---
 
@@ -44,6 +52,8 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 | 日期 | Repo | 動作 | Commit |
 |---|---|---|---|
+| 2026-05-16 (S9) | mini-taiwan-info | feat(fire) ViewA + ViewB + queries + 2 hooks 去 mock 化 — 10 atomic commits | 35970a3 / 453e707 / 00813b3 / b1b3cdb / 9dfab09 / 528d879 / 127fc2b / 0009ca0 / c2d73ca + wrap-up |
+| 2026-05-16 (S9) | gis-platform | feat(migration) 109 fire/safety public wrappers batch（14 view）| 92ec3fa |
 | 2026-05-16 (S8) | mini-taiwan-info | feat(water-ui) ViewAWater 6 章敘事 + App 主題分派 — 5 atomic commits | 53b425d / 27607e0 / 255b359 / 6b621e1 / 410b20c |
 | 2026-05-16 (S7) | mini-taiwan-info | feat(fire) B047 KPI 爆炸視圖 — 年度件數卡 time × dim 大圖 | 9ebd2b2 |
 | 2026-05-16 (S6) | mini-taiwan-info | feat(map) B045 fire 地圖層 heatmap+stations + neutral fill + point panel | 5edd8fd / 5c34f3c / f0c6d73 (push 完) |
