@@ -661,3 +661,686 @@ export function deriveDayOfYearSeries(
     incidents: r.count,
   }));
 }
+
+// ─────────────────────────────────────────────────
+// 9. 消防分隊 (fire.stations，716 筆，22 縣市齊)
+// ─────────────────────────────────────────────────
+
+export interface FireStationRow {
+  station_id: string;
+  county_id: string;
+  name: string;
+  type: string | null;          // 分隊 / 大隊 / 分駐所 / 中隊 / 小隊
+  address: string | null;
+  phone: string | null;
+  district: string | null;
+  lat: number | null;
+  lng: number | null;
+  geocoding_precision: string | null;
+}
+
+export async function fetchFireStations(opts: { county?: string | null } = {}): Promise<FireStationRow[]> {
+  let q = db.from("fire_stations").select("station_id,county_id,name,type,address,phone,district,lat,lng,geocoding_precision");
+  if (opts.county) q = q.eq("county_id", opts.county);
+  const { data, error } = await q;
+  if (error) {
+    console.error("[fire] fetchFireStations failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    station_id: String(r.station_id),
+    county_id: String(r.county_id),
+    name: String(r.name),
+    type: r.type == null ? null : String(r.type),
+    address: r.address == null ? null : String(r.address),
+    phone: r.phone == null ? null : String(r.phone),
+    district: r.district == null ? null : String(r.district),
+    lat: r.lat == null ? null : Number(r.lat),
+    lng: r.lng == null ? null : Number(r.lng),
+    geocoding_precision: r.geocoding_precision == null ? null : String(r.geocoding_precision),
+  }));
+}
+
+// ─────────────────────────────────────────────────
+// 10. 消防栓 (fire.hydrants，39,395 筆，目前僅高雄 county_id='E')
+// ─────────────────────────────────────────────────
+
+export interface FireHydrantRow {
+  hydrant_id: string;
+  county_id: string;
+  type: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+/**
+ * 抓消防栓（預設取所有縣市）。
+ * 由於目前資料量大且僅高雄有，前端通常 `county='E'` 拉出後做 heatmap。
+ */
+export async function fetchFireHydrants(opts: { county?: string | null; limit?: number } = {}): Promise<FireHydrantRow[]> {
+  let q = db.from("fire_hydrants").select("hydrant_id,county_id,type,lat,lng");
+  if (opts.county) q = q.eq("county_id", opts.county);
+  if (opts.limit) q = q.limit(opts.limit);
+  const { data, error } = await q;
+  if (error) {
+    console.error("[fire] fetchFireHydrants failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    hydrant_id: String(r.hydrant_id),
+    county_id: String(r.county_id),
+    type: r.type == null ? null : String(r.type),
+    lat: r.lat == null ? null : Number(r.lat),
+    lng: r.lng == null ? null : Number(r.lng),
+  }));
+}
+
+/** 全國消防栓總數（不拉明細，避免下載 39k 筆）*/
+export async function fetchFireHydrantNationalCount(): Promise<number> {
+  const { count, error } = await db
+    .from("fire_hydrants")
+    .select("hydrant_id", { count: "exact", head: true });
+  if (error) {
+    console.error("[fire] fetchFireHydrantNationalCount failed:", error);
+    throw error;
+  }
+  return count ?? 0;
+}
+
+/** 全國分隊總數（不拉明細）*/
+export async function fetchFireStationsNationalCount(): Promise<number> {
+  const { count, error } = await db
+    .from("fire_stations")
+    .select("station_id", { count: "exact", head: true });
+  if (error) {
+    console.error("[fire] fetchFireStationsNationalCount failed:", error);
+    throw error;
+  }
+  return count ?? 0;
+}
+
+/** 全國避難所總數（不拉明細）*/
+export async function fetchShelterNationalCount(): Promise<number> {
+  const { count, error } = await db
+    .from("safety_emergency_shelters")
+    .select("shelter_id", { count: "exact", head: true });
+  if (error) {
+    console.error("[fire] fetchShelterNationalCount failed:", error);
+    throw error;
+  }
+  return count ?? 0;
+}
+
+/** 各縣市消防栓數量（不拉點位） */
+export interface FireHydrantCountRow {
+  county_id: string;
+  hydrant_count: number;
+}
+
+export async function fetchFireHydrantCountsByCounty(): Promise<FireHydrantCountRow[]> {
+  // PostgREST 沒原生 GROUP BY，前端 fetch all county_id 後 reduce
+  const { data, error } = await db.from("fire_hydrants").select("county_id");
+  if (error) {
+    console.error("[fire] fetchFireHydrantCountsByCounty failed:", error);
+    throw error;
+  }
+  const acc = new Map<string, number>();
+  for (const r of (data ?? []) as Array<{ county_id: string }>) {
+    const id = String(r.county_id);
+    acc.set(id, (acc.get(id) ?? 0) + 1);
+  }
+  return [...acc.entries()].map(([county_id, hydrant_count]) => ({ county_id, hydrant_count }));
+}
+
+// ─────────────────────────────────────────────────
+// 11. 緊急避難收容處所 (safety.emergency_shelters，5,947 筆，22 縣市齊)
+// ─────────────────────────────────────────────────
+
+export interface EmergencyShelterRow {
+  shelter_id: string;
+  county_id: string;
+  district: string | null;
+  name: string;
+  category: string | null;
+  address: string | null;
+  capacity: number | null;
+  lat: number | null;
+  lng: number | null;
+  managing_agency: string | null;
+}
+
+export async function fetchEmergencyShelters(opts: { county?: string | null; limit?: number } = {}): Promise<EmergencyShelterRow[]> {
+  let q = db
+    .from("safety_emergency_shelters")
+    .select("shelter_id,county_id,district,name,category,address,capacity,lat,lng,managing_agency");
+  if (opts.county) q = q.eq("county_id", opts.county);
+  if (opts.limit) q = q.limit(opts.limit);
+  const { data, error } = await q;
+  if (error) {
+    console.error("[fire] fetchEmergencyShelters failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    shelter_id: String(r.shelter_id),
+    county_id: String(r.county_id),
+    district: r.district == null ? null : String(r.district),
+    name: String(r.name),
+    category: r.category == null ? null : String(r.category),
+    address: r.address == null ? null : String(r.address),
+    capacity: r.capacity == null ? null : Number(r.capacity),
+    lat: r.lat == null ? null : Number(r.lat),
+    lng: r.lng == null ? null : Number(r.lng),
+    managing_agency: r.managing_agency == null ? null : String(r.managing_agency),
+  }));
+}
+
+/** 各縣市避難所數量（不拉明細） */
+export interface ShelterCountRow {
+  county_id: string;
+  shelter_count: number;
+  total_capacity: number;
+}
+
+export async function fetchShelterCountsByCounty(): Promise<ShelterCountRow[]> {
+  const { data, error } = await db.from("safety_emergency_shelters").select("county_id,capacity");
+  if (error) {
+    console.error("[fire] fetchShelterCountsByCounty failed:", error);
+    throw error;
+  }
+  const acc = new Map<string, { c: number; cap: number }>();
+  for (const r of (data ?? []) as Array<{ county_id: string; capacity: number | null }>) {
+    const id = String(r.county_id);
+    const prev = acc.get(id) ?? { c: 0, cap: 0 };
+    prev.c += 1;
+    prev.cap += r.capacity == null ? 0 : Number(r.capacity);
+    acc.set(id, prev);
+  }
+  return [...acc.entries()].map(([county_id, v]) => ({
+    county_id,
+    shelter_count: v.c,
+    total_capacity: v.cap,
+  }));
+}
+
+// ─────────────────────────────────────────────────
+// 12. 中央災變紀錄 (fire.disaster_incidents，55,798 筆，2022-09~2024-11)
+// ─────────────────────────────────────────────────
+
+export interface DisasterIncidentRow {
+  incident_id: string;
+  disaster_name: string;
+  occurred_at: string;
+  occurred_date: string;
+  county_id: string;
+  county_name_raw: string | null;
+  town: string | null;
+  incident_type: string | null;
+  deaths: number | null;
+  injuries: number | null;
+  data_source: string;
+}
+
+export async function fetchDisasterIncidents(opts: {
+  county?: string | null;
+  limit?: number;
+  orderDesc?: boolean;
+} = {}): Promise<DisasterIncidentRow[]> {
+  let q = db
+    .from("fire_disaster_incidents")
+    .select("incident_id,disaster_name,occurred_at,occurred_date,county_id,county_name_raw,town,incident_type,deaths,injuries,data_source");
+  if (opts.county) q = q.eq("county_id", opts.county);
+  q = q.order("occurred_date", { ascending: !opts.orderDesc });
+  if (opts.limit) q = q.limit(opts.limit);
+  const { data, error } = await q;
+  if (error) {
+    console.error("[fire] fetchDisasterIncidents failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    incident_id: String(r.incident_id),
+    disaster_name: String(r.disaster_name),
+    occurred_at: String(r.occurred_at),
+    occurred_date: String(r.occurred_date),
+    county_id: String(r.county_id),
+    county_name_raw: r.county_name_raw == null ? null : String(r.county_name_raw),
+    town: r.town == null ? null : String(r.town),
+    incident_type: r.incident_type == null ? null : String(r.incident_type),
+    deaths: r.deaths == null ? null : Number(r.deaths),
+    injuries: r.injuries == null ? null : Number(r.injuries),
+    data_source: String(r.data_source),
+  }));
+}
+
+// ─────────────────────────────────────────────────
+// 13. 山林火災風險點 (fire.forest_fire_risk_snapshot)
+// ─────────────────────────────────────────────────
+
+export interface ForestFireRiskRow {
+  snapshot_id: number;
+  region: string;
+  risk_level: number | null;          // 1=安全 ... 5=最危險
+  risk_level_chinese: string | null;
+  snapshot_date: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+export async function fetchForestFireRisk(opts: { minRiskLevel?: number; limit?: number } = {}): Promise<ForestFireRiskRow[]> {
+  let q = db.from("fire_forest_fire_risk_snapshot").select("snapshot_id,region,risk_level,risk_level_chinese,snapshot_date,lat,lng");
+  if (opts.minRiskLevel != null) q = q.gte("risk_level", opts.minRiskLevel);
+  if (opts.limit) q = q.limit(opts.limit);
+  const { data, error } = await q;
+  if (error) {
+    console.error("[fire] fetchForestFireRisk failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    snapshot_id: Number(r.snapshot_id),
+    region: String(r.region),
+    risk_level: r.risk_level == null ? null : Number(r.risk_level),
+    risk_level_chinese: r.risk_level_chinese == null ? null : String(r.risk_level_chinese),
+    snapshot_date: r.snapshot_date == null ? null : String(r.snapshot_date),
+    lat: r.lat == null ? null : Number(r.lat),
+    lng: r.lng == null ? null : Number(r.lng),
+  }));
+}
+
+/** 全國 forest_fire_risk 風險等級分布 */
+export interface ForestFireRiskSummary {
+  total: number;
+  by_level: Record<string, number>;     // "安全" / "注意" / "警告" / "危險" / "最危險"
+  high_risk_count: number;              // risk_level >= 3 (警告+危險+最危險)
+}
+
+export async function fetchForestFireRiskSummary(): Promise<ForestFireRiskSummary> {
+  const { data, error } = await db.from("fire_forest_fire_risk_snapshot").select("risk_level,risk_level_chinese");
+  if (error) {
+    console.error("[fire] fetchForestFireRiskSummary failed:", error);
+    throw error;
+  }
+  const byLevel: Record<string, number> = {};
+  let total = 0;
+  let high = 0;
+  for (const r of (data ?? []) as Array<{ risk_level: number | null; risk_level_chinese: string | null }>) {
+    total += 1;
+    const lvl = r.risk_level_chinese ?? "未知";
+    byLevel[lvl] = (byLevel[lvl] ?? 0) + 1;
+    if (r.risk_level != null && Number(r.risk_level) >= 3) high += 1;
+  }
+  return { total, by_level: byLevel, high_risk_count: high };
+}
+
+// ─────────────────────────────────────────────────
+// 14. MOI 統計處 5 表（年度 KPI）
+// ─────────────────────────────────────────────────
+
+export interface IncidentsBySeverityRow {
+  year: number;
+  county_id: string;
+  severity_type: "building" | "vehicle" | "forest" | "other";
+  count: number;
+  source_dataset: string;
+}
+
+export async function fetchIncidentsBySeverity(): Promise<IncidentsBySeverityRow[]> {
+  const { data, error } = await db.from("fire_incidents_by_severity").select("year,county_id,severity_type,count,source_dataset");
+  if (error) {
+    console.error("[fire] fetchIncidentsBySeverity failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    year: Number(r.year),
+    county_id: String(r.county_id),
+    severity_type: String(r.severity_type) as IncidentsBySeverityRow["severity_type"],
+    count: Number(r.count),
+    source_dataset: String(r.source_dataset),
+  }));
+}
+
+export interface IncidentsByLocationTypeRow {
+  year: number;
+  county_id: string;
+  location_type: "residential" | "commercial" | "industrial" | "vehicle_outdoor" | "outdoor" | "other";
+  count: number;
+}
+
+export async function fetchIncidentsByLocationType(): Promise<IncidentsByLocationTypeRow[]> {
+  const { data, error } = await db.from("fire_incidents_by_location_type").select("year,county_id,location_type,count");
+  if (error) {
+    console.error("[fire] fetchIncidentsByLocationType failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    year: Number(r.year),
+    county_id: String(r.county_id),
+    location_type: String(r.location_type) as IncidentsByLocationTypeRow["location_type"],
+    count: Number(r.count),
+  }));
+}
+
+export interface IncidentsByCause22YearlyRow {
+  year: number;
+  county_id: string;
+  cause_22_id: string;
+  count: number;
+}
+
+export async function fetchIncidentsByCause22Yearly(): Promise<IncidentsByCause22YearlyRow[]> {
+  const { data, error } = await db.from("fire_incidents_by_cause_22_yearly").select("year,county_id,cause_22_id,count");
+  if (error) {
+    console.error("[fire] fetchIncidentsByCause22Yearly failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    year: Number(r.year),
+    county_id: String(r.county_id),
+    cause_22_id: String(r.cause_22_id),
+    count: Number(r.count),
+  }));
+}
+
+export interface CasualtyPropertyRow {
+  year: number;
+  county_id: string;
+  deaths: number | null;
+  injuries: number | null;
+  house_damage_units: number | null;
+  vehicle_damage_units: number | null;
+  loss_house_thousand: number | null;
+  loss_other_thousand: number | null;
+  loss_total_thousand: number | null;
+}
+
+export async function fetchCasualtyProperty(): Promise<CasualtyPropertyRow[]> {
+  const { data, error } = await db
+    .from("fire_casualty_property_by_county_year")
+    .select("year,county_id,deaths,injuries,house_damage_units,vehicle_damage_units,loss_house_thousand,loss_other_thousand,loss_total_thousand");
+  if (error) {
+    console.error("[fire] fetchCasualtyProperty failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    year: Number(r.year),
+    county_id: String(r.county_id),
+    deaths: r.deaths == null ? null : Number(r.deaths),
+    injuries: r.injuries == null ? null : Number(r.injuries),
+    house_damage_units: r.house_damage_units == null ? null : Number(r.house_damage_units),
+    vehicle_damage_units: r.vehicle_damage_units == null ? null : Number(r.vehicle_damage_units),
+    loss_house_thousand: r.loss_house_thousand == null ? null : Number(r.loss_house_thousand),
+    loss_other_thousand: r.loss_other_thousand == null ? null : Number(r.loss_other_thousand),
+    loss_total_thousand: r.loss_total_thousand == null ? null : Number(r.loss_total_thousand),
+  }));
+}
+
+export interface PersonnelVehiclesRow {
+  year: number;
+  county_id: string;
+  personnel_establishment: number | null;
+  personnel_budget: number | null;
+  personnel_actual: number | null;
+  personnel_shortage: number | null;
+  fire_engines: number | null;
+  ladder_trucks: number | null;
+  ambulances: number | null;
+  rescue_vehicles: number | null;
+}
+
+export async function fetchPersonnelVehicles(): Promise<PersonnelVehiclesRow[]> {
+  const { data, error } = await db
+    .from("fire_personnel_vehicles_yearly")
+    .select("year,county_id,personnel_establishment,personnel_budget,personnel_actual,personnel_shortage,fire_engines,ladder_trucks,ambulances,rescue_vehicles");
+  if (error) {
+    console.error("[fire] fetchPersonnelVehicles failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    year: Number(r.year),
+    county_id: String(r.county_id),
+    personnel_establishment: r.personnel_establishment == null ? null : Number(r.personnel_establishment),
+    personnel_budget: r.personnel_budget == null ? null : Number(r.personnel_budget),
+    personnel_actual: r.personnel_actual == null ? null : Number(r.personnel_actual),
+    personnel_shortage: r.personnel_shortage == null ? null : Number(r.personnel_shortage),
+    fire_engines: r.fire_engines == null ? null : Number(r.fire_engines),
+    ladder_trucks: r.ladder_trucks == null ? null : Number(r.ladder_trucks),
+    ambulances: r.ambulances == null ? null : Number(r.ambulances),
+    rescue_vehicles: r.rescue_vehicles == null ? null : Number(r.rescue_vehicles),
+  }));
+}
+
+// ─────────────────────────────────────────────────
+// 15. EMS 救護統計 (3 表)
+// ─────────────────────────────────────────────────
+
+export interface EmsByCountyYearRow {
+  year: number;
+  county_id: string;
+  dispatch_count: number | null;
+  transport_count: number | null;
+  ohca_count: number | null;
+  trauma_count: number | null;
+}
+
+export async function fetchEmsByCountyYear(): Promise<EmsByCountyYearRow[]> {
+  const { data, error } = await db
+    .from("fire_ems_stats_by_county_year")
+    .select("year,county_id,dispatch_count,transport_count,ohca_count,trauma_count");
+  if (error) {
+    console.error("[fire] fetchEmsByCountyYear failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    year: Number(r.year),
+    county_id: String(r.county_id),
+    dispatch_count: r.dispatch_count == null ? null : Number(r.dispatch_count),
+    transport_count: r.transport_count == null ? null : Number(r.transport_count),
+    ohca_count: r.ohca_count == null ? null : Number(r.ohca_count),
+    trauma_count: r.trauma_count == null ? null : Number(r.trauma_count),
+  }));
+}
+
+export interface EmsMonthlyRow {
+  year_month: string;   // "2025-01"
+  county_id: string;
+  dispatch_count: number | null;
+  transport_count: number | null;
+  ohca_count: number | null;
+  trauma_count: number | null;
+}
+
+export async function fetchEmsMonthly(): Promise<EmsMonthlyRow[]> {
+  const { data, error } = await db
+    .from("fire_ems_stats_monthly")
+    .select("year_month,county_id,dispatch_count,transport_count,ohca_count,trauma_count");
+  if (error) {
+    console.error("[fire] fetchEmsMonthly failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    year_month: String(r.year_month).trim(),
+    county_id: String(r.county_id),
+    dispatch_count: r.dispatch_count == null ? null : Number(r.dispatch_count),
+    transport_count: r.transport_count == null ? null : Number(r.transport_count),
+    ohca_count: r.ohca_count == null ? null : Number(r.ohca_count),
+    trauma_count: r.trauma_count == null ? null : Number(r.trauma_count),
+  }));
+}
+
+// ─────────────────────────────────────────────────
+// 16. 高階聚合 helpers（給 hook 用）
+// ─────────────────────────────────────────────────
+
+/** 全國最新年 financial loss（萬元 → 億元） */
+export interface FireFinancialLossSummary {
+  year: number;
+  total_loss_billion: number;     // 億元
+  total_house_billion: number;
+  total_other_billion: number;
+  total_deaths: number;
+  total_injuries: number;
+  total_house_damage_units: number;
+  total_vehicle_damage_units: number;
+  /** 缺前一年資料時為 null */
+  loss_delta_pct: number | null;
+}
+
+export function deriveFinancialLoss(rows: CasualtyPropertyRow[]): FireFinancialLossSummary | null {
+  if (!rows.length) return null;
+  const years = [...new Set(rows.map((r) => r.year))].sort((a, b) => b - a);
+  const latest = years[0];
+  const prev = years.find((y) => y < latest) ?? null;
+
+  const sumYear = (y: number) =>
+    rows.filter((r) => r.year === y).reduce(
+      (a, r) => ({
+        loss: a.loss + (r.loss_total_thousand ?? 0),
+        loss_h: a.loss_h + (r.loss_house_thousand ?? 0),
+        loss_o: a.loss_o + (r.loss_other_thousand ?? 0),
+        d: a.d + (r.deaths ?? 0),
+        i: a.i + (r.injuries ?? 0),
+        hd: a.hd + (r.house_damage_units ?? 0),
+        vd: a.vd + (r.vehicle_damage_units ?? 0),
+      }),
+      { loss: 0, loss_h: 0, loss_o: 0, d: 0, i: 0, hd: 0, vd: 0 }
+    );
+  const cur = sumYear(latest);
+  const prv = prev == null ? null : sumYear(prev);
+
+  // 千元 → 億元：÷ 100000
+  const thousandToBillion = (v: number) => v / 100000;
+
+  return {
+    year: latest,
+    total_loss_billion: thousandToBillion(cur.loss),
+    total_house_billion: thousandToBillion(cur.loss_h),
+    total_other_billion: thousandToBillion(cur.loss_o),
+    total_deaths: cur.d,
+    total_injuries: cur.i,
+    total_house_damage_units: cur.hd,
+    total_vehicle_damage_units: cur.vd,
+    loss_delta_pct: prv && prv.loss > 0 ? ((cur.loss - prv.loss) / prv.loss) * 100 : null,
+  };
+}
+
+/** 全國最新年 EMS 出勤總量 */
+export interface FireEmsSummary {
+  year: number;
+  total_dispatch: number;
+  total_transport: number;
+  total_ohca: number;
+  total_trauma: number;
+}
+
+export function deriveEmsSummary(rows: EmsByCountyYearRow[]): FireEmsSummary | null {
+  if (!rows.length) return null;
+  const latest = Math.max(...rows.map((r) => r.year));
+  const filtered = rows.filter((r) => r.year === latest);
+  return {
+    year: latest,
+    total_dispatch: filtered.reduce((s, r) => s + (r.dispatch_count ?? 0), 0),
+    total_transport: filtered.reduce((s, r) => s + (r.transport_count ?? 0), 0),
+    total_ohca: filtered.reduce((s, r) => s + (r.ohca_count ?? 0), 0),
+    total_trauma: filtered.reduce((s, r) => s + (r.trauma_count ?? 0), 0),
+  };
+}
+
+/** 全國最新年 量能（分隊 / 車輛 / 人力） */
+export interface FireCapacitySummary {
+  year: number;
+  personnel_actual: number;
+  personnel_shortage: number;
+  fire_engines: number;
+  ladder_trucks: number;
+  ambulances: number;
+  rescue_vehicles: number;
+}
+
+export function deriveCapacitySummary(rows: PersonnelVehiclesRow[]): FireCapacitySummary | null {
+  if (!rows.length) return null;
+  const latest = Math.max(...rows.map((r) => r.year));
+  const filtered = rows.filter((r) => r.year === latest);
+  return {
+    year: latest,
+    personnel_actual: filtered.reduce((s, r) => s + (r.personnel_actual ?? 0), 0),
+    personnel_shortage: filtered.reduce((s, r) => s + (r.personnel_shortage ?? 0), 0),
+    fire_engines: filtered.reduce((s, r) => s + (r.fire_engines ?? 0), 0),
+    ladder_trucks: filtered.reduce((s, r) => s + (r.ladder_trucks ?? 0), 0),
+    ambulances: filtered.reduce((s, r) => s + (r.ambulances ?? 0), 0),
+    rescue_vehicles: filtered.reduce((s, r) => s + (r.rescue_vehicles ?? 0), 0),
+  };
+}
+
+/** 起火處所最新年聚合 (全國) */
+export interface LocationTypeAggregate {
+  year: number;
+  total: number;
+  by_type: Array<{ type: string; label: string; count: number; pct: number }>;
+}
+
+const LOCATION_TYPE_LABEL: Record<IncidentsByLocationTypeRow["location_type"], string> = {
+  residential: "住宅",
+  commercial: "商業",
+  industrial: "工業",
+  vehicle_outdoor: "車輛/戶外",
+  outdoor: "戶外",
+  other: "其他",
+};
+
+export function deriveLocationTypeAgg(rows: IncidentsByLocationTypeRow[]): LocationTypeAggregate | null {
+  if (!rows.length) return null;
+  const latest = Math.max(...rows.map((r) => r.year));
+  const filtered = rows.filter((r) => r.year === latest);
+  const acc = new Map<string, number>();
+  for (const r of filtered) {
+    acc.set(r.location_type, (acc.get(r.location_type) ?? 0) + r.count);
+  }
+  const total = [...acc.values()].reduce((s, v) => s + v, 0);
+  return {
+    year: latest,
+    total,
+    by_type: [...acc.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({
+        type,
+        label: LOCATION_TYPE_LABEL[type as IncidentsByLocationTypeRow["location_type"]] ?? type,
+        count,
+        pct: total > 0 ? (count / total) * 100 : 0,
+      })),
+  };
+}
+
+/** 嚴重度（建物 vs 車輛 vs 山林 vs 其他）— 最新年全國 */
+export interface SeverityAggregate {
+  year: number;
+  total: number;
+  by_type: Array<{ type: string; label: string; count: number; pct: number }>;
+}
+
+const SEVERITY_TYPE_LABEL: Record<IncidentsBySeverityRow["severity_type"], string> = {
+  building: "建築物",
+  vehicle: "車輛",
+  forest: "山林",
+  other: "其他",
+};
+
+export function deriveSeverityAgg(rows: IncidentsBySeverityRow[]): SeverityAggregate | null {
+  if (!rows.length) return null;
+  const latest = Math.max(...rows.map((r) => r.year));
+  const filtered = rows.filter((r) => r.year === latest);
+  const acc = new Map<string, number>();
+  for (const r of filtered) {
+    acc.set(r.severity_type, (acc.get(r.severity_type) ?? 0) + r.count);
+  }
+  const total = [...acc.values()].reduce((s, v) => s + v, 0);
+  return {
+    year: latest,
+    total,
+    by_type: [...acc.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({
+        type,
+        label: SEVERITY_TYPE_LABEL[type as IncidentsBySeverityRow["severity_type"]] ?? type,
+        count,
+        pct: total > 0 ? (count / total) * 100 : 0,
+      })),
+  };
+}
