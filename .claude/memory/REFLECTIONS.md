@@ -478,3 +478,88 @@ User 開場：「接續做 fire 主題資料端 TODO-1 → 完成後接著做 �
 2. **B043 PostGIS 服務圈**（依賴 B042 真實 stations，blocker 多，**不建議現在做**）
 3. **開新主題（demographics / safety）**— fire 還有大片 mock 但 ViewA/B 視覺骨架已成型
 4. **B051（新）**：24 column stacked bar totals overlap 修法 — 30min 純前端 fix
+
+---
+
+## 2026-05-16 · Session 8 · Water ViewA 6 章敘事重寫（design bundle handoff 第 2 次跑）
+
+### 本 session 做了什麼
+
+User 帶 design bundle handoff URL（claude.ai/design 匯出的 6.4MB gzip tar），要重構水資源 ViewA 從「manifest-driven 6 KPI grid」改成「**6 章敘事結構**」（現況/儲存/水情燈號/處理/使用/災防）。
+
+走完整 /theme-loop 5 階段：
+1. **Discovery** 4 agent 並行（baseline 截圖 / 後端 audit / 設計→資料 mapping / frontend 現況）
+2. **Plan** mini-audit 後 user 拍板 3 件 spec 改（vs 上月同期 / 月供水量 / hook 架構）
+3. **Execute** 8 新檔 + 2 改檔（CSS +568 / queries / hook expand / 6 sections + ViewAWater / App 分派）
+4. **Verify** typecheck 0 error + codex 1 BLOCKER + 1 HIGH 修 + 截圖 agent 抓 2 P0 schema 欄名錯修
+5. **Commit** 5 atomic commit on mini-taiwan-info（21 commits ahead origin/main，user 拍板不 push）
+
+### What worked
+
+1. **4 並行 Discovery agent 一次盤完整個 cycle 範圍** — Agent B（後端 audit）一個 psql query 確認「migration 098-102 已 apply、表全有資料」校正 user 認知 vs 我認知，省 1 hr 誤判時間
+2. **Mini-audit 在 Plan 後 / Execute 前必跑** — 抓到 3 個 spec 不能直接做：(a) reservoir snapshot 30 天保留期沒法 vs 歷年同期 (b) twc_supply_system_monthly 只有 2026-03 單月沒法 12m trend (c) DB 無 sector 欄位沒法用水結構細拆。**User 拍板 spec 改前不寫一行 code**，避免 rework
+3. **PB-12 設計 bundle CSS 移植 SOP**第三次驗證有效 — 562 行 styles.css line 1352-1913 verbatim sed append 到 globals.css，pixel-perfect 對齊設計
+4. **per-theme ViewA 架構 sib pattern fire ✓ water ✓** 二次驗證成 confirmed pattern：原 ViewA.tsx 留 fallback，新主題建 ViewA{Theme}.tsx 一份。已 PRINCIPLES + PB-13
+5. **Codex review 抓 hook 級 Promise.all BLOCKER**（PB-08 driver 第 5 次）— `fetchReservoirStatusLatest` 仍 throw 會拖垮整個 useWaterKpis，改 Promise.allSettled + helper
+6. **5 atomic commit 顆粒度乾淨**：CSS / queries / hook / components+App / docs+backlog
+7. **Verify 三閘並行**（typecheck + 截圖 + codex review）省時 + 抓到不同層 bug：codex 抓邏輯 / 截圖抓 schema mismatch / typecheck 抓 type 問題
+
+### What didn't / 失誤
+
+1. **誤判 user 認知 vs 後端實際狀態** — user 說「水資源資料應該都已處理完成了」，我看 `kpi-data-status.md` 是 5/15 規劃清單就**準備告訴 user 還沒做**。Discovery Agent B 實際 psql 才證實 user 對的是我。**教訓**：user 對自家後端狀態通常比 doc 準，默認信 user + 派 agent 驗
+2. **規劃 doc vs 實際 schema 不同步** — 寫 `fetchTreatmentPlantsLarge` / `fetchWaterLossRate` 時參考 `kpi-data-status.md` 寫的欄名（id / area / loss_rate_pct），實際 schema 完全不同（plant_name / 無 area / loss_pct）。typecheck + codex 都看不出來，截圖 agent console 抓 2 個 400 error 才知道。**教訓**：query 寫之前 psql `\d table_name` 30 秒驗
+3. **codex review 對 schema mismatch 是盲區**（新發現的 codex 限制，跟 S7 的「DOM 事件流盲區」是 sibling）— codex 看靜態碼，不知道實際 DB 有沒這欄位。**Verify 三閘 = typecheck + agent-browser 互動 + codex review + 截圖 agent console 抓 fetch error**，四閘缺一不可
+4. **本 session 沒實際派 /check-schema-exposed / /scaffold-rpc-wrapper 雖然有適用場景** — Discovery Agent B 報告「migration 098-102 已 apply」我就接收沒走 schema 預檢 skill。下次 cycle 涉及新主題或新 schema query 仍應派
+5. **vs 上月同期硬編 footnote「對比資料累積中」** — 設計圖原本有 bar-mark 標歷年位置，我為了不阻塞改 spec 拿掉。本應加 `get_reservoir_storage_avg_28d_ago()` wrapper RPC 真接通，但 cost 估 1 hr 拍板移 B055 backlog。**教訓**：spec 改太多會掏空設計意圖，下次盡量補 RPC 而非拿掉視覺元素
+6. **800px 響應式破洞**（章 2 two-up / 章 3 alert-grid / 章 5 usage-split 水平 overflow）— 截圖 agent 抓到但我沒當場修，移 B054 backlog。**user 拍板桌面優先可接受**，但理想上 design bundle 移植時就該加 `@media (max-width: 900px) { grid-template-columns: 1fr }`
+
+### Next-time rules
+
+- **Discovery Agent B「後端 audit」prompt 必含「psql `\d` + COUNT 直查實際 schema」步驟**，不只 grep migration 檔（migration 寫的 SQL 跟實際 apply 可能差很多，因為 `ALTER TABLE` / 後續 migration 修改原表）
+- **寫 new query 寫第一個 select 之前**，psql `\d {table_name}` 30 秒確認實際欄位，不參考規劃 doc
+- **用戶對自家後端狀態的認知優先於 doc**：user 說「已處理完」/「還沒做」/「跑了某 commit」時，先信 user，派 agent psql 驗
+- **設計 bundle 移植時 CSS 一併附 `@media (max-width: 900px)` 響應式 fallback**（即使本 cycle 不全做，至少寫 single-column override 防 800px 破洞）
+- **vs 歷年/上月對比類視覺元素**，若 snapshot 表保留期不夠，**寫一個輕量 RPC 28d ago snapshot** 而非拿掉視覺元素（保留設計意圖）
+- **codex review 抓不到的 4 類**（累積發現）：(a) DOM 事件流（S7）(b) schema mismatch（S8）(c) CSS 缺失（S6）(d) Promise.all/allSettled race（S8 抓到了）
+
+### Memory 產出（本 session）
+
+新增：
+- `_CYCLE_water_viewa.md`（root, user-facing cycle status，commit 410b20c）
+- `frontend/src/components/water/`（8 新檔：WaterCatHeader + 6 sections + ViewAWater）
+- `frontend/src/lib/queries/water-overview.ts`（10+ 新 query）
+
+更新 memory 7 檔：
+- STATUS rewrite（Session 8 結束狀態）
+- BACKLOG +B054-B058 5 項（commit 410b20c 已加）
+- PRINCIPLES +2 條（per-theme view confirmed pattern / Promise.allSettled 規範）
+- PLAYBOOKS +PB-13（design bundle handoff → ViewA rewrite SOP）
+- GLOSSARY +13 條（水主題 6 章敘事詞彙）
+- INCIDENTS +3 條（Promise.all blocker / schema doc drift / user 認知信任）
+- REFLECTIONS 本條
+- CROSS_REPO update（Session 8 純前端 21 commits ahead）
+
+### 對 /theme-loop skill 的反省
+
+第 5 次跑（cycle 1/4/5/6 fire S5+S6+S7 / 本次 water S8）：
+- Stage 1 Discovery 4 agent 並行 SOP 穩
+- **Mini-audit 是新發現的中間階段**，介於 Plan 後 / Execute 前，應寫進 SKILL.md Stage 2 結尾「拍板前 mini-audit 補驗 🟡 項」
+- Stage 4 Verify **codex review 限制清單** 累積到 4 類（DOM 事件流 / schema mismatch / CSS 缺失 / Promise.all race），可整理進 SKILL.md
+- /check-schema-exposed / /scaffold-rpc-wrapper 兩個輔助 skill 累積 0 次使用，可能太隱性 — 在 Discovery Agent B 報告抓到 schema 預檢需要時自動派？
+
+留下個 cycle 跑完一輪後回頭修 SKILL.md。
+
+### 對 /wrap-up skill 的反省
+
+第 7 次跑（含 init / 試跑）：
+- Mode B Incremental 第 6 次驗證流程順
+- Stage 6 Harness Audit 抓到「BACKLOG 95 行 58 項接近上限」— 下次 wrap-up 提醒清 P3 已完成項
+- Stage 2 事件分類表新增「規劃 doc vs 實際 schema 不同步」類別 → INCIDENTS（本次已用）
+- **跨專案事實同步**機制這次第一次明確 fire（之前條件式提）— 2 條同步到全域：Promise.allSettled pattern + 規劃 doc drift
+
+### 下一個 session 的合理開頭
+
+1. **B041 MOI 5 表 ETL**（3-4 天跨 3 repo Mode D）— 解 ViewA 火災財損 KPI + 起火處所 placeholder
+2. **B054 ViewAWater @800 響應式修補**（30min 純前端 fix，B055/B057 一起也合理）
+3. **開新主題（demographics / safety）**— 沿 PB-10 + PB-13 SOP
+4. **B048-B051 響應式 / 視覺小 bug 一次掃**（< 2 hr）
