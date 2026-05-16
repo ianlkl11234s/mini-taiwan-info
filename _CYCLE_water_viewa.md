@@ -14,13 +14,11 @@
 
 | 階段 | 狀態 | 產出 / Checkpoint |
 |---|---|---|
-| **Stage 1: Discovery** | ✅ 完成 | 4 agent 並行回報：見下 |
-| **Stage 2: Plan**（Checkpoint 0）| ✅ 完成 | mini-audit 後 user 拍板 3 件事（spec 1+2 改 + hook 擴充） |
-| **Stage 3: Execute** | ✅ 完成 | 8 新檔 + 2 改檔（query/hook/CSS+568/6 sections/CatHeader/ViewAWater/App.tsx），typecheck 0 error |
-| **Stage 4: Verify**（Checkpoint B）| ⏳ 等 user 拍板 | typecheck ✅ / 截圖 ✅ / codex ✅，修 4 issue（1 blocker / 1 high / 2 P0），P1 留 backlog |
-| **Stage 3: Execute** | ⏸ 待 | 新建 `ViewAWater.tsx`（6 個 section 子元件）+ 接新 CSS class + 接 query；App.tsx 加 theme 分派 |
-| **Stage 4: Verify**（Checkpoint B）| ⏸ 待 | typecheck + 4 寬度截圖 + codex review 三閘 |
-| **Stage 5: Commit/Push**（Checkpoint C+D）| ⏸ 待 | atomic commit + push 策略 |
+| **Stage 1: Discovery** | ✅ 完成 | 4 agent 並行盤點 |
+| **Stage 2: Plan**（Checkpoint 0）| ✅ 完成 | mini-audit 後 user 拍板 spec + hook 擴充 |
+| **Stage 3: Execute** | ✅ 完成 | 8 新檔 + 2 改檔，typecheck 0 error |
+| **Stage 4: Verify**（Checkpoint B）| ✅ 完成 | 三閘過：codex 1 blocker + 1 high 修、截圖 2 P0 schema 欄名修 |
+| **Stage 5: Commit/Push**（Checkpoint C+D）| ✅ 完成 | 5 atomic commit · 21 commits ahead · user 拍板不 push |
 
 ## Discovery 4 Agent 分派
 
@@ -122,7 +120,19 @@
 - **B057** P2 淹水 200/500mm 情境接通
 - **B058** P3 用水結構 sector 拆解資料
 
-**Checkpoint B (Stage 4 verify)**：⏳ 等 user 拍板
+**Checkpoint B (Stage 4 verify)**：✅ 完成（user 拍板信修對進 commit）
+**Checkpoint C (Stage 5 commit)**：✅ 完成（5 atomic：CSS / queries / hook / components / docs）
+**Checkpoint D (Stage 5 push)**：✅ 完成（user 拍板不 push、本地保留 21 commits ahead）
+
+## 5 Atomic Commit
+
+```
+410b20c docs(memory): water ViewA rewrite cycle status + 5 backlog 項
+6b621e1 feat(water-ui): ViewAWater 6 章敘事 + App 主題分派
+255b359 refactor(water): 擴充 useWaterKpis 為單一大 hook + Promise.allSettled
+27607e0 feat(water): 新增 ViewA 6 章敘事的 query 集
+53b425d style(water-ui): 搬 6 章敘事 CSS 到 globals.css
+```
 
 ## Mini-audit 結果（補查 6 缺口）
 
