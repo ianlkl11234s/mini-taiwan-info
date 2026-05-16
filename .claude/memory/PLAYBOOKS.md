@@ -466,3 +466,77 @@ done
 ```
 
 **配套 PB**：PB-10 開新主題（含設計階段）+ PB-12 移植 component（執行階段）
+
+---
+
+## PB-13: Design bundle handoff → per-theme ViewA rewrite SOP（fire S5 + water S8 二次驗證）
+
+對應的事：user 收到 design bundle handoff URL（claude.ai/design 匯出的 HTML/CSS/JS prototype），要重構某主題的 ViewA。和 PB-10 不同：**PB-10 是「初次上 production」**（schema 從零接），**PB-13 是「重做既有 production 主題的 ViewA」**（資料端通常已 ready 90%+，重點是版型革新 + 接通新增資料元素）。
+
+```
+階段 1：解開 + 讀懂 design bundle（30-60min）
+- curl -sL <URL> -o /tmp/design.bin && gunzip → tar -xf 到 /tmp/{theme}_design/extracted/
+- Read 必讀 4 個：
+  * README.md（handoff 指引）
+  * chats/chatN.md（user 跟設計助手的最後共識；通常 final design 在最後幾條）
+  * project/{Theme} Info.html（看 import 順序）
+  * project/js/view-X.jsx 對應主檔（jsx 結構 = 最終設計骨架）
+- 額外掃：styles.css 對應 className 區段 / data.js mock data shape / kpi.jsx + charts.jsx 元件 API
+
+階段 2：Discovery 4 agent 並行（10-15min real time）
+- A. Baseline 截圖：dev server + agent-browser 截現有 ViewA 4 寬度（1920/1280/1100/800）→ /tmp/{theme}_design/baseline/
+- B. 後端資料 audit：跨 3 repo 確認 migrations 已 apply / pipelines 跑過 / 表內容（psql `\d` + COUNT）
+  ⚠️ 「規劃 doc 不等於實際 deploy」— 必須 psql 直查實際 schema，不只信 docs/data-catalog/*.md
+- C. 設計 → 資料 mapping：對齊每章每元素 vs 後端能否提供，產 ✅/🟡/❌ 三分類
+- D. Frontend 現況掃描：lib/queries / hooks / components 現有 export shape + 缺哪些 query/hook/section
+
+階段 3：Mini-audit（5-10min）
+- discovery C 列出的 🟡 「能算」項，psql 跑一次 sample 確認資料密度足
+- 典型撞牆：(a) snapshot 表只保留 30 天，跨年比對「vs 歷年同期」算不出 (b) 月表只有 1 個月，畫 12 月 trend 算不出 (c) sector 欄位設計上沒 → mock + badge
+- mini-audit 完成後 list spec 改 / mock / 接真實 三類
+
+階段 4：Plan checkpoint（user 拍板）
+- AskUserQuestion 拍 3 件事：每章接真實 vs mock 策略 / 缺資料章節處置 / hook 架構（單一大 hook vs 多 hook）
+- 拍完進 TaskList 拆 sub-task
+
+階段 5：Execute（順序很重要）
+1. **搬 CSS**：sed -n 對應 line range，append 到 globals.css 末段
+   ⚠️ 跳過已存在的共用 class（如 .cat-block 從 fire 已搬，水主題不重複）
+2. **寫 new queries**：lib/queries/{theme}-overview.ts 新檔，含 fetch + 聚合 helper
+   ⚠️ psql `\d table_name` 確認實際 schema（規劃 doc 命名可能錯：PK / column / suffix）
+3. **擴充對應主題 hook**：useXxxKpis 改 Promise.allSettled + helper get<T>，state 加新欄位
+4. **建 ViewX{Theme}.tsx + section 子元件**：仿既有 fire 結構，含 hero loading/error early return + S1...S6
+5. **改 App.tsx 加 theme 分派**：theme === "X" ? <ViewX{Theme}/> : ...
+
+階段 6：Verify 三閘
+1. typecheck：每寫完一個檔自動 PostToolUse hook 跑，全部完成後 final pnpm typecheck
+2. 截圖 agent：dev server + agent-browser 截 4 寬度，與 baseline 對比，看新版 6 章顯示 + console error
+3. codex review：對 8 新檔 + 2 改檔做 critical bug 抓。**focus: Promise.all/allSettled 模式 / null safety / React key / 事件流 / PostgREST select 寫法**
+   ⚠️ codex 對 schema mismatch 是盲區（看不到實際 DB）— 截圖 agent 的 console 才能抓到「column does not exist」400 error
+
+階段 7：Atomic commits 5 個（順序）
+1. style({theme}-ui): 搬 N 章敘事 CSS 到 globals.css
+2. feat({theme}): 新增 ViewA N 章敘事的 query 集
+3. refactor({theme}): 擴充 useXxxKpis 為單一大 hook + Promise.allSettled
+4. feat({theme}-ui): ViewX{Theme} N 章敘事 + App 主題分派
+5. docs(memory): {theme} ViewA rewrite cycle status + N backlog 項
+
+階段 8：Cross-repo push（user 拍板）
+- 通常 design bundle handoff = 純前端，無 gis-platform / taipei-gis 變動
+- /cross-repo-status 看其他 repo dirty（不在本 cycle scope，user 拍板獨立處理）
+```
+
+**fire vs water 案例對照**：
+
+| 階段 | fire (Session 5) | water (Session 8) |
+|---|---|---|
+| design bundle 規模 | 4 區塊 | 6 章 |
+| 後端就緒度 | 跨 schema wrapper 待做（migration 104） | 90% ready（migration 098-102 已 apply） |
+| Mini-audit 觸發 | 無（schema 待擴）| 有，校正 3 個 spec |
+| 重大撞牆 | PostgREST 不 expose fire schema | 規劃 doc 表名 ≠ 實際 schema 表名 |
+| commit 顆粒度 | 6（含 schema + 多階段） | 5（純前端） |
+
+**配套 PB**：
+- PB-10：第一次上 production（schema 待擴）
+- PB-12：移植 design component（防純文字 fallback）
+- PB-13：本檔（既有主題 ViewA 重寫）
