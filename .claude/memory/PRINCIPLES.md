@@ -287,3 +287,26 @@ results.forEach((r, i) => {
 **陷阱**：allSettled 結果是 union type，要寫 type-safe helper（如上 `get<T>`）避免 TS narrowing 問題。
 
 Reference: `useWaterKpis.ts` Session 8 改造；codex review 抓的 BLOCKER。
+
+### 2026-05-16: DB 資料稀疏時 — 誠實 footnote 接通真實 > 假裝 mock > 隱藏 KPI
+
+當某 KPI 對應的 DB 資料源真的稀疏（只 1 年 / 只 1 縣市 / 只部分覆蓋），三個處置選項：
+1. **接通真實 + 揭露**：顯示真實數字 + footnote 標明覆蓋範圍（如「2020 only」「僅 X 縣市完整」）→ ✅
+2. **保留 mock fallback**：顯示假數字讓「完整故事感」維持 → ❌（對使用者不誠實）
+3. **隱藏該 KPI**：完全不 render → ❌（user 不知道有這個維度）
+
+**規則（user 拍板 Session 9 / 2026-05-16）**：採選項 1。
+
+**細則**：
+- KPI 卡 label 旁加 `<span className="muted">{年份/縣市}</span>` 揭露範圍
+- Table column header 加 `· {年份}` 後綴
+- 完全空的 KPI 顯示 `"—"` + footnote「無資料 / 待 ETL」，不顯示 `0`（避免「真的是 0 件」誤讀）
+- Sparkness 在 section subtitle 揭露（如「目前公開資料僅 X 縣市完整」）
+
+**何時不適用**：
+- 完全沒對應資料源（DB 表不存在）→ 仍可 placeholder + "·待ETL" badge，但要區別於「有資料但稀疏」
+- 政府開放資料 partial 是常態，不需要 hide
+
+**為什麼**：mini-taiwan-info 是公開縣市儀錶板，顯示假數字 = 對外承諾失敗。誠實 footnote 比假裝完整更值得信任。對齊 LIVE badge 嚴守 pattern（2026-05-14 拍板）。
+
+Reference: Session 9 fire 主題去 mock 化 — A 類缺資料處置（user 拍板「接通 + footnote 揭露完整即可」）；ViewAFire S1/S2/S4 + ViewBFire OthersTab。
