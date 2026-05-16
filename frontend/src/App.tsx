@@ -16,6 +16,7 @@ import { MapLegend } from "@/components/map/MapLegend";
 import { TwoSectionLayers, type PointLayerToggle, METRIC_NONE } from "@/components/map/TwoSectionLayers";
 import { ViewA } from "@/components/views/ViewA";
 import { ViewAFire } from "@/components/views/ViewAFire";
+import { ViewAWater } from "@/components/views/ViewAWater";
 import { ViewB } from "@/components/views/ViewB";
 import { ViewBFire } from "@/components/views/ViewBFire";
 import { ViewC } from "@/components/views/ViewC";
@@ -437,6 +438,17 @@ export default function App() {
                   data={fire}
                   selectedCounty={county}
                   onCountyClick={goCity}
+                />
+              ) : theme === "water" ? (
+                <ViewAWater
+                  water={water}
+                  river={river}
+                  selectedCounty={county}
+                  onCountyClick={goCity}
+                  onDrillReservoir={(id) => {
+                    setReservoirId(id);
+                    setView("C");
+                  }}
                 />
               ) : (
                 <ViewA
