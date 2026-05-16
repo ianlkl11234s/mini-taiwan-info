@@ -1,8 +1,10 @@
 /**
  * useFireData — 消防主題全國資料 hook
  *
- * 一次拉所有 MV + RPC，聚合給 ViewAFire 用。
- * 對應 themes/fire.yaml (v2)。Backend: gis-platform/migrations/099_fire_schema.sql
+ * 一次拉全國級 MV + 新增 ETL 表（fire.stations/hydrants/shelters/disaster/forest/MOI 5 表/EMS）。
+ * 用 Promise.allSettled，任一 query 失敗不拖垮其他（沿 useWaterKpis 模式 / PB-13）。
+ *
+ * 對應 themes/fire.yaml (v2)。Backend: migrations 099 + 104 + 105 + 106 + 107 + 108 + 109。
  */
 
 import { useEffect, useState } from "react";
@@ -14,6 +16,16 @@ import {
   fetchIncidentsByHourMonth,
   fetchIncidentsByDayOfYear,
   listIncidents,
+  fetchFireStations,
+  fetchFireHydrantNationalCount,
+  fetchShelterNationalCount,
+  fetchDisasterIncidents,
+  fetchForestFireRiskSummary,
+  fetchIncidentsBySeverity,
+  fetchIncidentsByLocationType,
+  fetchCasualtyProperty,
+  fetchPersonnelVehicles,
+  fetchEmsByCountyYear,
   deriveNationalSummary,
   deriveCountyAggregates,
   deriveCauseAggregates,
@@ -22,10 +34,28 @@ import {
   deriveDaypart,
   deriveYearlyTotals,
   deriveDayOfYearSeries,
+  deriveFinancialLoss,
+  deriveEmsSummary,
+  deriveCapacitySummary,
+  deriveLocationTypeAgg,
+  deriveSeverityAgg,
   type CauseTaxonomyRow,
   type FireNationalSummary,
   type FireCountyAggregate,
   type FireCauseAggregate,
+  type FireStationRow,
+  type DisasterIncidentRow,
+  type ForestFireRiskSummary,
+  type CasualtyPropertyRow,
+  type PersonnelVehiclesRow,
+  type EmsByCountyYearRow,
+  type IncidentsBySeverityRow,
+  type IncidentsByLocationTypeRow,
+  type FireFinancialLossSummary,
+  type FireEmsSummary,
+  type FireCapacitySummary,
+  type LocationTypeAggregate,
+  type SeverityAggregate,
   type IncidentsByCountyYearRow,
   type IncidentsByCauseYearRow,
   type IncidentsByCountyCauseYearRow,
@@ -38,19 +68,34 @@ export interface FireDataState {
   loading: boolean;
   error: Error | null;
 
-  /** Raw MV rows（給進階聚合 / county view 用） */
+  /** Raw MV rows（既有，給進階聚合 / county view 用） */
   countyYear: IncidentsByCountyYearRow[];
   causeYear: IncidentsByCauseYearRow[];
-  /** B046: 縣市 × 年 × 5+22 cause — ViewBFire 縣市 5+22 起火原因表用 */
   countyCauseYear: IncidentsByCountyCauseYearRow[];
   hourMonth: IncidentsByHourMonthRow[];
   dayOfYear: IncidentsByDayOfYearRow[];
   taxonomy: CauseTaxonomyRow[];
-
   /** 個案點位（最新年）— heatmap 用 */
   incidentPoints: IncidentRow[];
 
-  /** Derived */
+  /** Raw new ETL */
+  stations: FireStationRow[];
+  /** 全國消防栓總數（不拉明細，目前=39395 只高雄） */
+  hydrantNationalCount: number;
+  /** 全國避難所總數（不拉明細，22 縣市齊） */
+  shelterNationalCount: number;
+  /** 中央災變最近 N 筆（全國 timeline） */
+  disasterEvents: DisasterIncidentRow[];
+  /** 山林火災風險點分布 */
+  forestRisk: ForestFireRiskSummary | null;
+  /** MOI 統計處 5 表 raw */
+  severityRows: IncidentsBySeverityRow[];
+  locationTypeRows: IncidentsByLocationTypeRow[];
+  casualtyRows: CasualtyPropertyRow[];
+  personnelRows: PersonnelVehiclesRow[];
+  emsYearlyRows: EmsByCountyYearRow[];
+
+  /** Derived 既有 */
   summary: FireNationalSummary | null;
   countyAggregates: FireCountyAggregate[];
   causeAggregates: FireCauseAggregate[];
@@ -59,6 +104,13 @@ export interface FireDataState {
   hourlyTotals: Array<{ hour: number; incidents: number }>;
   dayOfYearSeries: Array<{ day_index: number; month: number; day: number; incidents: number }>;
   daypart: Array<{ label: string; bucket: string; value: number }>;
+
+  /** Derived 新 */
+  financialLoss: FireFinancialLossSummary | null;
+  emsSummary: FireEmsSummary | null;
+  capacity: FireCapacitySummary | null;
+  locationTypeAgg: LocationTypeAggregate | null;
+  severityAgg: SeverityAggregate | null;
 }
 
 const EMPTY_STATE: FireDataState = {
@@ -71,6 +123,16 @@ const EMPTY_STATE: FireDataState = {
   dayOfYear: [],
   taxonomy: [],
   incidentPoints: [],
+  stations: [],
+  hydrantNationalCount: 0,
+  shelterNationalCount: 0,
+  disasterEvents: [],
+  forestRisk: null,
+  severityRows: [],
+  locationTypeRows: [],
+  casualtyRows: [],
+  personnelRows: [],
+  emsYearlyRows: [],
   summary: null,
   countyAggregates: [],
   causeAggregates: [],
@@ -79,6 +141,11 @@ const EMPTY_STATE: FireDataState = {
   hourlyTotals: [],
   dayOfYearSeries: [],
   daypart: [],
+  financialLoss: null,
+  emsSummary: null,
+  capacity: null,
+  locationTypeAgg: null,
+  severityAgg: null,
 };
 
 export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
@@ -92,57 +159,114 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
     }
     let cancelled = false;
     (async () => {
-      try {
-        const [taxonomy, countyYear, causeYear, countyCauseYear, hourMonth, dayOfYear, incidentPoints] =
-          await Promise.all([
-            fetchCauseTaxonomy(),
-            fetchIncidentsByCountyYear(),
-            fetchIncidentsByCauseYear(),
-            // B046：縣市 × 年 × 5+22 起火原因（migration 105）— ViewBFire 用
-            fetchIncidentsByCountyCauseYear(),
-            fetchIncidentsByHourMonth(),
-            // 最新民國年 365 點：取 113 一年（壓縮 payload）
-            fetchIncidentsByDayOfYear(113),
-            // B045：113 年單年個案點位給 map heatmap（~12k 點，gzip ~400KB）
-            listIncidents({ yearMin: 113, yearMax: 113, limit: 50000 }),
-          ]);
-        if (cancelled) return;
+      // Promise.allSettled — 任一 query 失敗不拖垮其他（PB-13 / Session 8 教訓）
+      const results = await Promise.allSettled([
+        fetchCauseTaxonomy(),                                 // 0
+        fetchIncidentsByCountyYear(),                         // 1
+        fetchIncidentsByCauseYear(),                          // 2
+        fetchIncidentsByCountyCauseYear(),                    // 3
+        fetchIncidentsByHourMonth(),                          // 4
+        fetchIncidentsByDayOfYear(113),                       // 5
+        listIncidents({ yearMin: 113, yearMax: 113, limit: 50000 }), // 6
+        // ─── 新 ETL ───
+        fetchFireStations(),                                  // 7
+        fetchFireHydrantNationalCount(),                      // 8
+        fetchShelterNationalCount(),                          // 9
+        // 55k 筆 county-level，~15 unique disaster_name。多拉樣本確保 ViewA timeline dedupe 後仍能拿 6+ 種
+        fetchDisasterIncidents({ limit: 2000, orderDesc: true }), // 10
+        fetchForestFireRiskSummary(),                         // 11
+        fetchIncidentsBySeverity(),                           // 12
+        fetchIncidentsByLocationType(),                       // 13
+        fetchCasualtyProperty(),                              // 14
+        fetchPersonnelVehicles(),                             // 15
+        fetchEmsByCountyYear(),                               // 16
+      ]);
+      if (cancelled) return;
 
-        const summary = deriveNationalSummary(countyYear, causeYear);
-        const latest = summary?.latest_year_minguo ?? 113;
+      const get = <T,>(idx: number, fallback: T): T =>
+        results[idx].status === "fulfilled"
+          ? ((results[idx] as PromiseFulfilledResult<T>).value ?? fallback)
+          : fallback;
 
-        setState({
-          loading: false,
-          error: null,
-          countyYear,
-          causeYear,
-          countyCauseYear,
-          hourMonth,
-          dayOfYear,
-          taxonomy,
-          incidentPoints,
-          summary,
-          countyAggregates: deriveCountyAggregates(countyYear),
-          causeAggregates: deriveCauseAggregates(causeYear, latest),
-          yearlyTotals: deriveYearlyTotals(countyYear),
-          monthlyTotals: deriveMonthlyTotals(hourMonth),
-          hourlyTotals: deriveHourlyTotals(hourMonth),
-          dayOfYearSeries: deriveDayOfYearSeries(dayOfYear),
-          daypart: deriveDaypart(hourMonth),
-        });
-      } catch (e) {
-        if (cancelled) return;
-        const err =
-          e instanceof Error
-            ? e
-            : new Error(
-                (e as { message?: string })?.message ??
-                  (typeof e === "object" ? JSON.stringify(e) : String(e))
-              );
-        // eslint-disable-next-line no-console
-        console.error("[useFireData] fetch failed:", e);
-        setState({ ...EMPTY_STATE, loading: false, error: err });
-      }
+      const queryNames = [
+        "taxonomy", "incidents_by_county_year", "incidents_by_cause_year",
+        "incidents_by_county_cause_year", "incidents_by_hour_month",
+        "incidents_by_day_of_year", "list_incidents",
+        "fire_stations", "hydrant_count", "shelter_count",
+        "disaster_incidents", "forest_risk_summary",
+        "incidents_by_severity", "incidents_by_location_type",
+        "casualty_property", "personnel_vehicles", "ems_by_county_year",
+      ];
+      results.forEach((r, i) => {
+        if (r.status === "rejected") {
+          // eslint-disable-next-line no-console
+          console.warn(`[useFireData] ${queryNames[i]} fetch failed:`, r.reason);
+        }
+      });
+
+      // Raw rows
+      const taxonomy = get(0, [] as CauseTaxonomyRow[]);
+      const countyYear = get(1, [] as IncidentsByCountyYearRow[]);
+      const causeYear = get(2, [] as IncidentsByCauseYearRow[]);
+      const countyCauseYear = get(3, [] as IncidentsByCountyCauseYearRow[]);
+      const hourMonth = get(4, [] as IncidentsByHourMonthRow[]);
+      const dayOfYear = get(5, [] as IncidentsByDayOfYearRow[]);
+      const incidentPoints = get(6, [] as IncidentRow[]);
+      const stations = get(7, [] as FireStationRow[]);
+      const hydrantNationalCount = get(8, 0);
+      const shelterNationalCount = get(9, 0);
+      const disasterEvents = get(10, [] as DisasterIncidentRow[]);
+      const forestRisk = get<ForestFireRiskSummary | null>(11, null);
+      const severityRows = get(12, [] as IncidentsBySeverityRow[]);
+      const locationTypeRows = get(13, [] as IncidentsByLocationTypeRow[]);
+      const casualtyRows = get(14, [] as CasualtyPropertyRow[]);
+      const personnelRows = get(15, [] as PersonnelVehiclesRow[]);
+      const emsYearlyRows = get(16, [] as EmsByCountyYearRow[]);
+
+      const summary = deriveNationalSummary(countyYear, causeYear);
+      const latest = summary?.latest_year_minguo ?? 113;
+
+      // Any critical query failed → set error but still expose what came back
+      const criticalFailed = [1, 2].some((i) => results[i].status === "rejected");
+      const firstError = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      const error = criticalFailed && firstError
+        ? (firstError.reason instanceof Error ? firstError.reason : new Error(String(firstError.reason)))
+        : null;
+
+      setState({
+        loading: false,
+        error,
+        countyYear,
+        causeYear,
+        countyCauseYear,
+        hourMonth,
+        dayOfYear,
+        taxonomy,
+        incidentPoints,
+        stations,
+        hydrantNationalCount,
+        shelterNationalCount,
+        disasterEvents,
+        forestRisk,
+        severityRows,
+        locationTypeRows,
+        casualtyRows,
+        personnelRows,
+        emsYearlyRows,
+        summary,
+        countyAggregates: deriveCountyAggregates(countyYear),
+        causeAggregates: deriveCauseAggregates(causeYear, latest),
+        yearlyTotals: deriveYearlyTotals(countyYear),
+        monthlyTotals: deriveMonthlyTotals(hourMonth),
+        hourlyTotals: deriveHourlyTotals(hourMonth),
+        dayOfYearSeries: deriveDayOfYearSeries(dayOfYear),
+        daypart: deriveDaypart(hourMonth),
+        financialLoss: deriveFinancialLoss(casualtyRows),
+        emsSummary: deriveEmsSummary(emsYearlyRows),
+        capacity: deriveCapacitySummary(personnelRows),
+        locationTypeAgg: deriveLocationTypeAgg(locationTypeRows),
+        severityAgg: deriveSeverityAgg(severityRows),
+      });
     })();
     return () => {
       cancelled = true;
