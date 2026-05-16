@@ -170,3 +170,16 @@
 | **`.dashboard-pane`** | 右側儀錶板容器，佔 viewport ~40%（左地圖 60% / 右儀錶板 40%）。必加 `overflow-x:hidden + min-width:0` 防內部元件超寬產生橫卷 |
 | **`.cat-block`** | 4 區塊容器，每塊頂端有 `.cat-head`（含 `.cat-num` 編號 01-04 + 標題 + tagline + 右上 `.cat-badge.tone-*`） |
 | **「待ETL」label** | 元件級 mock 標示。慣例：placeholder KPI 在 label 旁顯示 `<span class="muted">待ETL</span>`，明示「這格還沒接真實」 |
+
+## B045/B046 Fire 後續詞彙（2026-05-16）
+
+| 詞 | 定義 |
+|---|---|
+| **METRIC_NONE / 無染色** | `"_none_"` sentinel value，TwoSectionLayers 第一個 radio。User 選了 → 22 縣市 fill 變灰底 (#E5E9F0 + opacity 0.55)，讓 fire heatmap / 點位視覺不被著色 ramp 紅吃掉 |
+| **showFireHeatmap / showFireStations** | MapView 的 fire 主題層 visibility prop（split 自 B045 原 `showFireBaseLayers`）。可獨立 toggle 火災 heatmap 跟分隊 dot/label。`showFireBaseLayers` deprecated |
+| **FIRE_RADAR_AXES (5 軸)** | B046 ViewBFire 雷達圖 5 軸固定常數：fireDensity / deathRate / stationDensity / outOf5Min / hydrantDensity。每軸 `better: "higher" \| "lower"`。SPEC 原 6 軸去掉「財損」(schema 無 property_loss) |
+| **雷達 score-unified** | 統一 normalized score 公式：higher-better `v/max`、lower-better `1 - v/max`，外圈永遠 = 表現好。Verdict `diff > 0 = better` 簡化（不用 goodDir flag）。詳 PRINCIPLES 2026-05-16 |
+| **FIRE_MOCK_STATIONS** | mock-fire.ts 22 縣市質心 jitter 出 ~629 個分隊點位（B045 過渡，Sprint 2 真實 ETL 後 swap）。jitter 範圍依 area_km2 調整（大縣 0.12° / 小縣 0.04° / 連江 0.02°），deterministic pseudoRandom |
+| **FIRE_KHH_OUTOF_VILLAGES** | mock-fire.ts 高雄市 10 個圈外村里 placeholder（桃源/茂林/三民/六龜...），ViewBFire Service tab Top 10 表用。Sprint 3 PostGIS ST_Buffer 衍生表 + 村里 polygon GeoJSON 接通後 swap |
+| **public.fire_incidents_by_county_cause_year** | gis-platform migration 105 新 MV wrapper。縣市 × 年 × 5 大類 × 22 細項起火原因，823 rows。LEFT JOIN cause_taxonomy 保留 null cause（前端 `deriveCountyCauseAggregates` 合進 'other' bucket） |
+| **「設計稿 className 移植」** | 從 `/tmp/{theme}_design/.../js/{view}.jsx` 移植元件時，JSX className 對應的 styles.css section 必須一併 append 到 globals.css。否則 dev server 看起來「跟 word 沒兩樣」純文字。PB-12 詳細 4 步 SOP |
