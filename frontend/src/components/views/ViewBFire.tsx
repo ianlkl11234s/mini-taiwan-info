@@ -245,7 +245,7 @@ export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps
       </div>
 
       {/* 雷達圖 5 軸 vs 全國平均 */}
-      <FireRadarCard county={c} merged={merged} />
+      <FireRadarCard county={c} merged={merged} data={data} />
 
       {/* Tab bar */}
       <div className="tab-bar">
@@ -321,35 +321,59 @@ interface MergedCountyData {
 function FireRadarCard({
   county,
   merged,
+  data,
 }: {
   county: (typeof COUNTIES)[number];
   merged: MergedCountyData;
+  data: FireDataState;
 }) {
-  // 全國平均 — hydrantDensity 對無消防栓資料縣市 (18 縣市) 不計入平均 (null filter)
+  // 全國平均 — 4/5 軸接通真實，僅 5min 圈外仍 mock（待 Sprint 3 PostGIS）
   const avg = useMemo(() => {
-    const arr = COUNTIES.map((cc) => {
-      const m = FIRE_MOCK_BY_COUNTY[cc.code3 as CountyCode3];
-      const hyd = m?.hydrants ?? 0;
-      const ar = cc.area_km2 ?? 0;
-      const hydDen = hyd > 0 && ar > 0 ? hyd / ar : null;
-      return {
-        stationsPerWan: m?.stationsPerWan ?? 0,
-        outOf5MinPct: m?.outOf5MinPct ?? 0,
-        hydrantDensity: hydDen,
-      };
+    // fireDensity / deathRate：從 countyAggregates 算真實全國平均
+    const validAggs = data.countyAggregates.filter((a) => {
+      const c = COUNTIES.find((x) => x.id_moi === a.county_id);
+      return c && c.pop_2024_wan > 0 && a.incidents > 0;
     });
-    const validHydDen = arr.filter((r) => r.hydrantDensity != null).map((r) => r.hydrantDensity as number);
+    const fireDensities = validAggs.map((a) => {
+      const c = COUNTIES.find((x) => x.id_moi === a.county_id)!;
+      return a.incidents / c.pop_2024_wan; // 件/萬人
+    });
+    const deathRates = validAggs.map((a) =>
+      a.incidents > 0 ? (a.deaths / a.incidents) * 1000 : 0
+    ); // 致死率 ‰
+
+    // stationDensity：fire.stations groupBy county_id / county pop
+    const stationsByCty = new Map<string, number>();
+    for (const s of data.stations) {
+      stationsByCty.set(s.county_id, (stationsByCty.get(s.county_id) ?? 0) + 1);
+    }
+    const stationsPerWanList = COUNTIES
+      .filter((c) => c.pop_2024_wan > 0)
+      .map((c) => (stationsByCty.get(c.id_moi) ?? 0) / c.pop_2024_wan);
+
+    // hydrantDensity：真實，但目前只高雄有；計平均時只用該 1 縣市
+    const khh = COUNTIES.find((x) => x.id_moi === "E");
+    const hydrantDensity =
+      khh && data.hydrantNationalCount > 0 && khh.area_km2 > 0
+        ? data.hydrantNationalCount / khh.area_km2
+        : null;
+
+    // outOf5Min 仍從 mock（Sprint 3 PostGIS 才能算）
+    const outOf5MinList = COUNTIES.map(
+      (cc) => FIRE_MOCK_BY_COUNTY[cc.code3 as CountyCode3]?.outOf5MinPct ?? 0
+    );
+
+    const mean = (arr: number[]) =>
+      arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+
     return {
-      // 火災密度 / 致死率：簡化用縣市 mock 平均（雷達圖比較對象一致性優先；
-      // 不直接拿全國真實，避免 city 用 mock-incidents 跟 avg 用真實的尺度錯位）
-      fireDensity:    7.0,
-      deathRate:      1.2,
-      stationDensity: arr.reduce((s, r) => s + r.stationsPerWan, 0) / arr.length,
-      outOf5Min:      arr.reduce((s, r) => s + r.outOf5MinPct, 0) / arr.length,
-      hydrantDensity:
-        validHydDen.length > 0 ? validHydDen.reduce((s, v) => s + v, 0) / validHydDen.length : null,
+      fireDensity:    mean(fireDensities),
+      deathRate:      mean(deathRates),
+      stationDensity: mean(stationsPerWanList),
+      outOf5Min:      mean(outOf5MinList),
+      hydrantDensity,
     };
-  }, []);
+  }, [data.countyAggregates, data.stations, data.hydrantNationalCount]);
 
   // 該縣市 5 軸值；hydrants=0 (非 4 都) 視為 null，雷達跳過該軸
   const cArea = (county.area_km2 ?? 0) > 0 ? county.area_km2 : 1;
