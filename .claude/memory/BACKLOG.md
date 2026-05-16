@@ -55,10 +55,13 @@
 | B044 | P2 | **fire-S4 區塊 4 placeholder swap** | 待開工 | 救護 / 急救醫院 / 林火 / 災變 → 等 Sprint 4 多源 ETL（衛福部全國急救醫院 catalog 缺，需手爬）3-5 天 |
 | ~~B045~~ | ~~P1~~ | ~~fire 地圖層：消防分隊 dot + 火災 heatmap~~ | ✅ 2026-05-16 完成 | 見已完成區 |
 | ~~B046~~ | ~~P1~~ | ~~fire ViewB 縣市儀錶板~~ | ✅ 2026-05-16 完成 | 見已完成區 |
-| B047 | P2 | **fire KPI 爆炸視圖** | 待開工 | 點 KPI 卡 → 大圖 + time scale + dimension 切換器（年/月/日/時 × 縣市/原因/場所/嚴重度），20 種組合。設計 SPEC.md 區塊「KPI 爆炸視圖」 |
+| ~~B047~~ | ~~P2~~ | ~~fire KPI 爆炸視圖~~ | ✅ 2026-05-16 完成 | 見已完成區 |
 | B048 | P2 | **儀錶板 800×600 stack-to-vertical 缺失** | 待開工 | Agent A 2026-05-16 截圖：< 900 viewport split-view 仍硬切左右 50/50，右 pane ≈ 400 px 內容嚴重溢出右側，無 horizontal scroll 暗示。要加 `@media (max-width: 900px) { .main { grid-template-rows: auto auto; grid-template-columns: 1fr; } }` |
 | B049 | P3 | **Donut 圖例溢位（chart-annot 標籤貼邊）** | 待開工 | Agent A 2026-05-16 觀察：fire S1「組成佔比」donut 在所有寬度數值 label 貼卡片邊（如 `10.4% 5,033`）。可能要縮 donut 半徑 / 加 label 推開 / margin 增加。約 30min |
 | B050 | P3 | **fire KPI 卡單位緊貼 sparkline icon** | 待開工 | Agent A 2026-05-16 觀察：1280×800 fire KPI 4 卡的單位（件/人/億/%）緊貼數字，與 sparkline icon 間呼吸不足。加 `gap` 或 sparkline `margin-left` 約 8-12px |
+| B051 | P3 | **24-column stacked totals overlap** | 待開工 | Session 7 B047 hour×county 截圖：24 個柱寬 ~32px 但 totals number ~40px 寬橫向 overlap。修法：rotate 90deg / 隔列 show / hover-only / 移到柱內。約 30min。Reference: FireStackedBar.tsx :32-44 fbr-num |
+| B052 | P2 | **B047 擴展：其他 fire KPI 也支援爆炸** | 待開工 | 目前只「年度火災件數」可爆炸。死傷 / 財損 / 主因 3 KPI 也應套同模式（需各自的 metric 聚合邏輯）。1-2 天 |
+| B053 | P3 | **B047 擴展：drill-down 二級爆炸** | 待開工 | 點柱 → 該年該縣市 by 原因 / 該原因 by 縣市。03-exploded-view-pattern 規格 Phase 3，user 拍板暫不做。0.5-1 天 |
 
 ---
 
@@ -66,6 +69,7 @@
 
 | 日期 | ID | 摘要 |
 |---|---|---|
+| 2026-05-16 | B047 (S7) | **Fire KPI 爆炸視圖** — FireKpiExplode.tsx ~260 行 + FireStackedBar.tsx ~100 行 + S1Incidents wire + globals.css 130 行。fire S1「年度火災件數」KPI 點擊就地展開（grid-column 1/-1），4 scale × 4 dim = 16 組合切換 + 圖型自動 + 6 個缺資料組合 inline reason。Codex 抓 1 blocker + 2 nice-to-have 全修；agent-browser 互動發現 KPICard bubble bug（codex 盲區）。User 拍板收斂：只 1 KPI / 不 drill-down / inline 展開 |
 | 2026-05-16 | B046 (S6) | **Fire ViewB 縣市儀錶板** — gis-platform migration 105 incidents_by_county_cause_year MV + frontend ViewBFire.tsx 1170 行（Hero + Radar 5 軸 + 5 sub-tabs）+ query/hook/mock/App route + 設計稿 fire-* CSS 184 行補齊。Codex 抓 2 critical 全修（norm 方向 / hydrants null）。跨 2 repo 2 commits push |
 | 2026-05-16 | B045 (S6) | **Fire 地圖層 heatmap + 分隊 dot** — MapView 加 fire-incidents-heatmap + fire-stations-pt + label，補水主題 gate 漏網之魚（reservoirs/river-stations），加 METRIC_NONE「無染色」radio + buildFirePointLayers 5 toggle panel，兼修 1100×700 邊界裁切，z-order fix (beforeId='counties-border')，heatmap paint 漸層調 7-stop。4 commits mini-taiwan-info push |
 | 2026-05-15 | Fire Phase 1 (S5) | ViewA Fire 4 區塊 + queries/hook/mock-fire + 11 components + 響應式 CSS + App routing + 修 4 個 CSS bug；S1 真實接（48,626 件 / 5+22 cause / 22 縣市 / 4 時間切片），S2/S3/S4 mock 標待ETL |
