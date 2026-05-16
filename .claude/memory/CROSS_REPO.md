@@ -25,23 +25,18 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 ## Pending 同步（未 commit 到對應 repo 或未 push）
 
-**Session 5（2026-05-15 fire 主題 ViewA Phase 1）三 repo 都 ahead origin 未 push**：
+**Session 6（2026-05-16 B045 fire 地圖層 + B046 fire ViewB）pending**：
 
-- **mini-taiwan-info**: **15+ commits ahead** origin/main
-  - Session 4 殘留：7 commits (558f77c..d96f69e + 4 docs)
-  - Session 5 新增 fire：8 commits (9dfd144..b1941a1)
-  - Session 5 css fix：3 commits (29de112 + e3bd381 + b1941a1)
-  - 本次 wrap-up: 6+ memory commits
-- **gis-platform**: **2 commits ahead** origin/main
-  - 995efec migration 097（S4 殘留）
-  - 93d825f migration 104 fire public wrappers（S5）
-- **taipei-gis-analytics**: **2 commits ahead** origin/master
-  - 88353ae A2 pipeline（S4 殘留，未 run）
-  - 5c7f061 12_upload_to_supabase.py（S5，已 run 48,626 筆進 DB）
+- **mini-taiwan-info**: B045 4 commits **已 push**（5edd8fd / 5c34f3c / f0c6d73 + Session 5 殘 905d486）
+  - B046 + memory 8 個 commits **本次 wrap-up 後待 user push**（37fc213 + memory: × 8）
+- **gis-platform**: migration 105 **已 push**（095cd5d）
+- **taipei-gis-analytics**: 本 session **未動**（仍 2 commits ahead origin/master 為其他 session 的工作）
 
 **A2 pipeline 仍未 run**：taipei-gis 88353ae，~1-2 小時 / 約 30k reading（待 user 拍板）
 
 **TODO-2 batch_003 未上傳**：taipei-gis fire batch_003 在 2026-04-28 已產出但 user 還沒手動上傳 TGOS web（1-3 天回應期）
+
+**Memory 9 檔 commit 完待 push**：B046 cycle 全套（migration 105 + ViewBFire + memory）— 跨 2 repo（gis-platform 已 push / mini-taiwan-info 待 push）
 
 ---
 
@@ -49,13 +44,13 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 | 日期 | Repo | 動作 | Commit |
 |---|---|---|---|
+| 2026-05-16 (S6) | mini-taiwan-info | feat(map) B045 fire 地圖層 heatmap+stations + neutral fill + point panel | 5edd8fd / 5c34f3c / f0c6d73 (push 完) |
+| 2026-05-16 (S6) | mini-taiwan-info | feat(view) B046 fire ViewB 縣市儀錶板（待 push） | 37fc213 |
+| 2026-05-16 (S6) | gis-platform | feat(migration) 105 fire incidents_by_county_cause_year MV | 095cd5d (push 完) |
 | 2026-05-15 (S5) | mini-taiwan-info | feat(fire-frontend) ViewA Phase 1 — 8 commits | 9dfd144..b1941a1 |
 | 2026-05-15 (S5) | gis-platform | feat(fire-schema) migration 104 public wrappers | 93d825f |
 | 2026-05-15 (S5) | taipei-gis-analytics | feat(fire-etl) 12_upload_to_supabase.py | 5c7f061（48,626 筆 fire.incidents + 4 MV refresh）|
 | 2026-05-14 (S4) | mini-taiwan-info | feat(view-b) Cycle B IA 重組 7 tabs | d96f69e + 462feac |
-| 2026-05-14 (S4) | mini-taiwan-info | fix(view-b) DataAgeBadge + LIVE 用詞 patch | 1864a61 + 84c417c + 47d61e4 |
-| 2026-05-14 (S4) | mini-taiwan-info | feat(view-b) Cycle A 水質 tab 接通真實資料 | 95bc30e |
-| 2026-05-14 (S4) | mini-taiwan-info | memory: LIVE badge 嚴格定義 + 用詞嚴守 | ac44c72 + 84c417c |
 | 2026-05-14 (S4) | gis-platform | feat(migration) 097 water_quality RPCs | 995efec |
 | 2026-05-14 (S4) | taipei-gis | feat(pipeline) 03_load_water_quality 加 wqx_p_01 | 88353ae |
 | 2026-05-14 (S3) | mini-taiwan-info | feat(skill) /water-loop SOP | bf99dfc（filter-repo 後 hash 已改）|
