@@ -183,3 +183,21 @@
 | **FIRE_KHH_OUTOF_VILLAGES** | mock-fire.ts 高雄市 10 個圈外村里 placeholder（桃源/茂林/三民/六龜...），ViewBFire Service tab Top 10 表用。Sprint 3 PostGIS ST_Buffer 衍生表 + 村里 polygon GeoJSON 接通後 swap |
 | **public.fire_incidents_by_county_cause_year** | gis-platform migration 105 新 MV wrapper。縣市 × 年 × 5 大類 × 22 細項起火原因，823 rows。LEFT JOIN cause_taxonomy 保留 null cause（前端 `deriveCountyCauseAggregates` 合進 'other' bucket） |
 | **「設計稿 className 移植」** | 從 `/tmp/{theme}_design/.../js/{view}.jsx` 移植元件時，JSX className 對應的 styles.css section 必須一併 append 到 globals.css。否則 dev server 看起來「跟 word 沒兩樣」純文字。PB-12 詳細 4 步 SOP |
+
+## 水主題 6 章敘事（Water 2026-05-16 S8）
+
+| 詞 | 定義 |
+|---|---|
+| **6 章敘事 ViewAWater** | 水主題 ViewA 改 6 章節敘事結構（章 1 現況 / 章 2 儲存 / 章 3 水情燈號 / 章 4 處理 / 章 5 使用 / 章 6 災防）取代 manifest-driven 6 KPI grid。Per-theme view 設計（仿 fire ViewAFire 4 區塊）|
+| **WaterCatHeader** | 水主題章節 header 元件（`components/water/WaterCatHeader.tsx`）。與 FireCatHeader 用同一個 `.cat-block / .cat-head` CSS（globals.css 共用），純命名分開為跨主題清晰 |
+| **S1Status .. S6Disaster** | 水主題 6 個 section 子元件路徑 `components/water/sections/SX{Topic}.tsx`。每個 section 自己 hero / table / chart 邏輯，依 useWaterKpis state slice 渲染 |
+| **water_facts_official** | gis-platform migration 101 建的 metadata key-value 表（7 列）。fact_key + value_num + label + unit + source。給章 1 現況 6 stat tile 提供「26 河川 / 2041 km / 2449 水質測站 / 1306 雨量站」等「規劃文件數字」對外承諾值 |
+| **water_treatment_plants_large** | 17 座大型淨水場（≥ 20 萬 CMD）。**PK = `plant_name`，不是 `id`** — 規劃 doc 寫錯，實際 schema 沒 id 欄。Schema: `(plant_name PK, capacity_cmd, county, lat, lng, geom, ...)` |
+| **water_loss_rate_yearly** | 自來水漏水率年度表。**全國單一表，PK=year**（不是 area + year）。Schema: `(year PK, year_roc, supply_m3, billed_m3, loss_m3, loss_pct, ...)` — 規劃 doc 寫的 `area + loss_rate_pct` 是錯 |
+| **twc_supply_system_monthly** | 台水各供水系統月供水量（141 列 = 141 系統 × 1 月 = 2026-03 單月）。S4 章「全國最新月供水量」KPI 用，總和 2.67 億 m³ |
+| **detention_basins.county** | 滯洪池表 county 欄是 slug（tainan / kaohsiung），且含 3 科學園區 slug（hsinchu_park / central_park / south_park）。S6 「滯洪池涵蓋」要分開行政縣市 vs 園區 |
+| **land_subsidence_stations.county** | 地層下陷站表 county 欄是**中文**（雲林縣 / 彰化縣），跟其他表的 slug 慣例不同。S6 地層下陷描述行直接用中文，不轉 slug |
+| **Promise.allSettled helper get<T>** | 多 fetch hook 並行 fetch 的 type-safe 結果提取 helper：`const get = <T,>(idx: number, fallback: T): T => results[idx].status === "fulfilled" ? ((results[idx] as PromiseFulfilledResult<T>).value ?? fallback) : fallback;`。避免任一 query throw 整 hook 掛 |
+| **「規劃 doc vs 實際 schema」陷阱** | `taipei-gis-analytics/docs/topic-research/water-overview/kpi-data-status.md` 等規劃文件寫的表名 / 欄名可能跟實際 deploy schema 不同步。Discovery 階段必 psql 直查實際 `\d table_name`，不只信 docs |
+| **Design bundle handoff** | claude.ai/design 匯出的 gzip+tar 包（含 README + chats/ + project/*.html/jsx/css/data.js + screenshots/）。fire S5 + water S8 二次驗證的 handoff workflow，已抽成 PB-13 |
+| **章 5 用水結構 mock badge** | 「結構估算」badge，因 DB 無 sector 拆解（民生/工業/農業），保留 mock 但明標非真實。`twc_customer_yearly` 用戶數比例 ≠ 用水量比例，不能當代理（會誤導）|
