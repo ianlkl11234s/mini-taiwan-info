@@ -192,3 +192,46 @@ Supabase Cloud 的 PostgREST 預設只 expose `public` schema；其他 schema（
 
 **Sibling 規則**：任何 fixed-column grid（如 `.fire-s4-grid`）在 dashboard pane 內**不要用固定 px 欄寬**（如 `1fr 320px`），否則窄時 1fr 那欄被擠垮。改用 `1fr 1fr` 或單欄 `1fr` stacked。
 - placeholder 慣例：`__MAPBOX_TOKEN_PLACEHOLDER__` / `__SUPABASE_ANON_KEY_PLACEHOLDER__` 等（GLOSSARY 收錄）
+
+### 2026-05-16: 雷達圖 / score-based 圖表 — 統一 score 公式（外圈=表現好）
+
+混 higher-better 與 lower-better 軸的雷達圖必須統一 normalized score：
+
+```
+higher-better 軸:  score = v / max
+lower-better 軸:   score = 1 - v / max
+```
+
+**外圈 (score=1) = 該軸表現好**，整體 polygon 大 = 體質好，verdict 用 `diff > 0 = better` 簡化。
+
+**禁止**：直接 `v / max` 不分 better 方向，會讓火災密度 14 = 外圈（「最危險」）跟分隊密度 14 = 外圈（「最好」）混在同一個 polygon 內視覺意義矛盾。
+
+**對 null 軸 fallback**：city polygon 在 null 軸用 avg score 不塌陷，verdict 排除 null 軸。
+
+Reference: B046 ViewBFire `FireRadarCard.norm()`，codex review 2026-05-16 抓到方向反向 bug。
+
+### 2026-05-16: 移植 design bundle 元件 — JSX + CSS 必須一併移植
+
+寫 component 時對應的 className 必須有 CSS 規則，否則 dev server 看起來「跟 word 沒兩樣」一片純文字（grid / background / border 全 fallback 預設）。
+
+**SOP**：
+1. Read 完整 jsx file
+2. Grep design bundle 的 `styles.css` 找所有 className 區段（如 `grep -n "fire-radar-card\|frc-\|fcm-\|fbl-" styles.css`）
+3. TS strict 化 JSX 移植到 `frontend/src/components/`
+4. **必須**：append 對應 CSS 區段到 `globals.css` 對應主題段
+5. 確認 design 用的 CSS 變數（如 `--accent-fire-deep` / `--accent-fire-soft`）在 globals.css `:root` 已定義
+6. 加響應式 media query 防 dashboard pane 窄時（< 1200px）擠垮
+
+**典型陷阱**：Session 5 移植 fire ViewA 時只 append 用到的 fire-* CSS（fire-bar-row / fire-table / fire-timeline / s4-grid），等 ViewB 加 fire-radar-card / fcm-row / fire-station-grid / fire-buffer-legend / fire-risk-bar 才爆 → 一勞永逸把整套主題 fire-* CSS 一起移植才不會踩坑。
+
+詳見 PB-12。
+
+### 2026-05-16: Mock 0 值要區分 missing data vs 真實 density 0
+
+當 mock 對部分縣市/類別「沒這資料」時，**設 null 而非 0**，下游計算（雷達/平均/verdict/排名）一律過濾 null 跳過該 entry。
+
+**錯誤示範**：`FIRE_MOCK_BY_COUNTY.HUA.hydrants = 0`（花蓮無消防栓 dataset） → 雷達拿來除 area_km2 = 0 density → higher-better 軸下永遠是「比全國差」誤判。
+
+**正確做法**：mock 內維持 0 表示 raw data 缺，但前端轉成 view 時用 `value > 0 ? value / divisor : null`，雷達 city polygon 對 null fallback 到 avg score 不塌陷，avg 計算過濾 null（如 hydrant 平均只算 4 都樣本），verdict 排除 null 軸。
+
+Reference: B046 ViewBFire `FireRadarCard.cityVal.hydrantDensity`，codex review 2026-05-16 抓到。
