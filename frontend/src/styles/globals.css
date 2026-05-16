@@ -2289,3 +2289,142 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   color: var(--accent-fire-deep);
 }
 .frb-stat .muted { font-size: 11.5px; }
+
+/* ===== B047 KPI 爆炸視圖（FireKpiExplode）===== */
+.fire-explode {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+.fire-explode-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.fire-explode-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.18s var(--ease-out);
+}
+.fire-explode-back:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.fire-explode-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+.fire-explode-title .sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.fire-explode-title .sub b {
+  color: var(--accent-fire-deep, var(--accent-deep));
+  font-family: var(--font-mono);
+}
+.fire-explode-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fire-explode-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fire-explode-row-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  min-width: 36px;
+}
+.fire-explode-chart {
+  min-height: 240px;
+  padding-top: 4px;
+}
+.fire-explode-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 220px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.fire-explode-empty .emoji { font-size: 28px; }
+.fire-explode-empty .msg { font-size: 14px; font-weight: 600; color: var(--text); }
+.fire-explode-empty .reason {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  max-width: 480px;
+  line-height: 1.5;
+}
+.fire-explode-footer {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+/* Stacked bar legend */
+.fire-stacked-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 11.5px;
+}
+.fire-stacked-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+.fire-stacked-legend-item .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.fire-stacked-legend-item .lbl {
+  color: var(--text);
+  font-weight: 500;
+}
+.fire-stacked-legend-item .val {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.fire-stacked-legend-item .pct {
+  color: var(--text-tertiary);
+}
+
+/* < 900：toggle 排換行 */
+@media (max-width: 900px) {
+  .fire-explode-row { align-items: flex-start; }
+  .fire-explode-row .toggle-group { flex-wrap: wrap; }
+}

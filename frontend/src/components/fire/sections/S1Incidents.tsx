@@ -25,6 +25,7 @@ import {
   FireLocationTable,
   FireCountyBars,
 } from "../FireTables";
+import { FireKpiExplode } from "../FireKpiExplode";
 import { FIRE_NATIONAL_MOCK, FIRE_SEVERITY_COLORS } from "@/lib/mock-fire";
 
 type Scale = "year" | "month" | "day" | "hour";
@@ -40,6 +41,8 @@ export function S1Incidents({ data, selectedCounty, onCountyClick }: S1Props) {
   const [scale, setScale] = useState<Scale>("year");
   const [dim, setDim] = useState<Dim>("daypart");
   const [tableTab, setTableTab] = useState<"county" | "cause" | "location">("county");
+  // B047 KPI 爆炸視圖（目前只「年度件數」KPI 卡支援）
+  const [expandedKpi, setExpandedKpi] = useState<"incidents" | null>(null);
 
   // 時間長條 — 資料來自 Supabase MV
   const seriesData = useMemo(() => {
@@ -199,6 +202,11 @@ export function S1Incidents({ data, selectedCounty, onCountyClick }: S1Props) {
               : { delta: "—", direction: "flat", baseline: "較去年", sentiment: "neutral" }
           }
           spark={data.yearlyTotals.map((y) => y.incidents)}
+          expanded={expandedKpi === "incidents"}
+          onExpand={() => setExpandedKpi(expandedKpi === "incidents" ? null : "incidents")}
+          explodeContent={
+            <FireKpiExplode data={data} onClose={() => setExpandedKpi(null)} />
+          }
         />
         <KPICard
           icon={<AlertTriangle size={13} />}
