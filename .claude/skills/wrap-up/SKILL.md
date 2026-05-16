@@ -52,6 +52,23 @@ git log --oneline --since="1 hour ago" -- .claude/memory/
 - `git status` 看未 commit 的變動
 - Read root `_STATUS.md` 看 user-facing Phase 進度（不重寫，只取摘要參考）
 
+**🆕 Cross-session 已建未對接 audit（Session 9 新增 / 解 INCIDENTS 2026-05-16 第 2 條）**：
+
+本 session 沒做的「跨 repo 已 commit 但前端未對接」案例會嚴重影響 BACKLOG 準確度。Stage 1 強制跑：
+
+```bash
+# 1. 列其他 session 在 gis-platform 新加的 migration（自本 session 上一個 STATUS 時間後）
+cd ../gis-platform && git log --oneline -20 main | grep -i "migration\|feat"
+
+# 2. 列其他 session 在 taipei-gis-analytics 新建的 pipeline
+cd ../taipei-gis-analytics && git log --oneline -15 master | grep -i "pipeline\|etl\|feat"
+
+# 3. psql 對比新 migration 表是否實際存在 + COUNT
+psql "$DATABASE_URL" -c "\dt fire.* safety.* admin.*"
+```
+
+**判讀**：如果 STATUS 上次提到「待 ETL」/「placeholder」/「Sprint X」的 KPI，對應 schema 表 / pipeline 已在其他 session 完成 → 寫進 BACKLOG「跨 session 已建未對接（next session 重點）」清單。
+
 **接著回顧本 session**：
 - 用戶要求什麼？
 - 做了什麼（新 component / new query / new migration / new pipeline）？
@@ -63,6 +80,8 @@ git log --oneline --since="1 hour ago" -- .claude/memory/
 - ❌ `git log --since="1 hour ago"` — 跨 session 邊界不精準
 - ❌ `git log origin/main..HEAD` — origin 同步狀態取決於是否 fetch
 - ✅ 用具體 commit hash 範圍（從 reflog 或本 session 已知的第一個 commit）
+- ❌ **只看本 session commits** — 漏其他 session 已建未對接的 ETL/MV（Session 9 INCIDENTS）
+- ✅ 比對 STATUS 上次「待 ETL」清單 vs 當前 gis-platform / taipei-gis-analytics master log
 
 ### Stage 2: Analyze
 
