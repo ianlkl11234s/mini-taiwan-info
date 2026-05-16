@@ -407,6 +407,23 @@ User 截圖顯示 fire 主題 4 個 KPI 卡在某個視窗寬度下：
 
 ---
 
+## 2026-05-16 (Session 7): KPICard onClick bubble — 內部 toggle 點擊誤收回卡片
+
+**現象**：B047 寫完 FireKpiExplode，agent-browser 測試時點時間 scale 按鈕「月」後，`.kpi-card.expanded` 計數從 1 變 0 — 卡片自己收回去了。連點「收起」button 也雙重觸發：先 onClose 設 null，再 bubble onExpand 從 null toggle 回 "incidents"，相互抵消又開回來。
+
+**根因**：`KPICard.tsx` root `<div className="kpi-card" onClick={onExpand}>` 整張卡綁 toggle，內部 interactive child（toggle-group / 收起 button）onClick 都會 bubble 到 root 觸發 onExpand。
+
+**對策**：FireKpiExplode root div 包 `onClick={(e) => e.stopPropagation()}` 罩整個展開區；「收起」button onClick 也加 `e.stopPropagation()` 雙保險。
+
+**教訓**：
+1. **codex review 對 DOM 事件流有盲區**：codex 讀靜態程式碼，看不出「父層綁 onClick 子層點擊會 bubble」這類 runtime behavior。本次 codex 抓 1 blocker（data aggregation） + 2 nice-to-have，但**漏掉這個 bubble bug** — 是 agent-browser 互動 + `document.querySelectorAll('.kpi-card.expanded').length` 才測到的。
+2. **任何「整張卡點擊 toggle」設計都該預設 stopPropagation 內部 children**（已寫進 PRINCIPLES）。
+3. Verify 階段不能只靠 codex + typecheck — 必須 agent-browser 真的點看看互動行為，特別是 expand/collapse / modal / drawer / drag-drop 這類事件流密集的元件。
+
+Reference: FireKpiExplode.tsx:91, KPICard.tsx:42。
+
+---
+
 ## (template, 之後用)
 
 ## YYYY-MM-DD 標題
