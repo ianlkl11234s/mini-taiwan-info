@@ -247,3 +247,43 @@ KPICard root `<div className="kpi-card" onClick={onExpand}>` 整張卡綁 toggle
 **Sibling**：未來 PointProfile / RankBars / 任何「整 row/卡 clickable」元件加可互動 child，都要套這條。
 
 Reference: FireKpiExplode.tsx:91，B047 agent-browser 互動測試 2026-05-16 才發現。codex review 對事件流盲區（見 INCIDENTS 同日條目）。
+
+### 2026-05-16: Per-theme view 是 confirmed pattern（不再走 manifest-driven 萬用 ViewA）
+
+水 (S8) 跟 fire (S5/S6) 都建了主題專屬的 `ViewAWater.tsx` / `ViewAFire.tsx`，原 `ViewA.tsx`（manifest-driven 6 KPI grid）保留為「尚未做專屬版主題」的 fallback。
+
+**規則**：
+- 每個主題上 production 時自己一份 ViewA{Theme}.tsx + 子元件 + CSS section
+- App.tsx 用 `theme === "X" ? <ViewAX/> : ...` 階梯式分派
+- 共用元素抽到 `components/{theme}/{Theme}CatHeader.tsx`（仿 fire `FireCatHeader` / water `WaterCatHeader`，CSS 共用 `.cat-block`）
+- 共用 utility component 留 `components/{kpi,charts,point-profile}/`（如 KPICard / Sparkline / TrendChart / PointProfile）
+
+**為什麼**：design bundle 每個主題都有自己的敘事結構（fire 4 區塊 / water 6 章 / 未來 demographics 可能也是專屬），manifest spec 無法乾淨表達這麼大的版型差異。manifest 仍用於 color_metrics / point_layers / 部分 cross-theme metadata，但 ViewA 渲染主邏輯走 per-theme code。
+
+**Sibling**：未來 demographics / safety / transport 上 production 時，沿同 pattern 建 ViewADemographics.tsx 等。原 ViewA.tsx 只服務還沒做專屬版的主題（home-basics 等）。
+
+Reference: S5 fire (Session 5 / 6) + S8 water (Session 8) 二次驗證。
+
+### 2026-05-16: 多 fetch hook 必用 Promise.allSettled（不是 Promise.all）
+
+當 hook 並行 fetch ≥ 3 個 query 時（如 `useWaterKpis` 16 fetch），任一 query 內部 throw（未捕獲）會讓整個 `Promise.all` reject → 整個 hook 進 catch → 整個 view 「載入失敗」即使其他 15 個 query 都成功。
+
+**規則**：
+```ts
+const results = await Promise.allSettled([fetchA(), fetchB(), ...]);
+const get = <T,>(idx: number, fallback: T): T =>
+  results[idx].status === "fulfilled"
+    ? ((results[idx] as PromiseFulfilledResult<T>).value ?? fallback)
+    : fallback;
+// log rejected for dev visibility
+results.forEach((r, i) => {
+  if (r.status === "rejected") console.warn(`[hook] query ${names[i]} failed:`, r.reason);
+});
+```
+
+**為什麼**：(1) 每個 query 內部已有 try/catch fallback 通常足夠，但「向下相容某些舊 query 仍 throw」（如 `fetchReservoirStatusLatest` 給 ViewA/ViewB 用必須 throw）這層仍會炸。allSettled 是 hook 層級的安全網。
+(2) 把每個 fetch 的失敗變 silent fallback + 一條 console.warn，不阻塞其他 fetch 結果。
+
+**陷阱**：allSettled 結果是 union type，要寫 type-safe helper（如上 `get<T>`）避免 TS narrowing 問題。
+
+Reference: `useWaterKpis.ts` Session 8 改造；codex review 抓的 BLOCKER。
