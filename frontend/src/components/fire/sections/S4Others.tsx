@@ -1,8 +1,15 @@
 /**
  * 區塊 4 · 其他救災救護山林火山
  *
- * 全部 mock — 等 Sprint 4 ETL（救護 / 急救醫院 / 林火 / 災變）
- * 火山潛勢 = Backlog（2026-05-15 拍板，本 Phase 不做）
+ * 真實資料：
+ *   - 年救護出勤（fire.ems_stats_by_county_year 最新年 SUM）
+ *   - 山林高風險點（fire.forest_fire_risk_snapshot WHERE risk_level >= 3）
+ *   - 22 縣市救護表（fire.ems_stats_by_county_year，最新年 by county_id）
+ *   - 重大災變 timeline（fire.disaster_incidents 最新 6 筆 DESC）
+ *
+ * 仍 placeholder：
+ *   - 急救責任醫院（衛福部全國名冊缺，需手爬）
+ *   - 火山潛勢（Backlog 不做）
  */
 
 import { useMemo } from "react";
@@ -11,28 +18,96 @@ import { KPICard } from "@/components/kpi/KPICard";
 import { fmt } from "@/lib/format";
 import type { CountyCode3 } from "@/lib/types";
 import { COUNTIES } from "@/lib/counties";
+import type { FireDataState } from "@/hooks/useFireData";
 import { FireCatHeader } from "../FireCatHeader";
-import { FIRE_DISASTER_TIMELINE, FIRE_MOCK_BY_COUNTY, FIRE_NATIONAL_MOCK } from "@/lib/mock-fire";
 
 interface S4Props {
+  data: FireDataState;
   selectedCounty?: CountyCode3 | null;
   onCountyClick?: (code: CountyCode3) => void;
 }
 
-export function S4Others({ selectedCounty, onCountyClick }: S4Props) {
+// 災害名稱 → tag/colour
+function classifyDisaster(name: string, type: string | null): {
+  tag: string;
+  cls: "typhoon" | "quake" | "accident";
+} {
+  const lower = (type ?? "").toLowerCase();
+  if (name.includes("颱風") || lower.includes("typhoon")) return { tag: "颱風", cls: "typhoon" };
+  if (name.includes("地震") || lower.includes("earthquake")) return { tag: "地震", cls: "quake" };
+  if (name.includes("豪雨") || name.includes("暴雨") || name.includes("水災")) return { tag: "豪雨", cls: "typhoon" };
+  return { tag: type ?? "事故", cls: "accident" };
+}
+
+export function S4Others({ data, selectedCounty, onCountyClick }: S4Props) {
+  // 22 縣市救護表（fire.ems_stats_by_county_year 最新年）
   const emsRows = useMemo(() => {
+    const latestYear =
+      data.emsYearlyRows.length > 0
+        ? Math.max(...data.emsYearlyRows.map((r) => r.year))
+        : null;
     return COUNTIES.map((c) => {
-      const mock = FIRE_MOCK_BY_COUNTY[c.code3];
+      const row = data.emsYearlyRows.find(
+        (r) => r.county_id === c.id_moi && r.year === latestYear
+      );
       return {
         code3: c.code3,
         name: c.name_zh,
-        emsTrips: mock?.emsTrips ?? 0,
-        ohca: mock?.ohca ?? 0,
-        hospitals: mock?.hospitals ?? 0,
-        riskPoints: mock?.riskPoints ?? 0,
+        emsTrips: row?.dispatch_count ?? 0,
+        ohca: row?.ohca_count ?? 0,
+        transport: row?.transport_count ?? 0,
+        trauma: row?.trauma_count ?? 0,
       };
     }).sort((a, b) => b.emsTrips - a.emsTrips);
-  }, []);
+  }, [data.emsYearlyRows]);
+
+  // 中央災變 timeline（資料 county-level granularity，dedup by disaster_name 後取最新 6）
+  // 每個 disaster_name 取最新 occurred_date 一筆 + SUM 所有縣市的 deaths/injuries
+  const disasterTimeline = useMemo(() => {
+    const acc = new Map<string, {
+      name: string; date: string; type: string | null;
+      deaths: number; injuries: number;
+    }>();
+    for (const d of data.disasterEvents) {
+      const prev = acc.get(d.disaster_name);
+      if (!prev) {
+        acc.set(d.disaster_name, {
+          name: d.disaster_name,
+          date: d.occurred_date,
+          type: d.incident_type,
+          deaths: d.deaths ?? 0,
+          injuries: d.injuries ?? 0,
+        });
+      } else {
+        prev.deaths += d.deaths ?? 0;
+        prev.injuries += d.injuries ?? 0;
+        // 保留較新的 date
+        if (d.occurred_date > prev.date) prev.date = d.occurred_date;
+      }
+    }
+    return [...acc.values()]
+      .sort((a, b) => (a.date > b.date ? -1 : 1))
+      .slice(0, 6)
+      .map((d) => {
+        const { tag, cls } = classifyDisaster(d.name, d.type);
+        return {
+          id: d.name,
+          name: d.name,
+          date: d.date,
+          year: d.date.slice(0, 4),
+          tag,
+          cls,
+          deaths: d.deaths,
+          injuries: d.injuries,
+        };
+      });
+  }, [data.disasterEvents]);
+
+  const emsYear = data.emsSummary?.year ?? null;
+  const totalDispatch = data.emsSummary?.total_dispatch ?? 0;
+  const totalOhca = data.emsSummary?.total_ohca ?? 0;
+  const forestHigh = data.forestRisk?.high_risk_count ?? 0;
+  const forestTotal = data.forestRisk?.total ?? 0;
 
   return (
     <div className="cat-block">
@@ -43,46 +118,50 @@ export function S4Others({ selectedCounty, onCountyClick }: S4Props) {
             <span className="accent">其他救災救護</span> ─ 山林、急救、災變
           </>
         }
-        tagline="救護出勤、急救醫院、山林火災風險、重大災變紀錄 — 全部 mock，等 Sprint 4 ETL"
-        badge="待 Sprint 4 ETL"
-        badgeTone="placeholder"
+        tagline={`救護出勤 ${fmt.bigNum(totalDispatch)} 次 · 山林高風險 ${forestHigh} 處 · 災變紀錄 ${data.disasterEvents.length} 筆`}
+        badge="接通真實資料"
+        badgeTone="historical"
       />
 
       <div className="kpi-grid cols-3">
         <KPICard
           icon={<Heart size={13} />}
-          label={<>年救護出勤 <span className="muted" style={{ fontSize: 9 }}>待ETL</span></>}
-          value={fmt.bigNum(FIRE_NATIONAL_MOCK.emsTrips)}
+          label="年救護出勤"
+          value={fmt.bigNum(totalDispatch)}
           unit="次"
           trend={{
-            delta: `+${FIRE_NATIONAL_MOCK.emsTripsDelta}%`,
-            direction: "up",
-            baseline: "較去年",
+            delta: emsYear ? `${emsYear} 年資料` : "—",
+            direction: "flat",
+            baseline: `OHCA ${fmt.num(totalOhca)} 件`,
             sentiment: "neutral",
           }}
         />
         <KPICard
           icon={<Heart size={13} />}
-          label={<>急救責任醫院 <span className="muted" style={{ fontSize: 9 }}>待ETL</span></>}
-          value={FIRE_NATIONAL_MOCK.emergencyHospitals}
+          label={
+            <>
+              急救責任醫院 <span className="muted" style={{ fontSize: 9 }}>待ETL</span>
+            </>
+          }
+          value="—"
           unit="家"
           trend={{
-            delta: "雲林資料完整",
+            delta: "衛福部名冊缺",
             direction: "flat",
-            baseline: "其他 placeholder",
+            baseline: "需手爬",
             sentiment: "neutral",
           }}
         />
         <KPICard
           icon={<AlertTriangle size={13} />}
-          label={<>山林高風險點 <span className="muted" style={{ fontSize: 9 }}>待ETL</span></>}
-          value={fmt.num(FIRE_NATIONAL_MOCK.forestRiskPoints)}
+          label="山林高風險點"
+          value={fmt.num(forestHigh)}
           unit="處"
           trend={{
-            delta: "snapshot",
+            delta: `${fmt.num(forestTotal)} 中`,
             direction: "flat",
-            baseline: "屏東/南投/花蓮居多",
-            sentiment: "neutral",
+            baseline: "警告+危險+最危險",
+            sentiment: "negative",
           }}
         />
       </div>
@@ -95,7 +174,8 @@ export function S4Others({ selectedCounty, onCountyClick }: S4Props) {
               22 縣市救護統計
             </div>
             <div className="muted" style={{ fontSize: 11.5 }}>
-              OHCA 件數僅高雄/雲林完整 · 整表 mock 待 ETL
+              {emsYear ? `${emsYear} 年資料 · OHCA / 創傷 件數` : "資料載入中"}
+              {data.emsYearlyRows.length === 0 && " · 等 ETL"}
             </div>
           </div>
           <div className="fire-table-wrap" style={{ maxHeight: 360, overflow: "auto" }}>
@@ -104,9 +184,9 @@ export function S4Others({ selectedCounty, onCountyClick }: S4Props) {
                 <tr>
                   <th>縣市</th>
                   <th style={{ textAlign: "right" }}>救護出勤</th>
+                  <th style={{ textAlign: "right" }}>送醫</th>
                   <th style={{ textAlign: "right" }}>OHCA</th>
-                  <th style={{ textAlign: "right" }}>醫院</th>
-                  <th style={{ textAlign: "right" }}>風險點</th>
+                  <th style={{ textAlign: "right" }}>創傷</th>
                 </tr>
               </thead>
               <tbody>
@@ -119,10 +199,10 @@ export function S4Others({ selectedCounty, onCountyClick }: S4Props) {
                     <td>
                       <b>{r.name}</b>
                     </td>
-                    <td className="tnum">{fmt.num(r.emsTrips)}</td>
-                    <td className="tnum">{r.ohca}</td>
-                    <td className="tnum">{r.hospitals}</td>
-                    <td className="tnum">{r.riskPoints}</td>
+                    <td className="tnum">{r.emsTrips > 0 ? fmt.num(r.emsTrips) : "—"}</td>
+                    <td className="tnum">{r.transport > 0 ? fmt.num(r.transport) : "—"}</td>
+                    <td className="tnum">{r.ohca > 0 ? r.ohca : "—"}</td>
+                    <td className="tnum">{r.trauma > 0 ? fmt.num(r.trauma) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -137,32 +217,35 @@ export function S4Others({ selectedCounty, onCountyClick }: S4Props) {
               重大災變紀錄
             </div>
             <div className="muted" style={{ fontSize: 11.5 }}>
-              近 6 年中央災變紀錄 · 等 Sprint 4 ETL
+              {data.disasterEvents.length > 0
+                ? `最新 ${disasterTimeline.length} 筆 · 來源 fire.disaster_incidents`
+                : "資料載入中"}
             </div>
           </div>
           <div className="fire-timeline">
-            {FIRE_DISASTER_TIMELINE.map((d, i) => (
-              <div
-                key={i}
-                className={`ftl-row tag-${
-                  d.tag === "颱風" ? "typhoon" : d.tag === "地震" ? "quake" : "accident"
-                }`}
-              >
-                <div className="ftl-yr">{d.year}</div>
-                <div className="ftl-dot" />
-                <div className="ftl-body">
-                  <div className="ftl-head">
-                    <b>{d.name}</b>
-                    <span className="ftl-tag">{d.tag}</span>
-                  </div>
-                  <div className="ftl-date">{d.date}</div>
-                  <div className="ftl-stat">
-                    {d.deaths > 0 && <span className="ftl-stat-death">死 {d.deaths}</span>}
-                    {d.injuries > 0 && <span className="ftl-stat-inj">傷 {d.injuries}</span>}
+            {disasterTimeline.length === 0 ? (
+              <div className="muted" style={{ padding: "20px 12px", fontSize: 12 }}>
+                尚無災變紀錄
+              </div>
+            ) : (
+              disasterTimeline.map((d) => (
+                <div key={d.id} className={`ftl-row tag-${d.cls}`}>
+                  <div className="ftl-yr">{d.year}</div>
+                  <div className="ftl-dot" />
+                  <div className="ftl-body">
+                    <div className="ftl-head">
+                      <b>{d.name}</b>
+                      <span className="ftl-tag">{d.tag}</span>
+                    </div>
+                    <div className="ftl-date">{d.date}</div>
+                    <div className="ftl-stat">
+                      {d.deaths > 0 && <span className="ftl-stat-death">死 {d.deaths}</span>}
+                      {d.injuries > 0 && <span className="ftl-stat-inj">傷 {d.injuries}</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

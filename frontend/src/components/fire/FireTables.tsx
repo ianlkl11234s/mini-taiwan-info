@@ -4,11 +4,11 @@
  * 設計來源：v03 view-a-fire.jsx (FireCountyTable / FireCauseTable / FireLocationTable)
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { fmt } from "@/lib/format";
 import { COUNTIES, byIdMoi } from "@/lib/counties";
 import type { CountyCode3 } from "@/lib/types";
-import { FIRE_LOCATIONS_MOCK, FIRE_MOCK_BY_COUNTY, FIRE_SEVERITY_COLORS } from "@/lib/mock-fire";
+import { FIRE_LOCATIONS_MOCK, FIRE_SEVERITY_COLORS } from "@/lib/mock-fire";
 import type { FireCauseAggregate, FireCountyAggregate } from "@/lib/queries/fire";
 
 // ────────────────────────────────────────────────────────
@@ -17,6 +17,8 @@ import type { FireCauseAggregate, FireCountyAggregate } from "@/lib/queries/fire
 
 interface FireCountyTableProps {
   countyAggregates: FireCountyAggregate[];      // 真實資料：incidents/deaths/injuries
+  /** 真實財損資料（fire.casualty_property_by_county_year，目前 2020 only） */
+  casualtyRows?: import("@/lib/queries/fire").CasualtyPropertyRow[];
   selectedCounty?: CountyCode3 | null;
   onCountyClick?: (code: CountyCode3) => void;
 }
@@ -25,18 +27,39 @@ type CountySortKey = "incidents" | "density" | "deaths" | "injuries" | "damageMi
 
 export function FireCountyTable({
   countyAggregates,
+  casualtyRows,
   selectedCounty,
   onCountyClick,
 }: FireCountyTableProps) {
   const [sortKey, setSortKey] = useState<CountySortKey>("incidents");
 
-  // 把 id_moi → CountyCode3 + 加 density + damage（damage 是 mock）
+  // 找 casualtyRows latest year & 建 id_moi → loss_million map
+  const casualtyMap = useMemo(() => {
+    if (!casualtyRows || casualtyRows.length === 0) return new Map<string, { year: number; loss_million: number }>();
+    const latestYear = Math.max(...casualtyRows.map((r) => r.year));
+    const m = new Map<string, { year: number; loss_million: number }>();
+    for (const r of casualtyRows) {
+      if (r.year !== latestYear) continue;
+      // loss_total_thousand 千元 → 百萬：÷ 1000
+      m.set(r.county_id, {
+        year: r.year,
+        loss_million: (r.loss_total_thousand ?? 0) / 1000,
+      });
+    }
+    return m;
+  }, [casualtyRows]);
+
+  const damageYear = casualtyRows && casualtyRows.length > 0
+    ? Math.max(...casualtyRows.map((r) => r.year))
+    : null;
+
+  // 把 id_moi → CountyCode3 + 加 density + damage（真實 or 0）
   const rows = countyAggregates.map((a) => {
     const c = byIdMoi[a.county_id];
     const code3 = c?.code3 as CountyCode3 | undefined;
     const density =
       c && c.pop_2024_wan > 0 ? a.incidents / c.pop_2024_wan : 0; // 件/萬人
-    const damageMillion = code3 ? FIRE_MOCK_BY_COUNTY[code3]?.damageMillion ?? 0 : 0;
+    const damageMillion = casualtyMap.get(a.county_id)?.loss_million ?? 0;
     return {
       code3: code3 ?? "??",
       name: c?.name_zh ?? a.county_id,
@@ -75,7 +98,10 @@ export function FireCountyTable({
             <HCell k="density" label="密度/萬人" />
             <HCell k="deaths" label="死亡" />
             <HCell k="injuries" label="受傷" />
-            <HCell k="damageMillion" label="財損(百萬)" />
+            <HCell
+              k="damageMillion"
+              label={damageYear ? `財損(百萬) · ${damageYear}` : "財損(百萬)"}
+            />
           </tr>
         </thead>
         <tbody>
@@ -93,8 +119,11 @@ export function FireCountyTable({
               <td className="tnum">{r.density.toFixed(1)}</td>
               <td className="tnum">{r.deaths}</td>
               <td className="tnum">{r.injuries}</td>
-              <td className="tnum" title="待 MOI 死傷財損 ETL（Sprint 1 TODO-3）">
-                {r.damageMillion} <span className="muted" style={{ fontSize: 9 }}>·待ETL</span>
+              <td
+                className="tnum"
+                title={damageYear ? `fire.casualty_property_by_county_year ${damageYear}` : "等資料"}
+              >
+                {r.damageMillion > 0 ? fmt.num(Math.round(r.damageMillion)) : "—"}
               </td>
             </tr>
           ))}
@@ -239,12 +268,40 @@ export function FireCauseTable({ causeAggregates }: FireCauseTableProps) {
 // Tab 1-C 起火處所表（mock — 待 MOI ETL）
 // ────────────────────────────────────────────────────────
 
-export function FireLocationTable() {
-  const max = Math.max(...FIRE_LOCATIONS_MOCK.map((L) => L.incidents));
+interface FireLocationTableProps {
+  /** 真實 location type aggregation（最新年）— 若 null 用 mock fallback */
+  locationTypeAgg?: import("@/lib/queries/fire").LocationTypeAggregate | null;
+}
+
+export function FireLocationTable({ locationTypeAgg }: FireLocationTableProps = {}) {
+  // 真實接通：用 locationTypeAgg；否則 fall back 到 mock
+  const useReal = !!locationTypeAgg && locationTypeAgg.by_type.length > 0;
+  const rows = useReal
+    ? locationTypeAgg!.by_type.map((b) => ({
+        label: b.label,
+        incidents: b.count,
+        pct: b.pct,
+        fatalityRate: null as number | null, // location_type 表無致死率欄位
+      }))
+    : FIRE_LOCATIONS_MOCK.map((L) => ({
+        label: L.label,
+        incidents: L.incidents,
+        pct: L.pct,
+        fatalityRate: L.fatalityRate,
+      }));
+
+  const max = Math.max(...rows.map((L) => L.incidents), 1);
   return (
     <div className="fire-table-wrap">
       <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>
-        ⏳ 待內政部統計處「行政區火災起火處所」ETL（Sprint 1 TODO-3） — 暫顯 mock
+        {useReal ? (
+          <>
+            ✓ 接通 fire.incidents_by_location_type（{locationTypeAgg!.year} 年 ·
+            樣本 {fmt.num(locationTypeAgg!.total)} 件）
+          </>
+        ) : (
+          <>⏳ 暫顯 mock — 等內政部統計處 ETL 完整</>
+        )}
       </div>
       <table className="fire-table">
         <thead>
@@ -256,7 +313,7 @@ export function FireLocationTable() {
           </tr>
         </thead>
         <tbody>
-          {FIRE_LOCATIONS_MOCK.map((L) => (
+          {rows.map((L) => (
             <tr key={L.label}>
               <td>
                 <b>{L.label}</b>
@@ -282,7 +339,9 @@ export function FireLocationTable() {
                   {L.pct.toFixed(1)}%
                 </span>
               </td>
-              <td className="tnum">{L.fatalityRate.toFixed(1)}%</td>
+              <td className="tnum">
+                {L.fatalityRate == null ? "—" : `${L.fatalityRate.toFixed(1)}%`}
+              </td>
             </tr>
           ))}
         </tbody>

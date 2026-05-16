@@ -26,7 +26,7 @@ import {
   FireCountyBars,
 } from "../FireTables";
 import { FireKpiExplode } from "../FireKpiExplode";
-import { FIRE_NATIONAL_MOCK, FIRE_SEVERITY_COLORS } from "@/lib/mock-fire";
+import { FIRE_SEVERITY_COLORS } from "@/lib/mock-fire";
 
 type Scale = "year" | "month" | "day" | "hour";
 type Dim = "daypart" | "cause" | "county" | "injury" | "place";
@@ -151,18 +151,17 @@ export function S1Incidents({ data, selectedCounty, onCountyClick }: S1Props) {
         ],
       };
     }
-    // place — mock
-    const total = 15405;
+    // place — 真實 from data.locationTypeAgg (最新年 fire.incidents_by_location_type)
+    const agg = data.locationTypeAgg;
+    if (!agg || agg.by_type.length === 0) return null;
     const colors = ["#DC2626", "#F59E0B", "#7C3AED", "#10B981", "#0EA5E9", "#94A3B8"];
     return {
-      slices: [
-        { label: "住宅",      value: 4210, pct: (4210 / total) * 100, color: colors[0] },
-        { label: "工廠/倉儲", value: 1540, pct: (1540 / total) * 100, color: colors[1] },
-        { label: "車輛",      value: 1820, pct: (1820 / total) * 100, color: colors[2] },
-        { label: "山林田野",  value: 2310, pct: (2310 / total) * 100, color: colors[3] },
-        { label: "商店",      value:  680, pct: ( 680 / total) * 100, color: colors[4] },
-        { label: "其他",      value: 4845, pct: (4845 / total) * 100, color: colors[5] },
-      ],
+      slices: agg.by_type.map((b, i) => ({
+        label: b.label,
+        value: b.count,
+        pct: b.pct,
+        color: colors[i % colors.length],
+      })),
     };
   }, [dim, data]);
 
@@ -230,15 +229,39 @@ export function S1Incidents({ data, selectedCounty, onCountyClick }: S1Props) {
         />
         <KPICard
           icon={<TrendingUp size={13} />}
-          label={<>火災財損 <span className="muted" style={{ fontSize: 9 }}>待ETL</span></>}
-          value={(FIRE_NATIONAL_MOCK.damageMillion / 100).toFixed(1)}
+          label={
+            data.financialLoss?.loss_delta_pct == null ? (
+              <>火災財損 <span className="muted" style={{ fontSize: 9 }}>{data.financialLoss?.year ?? "—"} only</span></>
+            ) : (
+              <>火災財損</>
+            )
+          }
+          value={
+            data.financialLoss != null
+              ? data.financialLoss.total_loss_billion.toFixed(1)
+              : "—"
+          }
           unit="億"
-          trend={{
-            delta: `+${FIRE_NATIONAL_MOCK.damageDeltaPct}%`,
-            direction: "up",
-            baseline: "等 MOI 統計處 ETL",
-            sentiment: "negative",
-          }}
+          trend={(() => {
+            const fl = data.financialLoss;
+            if (!fl) {
+              return { delta: "—", direction: "flat" as const, baseline: "MOI 統計處", sentiment: "neutral" as const };
+            }
+            if (fl.loss_delta_pct == null) {
+              return {
+                delta: `${fl.year} 年單年資料`,
+                direction: "flat" as const,
+                baseline: `死 ${fl.total_deaths} / 傷 ${fl.total_injuries}`,
+                sentiment: "neutral" as const,
+              };
+            }
+            return {
+              delta: `${fl.loss_delta_pct >= 0 ? "+" : ""}${fl.loss_delta_pct.toFixed(1)}%`,
+              direction: fl.loss_delta_pct >= 0 ? "up" as const : "down" as const,
+              baseline: "較去年",
+              sentiment: fl.loss_delta_pct >= 0 ? "negative" as const : "positive" as const,
+            };
+          })()}
         />
         <KPICard
           icon={<Layers size={13} />}
@@ -324,7 +347,9 @@ export function S1Incidents({ data, selectedCounty, onCountyClick }: S1Props) {
         </div>
         {dim === "place" && (
           <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>
-            ⏳ 「處所」維度等 MOI 統計處 ETL（Sprint 1 TODO-3）— 暫顯 mock
+            {data.locationTypeAgg
+              ? `✓ 接通 fire.incidents_by_location_type · ${data.locationTypeAgg.year} 年（樣本 ${fmt.num(data.locationTypeAgg.total)} 件）`
+              : "⏳ 資料載入中"}
           </div>
         )}
         {dim === "county" ? (
@@ -371,17 +396,13 @@ export function S1Incidents({ data, selectedCounty, onCountyClick }: S1Props) {
               onClick={() => setTableTab(id)}
             >
               {label}
-              {id === "location" && (
-                <span className="muted" style={{ fontSize: 9, marginLeft: 4 }}>
-                  ·待ETL
-                </span>
-              )}
             </button>
           ))}
         </div>
         {tableTab === "county" && (
           <FireCountyTable
             countyAggregates={data.countyAggregates}
+            casualtyRows={data.casualtyRows}
             selectedCounty={selectedCounty}
             onCountyClick={onCountyClick}
           />
@@ -389,7 +410,9 @@ export function S1Incidents({ data, selectedCounty, onCountyClick }: S1Props) {
         {tableTab === "cause" && (
           <FireCauseTable causeAggregates={data.causeAggregates} />
         )}
-        {tableTab === "location" && <FireLocationTable />}
+        {tableTab === "location" && (
+          <FireLocationTable locationTypeAgg={data.locationTypeAgg} />
+        )}
       </div>
     </div>
   );

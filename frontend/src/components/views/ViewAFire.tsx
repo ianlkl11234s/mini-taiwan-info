@@ -98,13 +98,18 @@ export function ViewAFire({ data, selectedCounty, onCountyClick }: ViewAFireProp
         selectedCounty={selectedCounty}
         onCountyClick={onCountyClick}
       />
-      <S2Response />
+      <S2Response data={data} />
       <S3Capacity
+        data={data}
         countyAggregates={data.countyAggregates}
         selectedCounty={selectedCounty}
         onCountyClick={onCountyClick}
       />
-      <S4Others selectedCounty={selectedCounty} onCountyClick={onCountyClick} />
+      <S4Others
+        data={data}
+        selectedCounty={selectedCounty}
+        onCountyClick={onCountyClick}
+      />
     </div>
   );
 }
