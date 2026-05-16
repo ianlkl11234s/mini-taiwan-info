@@ -25,9 +25,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWaterKpis } from "@/hooks/useWaterKpis";
 import { useRiverWaterLevel } from "@/hooks/useRiverWaterLevel";
 import { useFireData } from "@/hooks/useFireData";
-import { codeConvert, normalizeCountyName, COUNTIES, byCode3 } from "@/lib/counties";
+import { codeConvert, normalizeCountyName, COUNTIES, byCode3, byIdMoi } from "@/lib/counties";
 import { getNearestCounty } from "@/lib/reverseGeocode";
-import { FIRE_MOCK_BY_COUNTY, FIRE_MOCK_STATIONS } from "@/lib/mock-fire";
+import { FIRE_MOCK_BY_COUNTY } from "@/lib/mock-fire";
 
 // 主題色映射（與 manifest theme.color_accent 對齊）
 const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: string }> = {
@@ -264,14 +264,25 @@ export default function App() {
     return all;
   }, [useFireRealData, fire.incidentPoints, view, county]);
 
-  // B045：消防分隊 mock 點位（22 縣市質心 jitter，Sprint 2 後 swap 真實）
+  // B045：消防分隊真實點位（fire.stations 全 22 縣市，716 個）
   const fireStationsForMap = useMemo(() => {
-    if (!useFireRealData) return [];
+    if (!useFireRealData || !fire.stations.length) return [];
+    // 過濾掉沒 lat/lng 的；轉成 MapView 期望的 shape
+    const all = fire.stations
+      .filter((s) => s.lat != null && s.lng != null)
+      .map((s) => ({
+        id: s.station_id,
+        name: s.name,
+        county_name: byIdMoi[s.county_id as keyof typeof byIdMoi]?.name_zh ?? s.county_id,
+        lat: s.lat as number,
+        lng: s.lng as number,
+      }));
     if (view === "B" && county) {
-      return FIRE_MOCK_STATIONS.filter((s) => s.county_id === county);
+      const idMoi = codeConvert.code3ToIdMoi(county);
+      return all.filter((s) => fire.stations.find((st) => st.station_id === s.id)?.county_id === idMoi);
     }
-    return FIRE_MOCK_STATIONS;
-  }, [useFireRealData, view, county]);
+    return all;
+  }, [useFireRealData, fire.stations, view, county]);
 
   // Cycle E：河川水位站給 MapView
   // View A: 全國；View B: 只該縣市
