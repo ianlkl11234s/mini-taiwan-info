@@ -52,18 +52,21 @@ function buildPointLayers(
   ];
 }
 
-// B045：fire 主題點位圖層定義（heatmap + 分隊 mock 已 enabled，其他待 Sprint 2-4 ETL）
+// fire 主題點位圖層定義（hotspots / stations 已接通真實；hydrants 限高雄、forest 全國、ems 仍缺）
 function buildFirePointLayers(
   on: Record<string, boolean>,
   stationCount: number,
-  hotspotCount: number
+  hotspotCount: number,
+  hydrantCount: number,
+  forestRiskCount: number,
+  shelterCount: number
 ): PointLayerToggle[] {
   return [
     { id: "hotspots",    label: "火災熱點",          count: hotspotCount,  color: "#DC2626", shape: "small",  enabled: true,  on: on.hotspots },
-    { id: "stations",    label: "消防分隊 (mock)",   count: stationCount,  color: "#DC2626", shape: "dot",    enabled: true,  on: on.stations },
-    { id: "hydrants",    label: "消防栓 (4都)",     count: 101100,        color: "#0EA5E9", shape: "small",  enabled: false, on: on.hydrants },
-    { id: "forestRisk",  label: "林火風險",          count: 1842,          color: "#84CC16", shape: "ring",   enabled: false, on: on.forestRisk },
-    { id: "emsHospital", label: "急救醫院",          count: 178,           color: "#10B981", shape: "square", enabled: false, on: on.emsHospital },
+    { id: "stations",    label: "消防分隊",          count: stationCount,  color: "#DC2626", shape: "dot",    enabled: true,  on: on.stations },
+    { id: "hydrants",    label: "消防栓（限高雄）",  count: hydrantCount,  color: "#0EA5E9", shape: "small",  enabled: false, on: on.hydrants },
+    { id: "forestRisk",  label: "林火風險點",        count: forestRiskCount, color: "#84CC16", shape: "ring",   enabled: false, on: on.forestRisk },
+    { id: "emsHospital", label: "避難收容所",        count: shelterCount,  color: "#10B981", shape: "square", enabled: false, on: on.emsHospital },
   ];
 }
 
@@ -153,8 +156,10 @@ export default function App() {
       }
     }
 
-    // Fire choropleth：火災密度 真實，其他 mock
+    // Fire choropleth：火災密度 / 分隊密度 / 栓密度 真實；5min 圈外仍 mock
     const fireDensityByCode3 = new Map<CountyCode3, number>();
+    const stationsPerWanByCode3 = new Map<CountyCode3, number>();
+    const hydrantsByCode3 = new Map<CountyCode3, number>();
     if (useFireRealData) {
       for (const a of fire.countyAggregates) {
         const c = COUNTIES.find((x) => x.id_moi === a.county_id);
@@ -164,6 +169,24 @@ export default function App() {
             a.incidents / c.pop_2024_wan
           );
         }
+      }
+      // 真實分隊密度：fire.stations groupBy county_id
+      const stationsByCounty = new Map<string, number>();
+      for (const s of fire.stations) {
+        stationsByCounty.set(s.county_id, (stationsByCounty.get(s.county_id) ?? 0) + 1);
+      }
+      for (const c of COUNTIES) {
+        const cnt = stationsByCounty.get(c.id_moi) ?? 0;
+        if (c.pop_2024_wan > 0) {
+          stationsPerWanByCode3.set(c.code3 as CountyCode3, cnt / c.pop_2024_wan);
+        }
+      }
+      // 真實栓密度（目前只高雄）
+      // hydrantNationalCount 是 1 個整數，要走縣市 fetch 才能 by county；簡化做法：
+      // 只給高雄 = hydrantNationalCount / 高雄 area，其他縣市 null（地圖會 gray）
+      const khh = COUNTIES.find((x) => x.id_moi === "E");
+      if (khh && fire.hydrantNationalCount > 0 && khh.area_km2 > 0) {
+        hydrantsByCode3.set(khh.code3 as CountyCode3, fire.hydrantNationalCount / khh.area_km2);
       }
     }
 
@@ -184,17 +207,14 @@ export default function App() {
         if (metric === "fire_density_per_wan") {
           value = fireDensityByCode3.get(code) ?? null;
         } else if (metric === "station_density_per_wan") {
-          value = mock?.stationsPerWan ?? null;
+          // 真實 from fire.stations groupBy county_id
+          value = stationsPerWanByCode3.get(code) ?? null;
         } else if (metric === "out_of_5min_pct") {
+          // 仍 mock — 需 Sprint 3 PostGIS ST_Buffer × demographics
           value = mock?.outOf5MinPct ?? null;
         } else if (metric === "hydrant_density_per_km2") {
-          // 4 都 only — 用 area_km2 算密度
-          const c = byCode3[code];
-          if (mock && mock.hydrants > 0 && c?.area_km2 > 0) {
-            value = mock.hydrants / c.area_km2;
-          } else {
-            value = null;
-          }
+          // 真實 — 目前只高雄有資料；其他縣市保持 null（地圖 gray）
+          value = hydrantsByCode3.get(code) ?? null;
         }
       }
       // fallback to mock (water mock; fire 主題若 metric 無資料則保持 null)
@@ -418,7 +438,10 @@ export default function App() {
                     ? buildFirePointLayers(
                         pointLayersOnFire,
                         fireStationsForMap.length,
-                        fireIncidentPointsForMap.length
+                        fireIncidentPointsForMap.length,
+                        fire.hydrantNationalCount,
+                        fire.forestRisk?.total ?? 0,
+                        fire.shelterNationalCount
                       )
                     : []
               }
