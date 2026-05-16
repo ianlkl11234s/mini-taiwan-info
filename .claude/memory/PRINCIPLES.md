@@ -235,3 +235,15 @@ Reference: B046 ViewBFire `FireRadarCard.norm()`，codex review 2026-05-16 抓�
 **正確做法**：mock 內維持 0 表示 raw data 缺，但前端轉成 view 時用 `value > 0 ? value / divisor : null`，雷達 city polygon 對 null fallback 到 avg score 不塌陷，avg 計算過濾 null（如 hydrant 平均只算 4 都樣本），verdict 排除 null 軸。
 
 Reference: B046 ViewBFire `FireRadarCard.cityVal.hydrantDensity`，codex review 2026-05-16 抓到。
+
+### 2026-05-16: 卡片就地展開元件 root 必加 stopPropagation
+
+KPICard root `<div className="kpi-card" onClick={onExpand}>` 整張卡綁 toggle。任何放在 `explodeContent` 裡的 interactive child（toggle / 收起按鈕 / select / link）點擊都會 bubble 到 root 觸發 onExpand 收回卡片。
+
+**規則**：任何給 KPICard `explodeContent` 用的展開元件，root container 必加 `onClick={(e) => e.stopPropagation()}` 包整層。額外，需要 close 行為的按鈕（收起 / cancel / 確定）onClick 也雙重 `stopPropagation`。
+
+**為什麼**：KPICard 是「整張卡點擊 = expand toggle」設計（cursor:pointer + hover lift 暗示），這 UX 不應破壞，但內部互動必須能獨立運作。stopPropagation 是兩者並存的唯一解。
+
+**Sibling**：未來 PointProfile / RankBars / 任何「整 row/卡 clickable」元件加可互動 child，都要套這條。
+
+Reference: FireKpiExplode.tsx:91，B047 agent-browser 互動測試 2026-05-16 才發現。codex review 對事件流盲區（見 INCIDENTS 同日條目）。
