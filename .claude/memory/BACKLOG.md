@@ -67,6 +67,13 @@
 | B056 | P3 | **drought_alert 過去 5 年 timeline** | 待開工 | S3Drought 顯示「資料累積中」占位，等 collector 累積 30+ 筆 history（預計 6 個月）後實作真正 timeline 繪製 |
 | B057 | P2 | **淹水 200/500mm 情境接通** | 待開工 | S6Disaster 切換 200/350/500mm，目前只 350 接 useWaterKpis.flood。要嘛改 hook 並行 fetch 3 個情境，要嘛動態 refetch |
 | B058 | P3 | **用水結構 sector 拆解資料** | 待開工 | S5Usage「用水結構」目前 mock + badge「結構估算」。datagov 可能有民生/工業/農業細分，未確認；現用 DB 無 sector 欄位 |
+| B059 | **P0** | **ViewB 阻塞: 縣市→供水區/水情區/台水分區 3 mapping table** | 待開工 | gis-platform migration ~1.5 day 手抄。`reference.county_supply_region` / `county_drought_region` / `county_twc_region`。不建 ViewB 章 2/3/4 都做不出來。詳 designs/v04/coverage-audit.md Part 2 P0 |
+| B060 | **P0** | **drought_alert collector 補 4 區（北水/桃竹/南水/高屏）** | 待開工 | data-collectors 0.5 day。目前只跑台中/新竹 2/6 區。drought_alert_current 全表 2 列 → 章 3 燈號全國視覺空 |
+| B061 | **P0** | **water_quality_stations county 欄位 normalize** | 待開工 | gis-platform migration 0.5 day。雙寫（南投/南投縣 / 台北/臺北市）+ 加 county_id 欄位用 county_aliases LEFT JOIN。章 1 水質站數 normalize 前不能信 |
+| B062 | P1 | **ViewB 統合 RPC: get_county_water_summary(county_id)** | 待開工 | gis-platform 1 day。章 1+2+5 一次包，減 round trip。詳 audit Part 2 P1 |
+| B063 | P1 | **ViewB get_river_stations_by_county / get_river_lines_by_county RPC** | 待開工 | gis-platform 1.5 day。章 1 流量站 + 河川條數，要 ST_Contains spatial join |
+| B064 | P1 | **flood_hazard_townships RPC** | 待開工 | gis-platform 0.5 day。flood_hazard_zones 已有 town 欄位，純 GROUP BY town RPC 包裝即可。章 6 淹水展開鄉鎮里直接可做 |
+| B065 | P3 | **iot_wra_stations.county_name strip 省份前綴** | 待開工 | gis-platform 0.5 day。「臺灣省 / 福建省」前綴 normalize，章 1 替代河川站用 |
 
 ---
 
