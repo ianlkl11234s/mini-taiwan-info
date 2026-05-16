@@ -53,8 +53,8 @@
 | B042 | P1 | **fire-S2 區塊 2 placeholder swap** | 待開工 | 消防分隊 + 消防栓 → 等 Sprint 2 TODO-5/6/7/8（7 都分隊 + 374 筆 Google geocoding + 4 都消防栓）5-7 天 |
 | B043 | P2 | **fire-S3 區塊 3 placeholder swap** | 待開工 | 分隊密度 / 5min 圈外人口 / 量能對照 → 等 Sprint 3 PostGIS 衍生表（stations_density / service_coverage）3-4 天 |
 | B044 | P2 | **fire-S4 區塊 4 placeholder swap** | 待開工 | 救護 / 急救醫院 / 林火 / 災變 → 等 Sprint 4 多源 ETL（衛福部全國急救醫院 catalog 缺，需手爬）3-5 天 |
-| B045 | P1 | **fire 地圖層：消防分隊 dot + 火災 heatmap** | 待開工 | SPEC.md 明指「兩層始終 on」。可用現有 fire.incidents 48,626 lat/lng 立即做 heatmap + mock 分隊 dot 過渡；1-2 hr |
-| B046 | P1 | **fire ViewB 縣市儀錶板** | 待開工 | 5 tabs（概覽/incidents/response/service/others）+ 頂端雷達圖 6 指標 + 服務圈 buffer。設計 view-b-fire.jsx 已有藍圖；user 點縣市目前只 highlight，要進 ViewB 才能 drilldown。1-2 天 |
+| ~~B045~~ | ~~P1~~ | ~~fire 地圖層：消防分隊 dot + 火災 heatmap~~ | ✅ 2026-05-16 完成 | 見已完成區 |
+| ~~B046~~ | ~~P1~~ | ~~fire ViewB 縣市儀錶板~~ | ✅ 2026-05-16 完成 | 見已完成區 |
 | B047 | P2 | **fire KPI 爆炸視圖** | 待開工 | 點 KPI 卡 → 大圖 + time scale + dimension 切換器（年/月/日/時 × 縣市/原因/場所/嚴重度），20 種組合。設計 SPEC.md 區塊「KPI 爆炸視圖」 |
 | B048 | P2 | **儀錶板 800×600 stack-to-vertical 缺失** | 待開工 | Agent A 2026-05-16 截圖：< 900 viewport split-view 仍硬切左右 50/50，右 pane ≈ 400 px 內容嚴重溢出右側，無 horizontal scroll 暗示。要加 `@media (max-width: 900px) { .main { grid-template-rows: auto auto; grid-template-columns: 1fr; } }` |
 | B049 | P3 | **Donut 圖例溢位（chart-annot 標籤貼邊）** | 待開工 | Agent A 2026-05-16 觀察：fire S1「組成佔比」donut 在所有寬度數值 label 貼卡片邊（如 `10.4% 5,033`）。可能要縮 donut 半徑 / 加 label 推開 / margin 增加。約 30min |
@@ -66,6 +66,8 @@
 
 | 日期 | ID | 摘要 |
 |---|---|---|
+| 2026-05-16 | B046 (S6) | **Fire ViewB 縣市儀錶板** — gis-platform migration 105 incidents_by_county_cause_year MV + frontend ViewBFire.tsx 1170 行（Hero + Radar 5 軸 + 5 sub-tabs）+ query/hook/mock/App route + 設計稿 fire-* CSS 184 行補齊。Codex 抓 2 critical 全修（norm 方向 / hydrants null）。跨 2 repo 2 commits push |
+| 2026-05-16 | B045 (S6) | **Fire 地圖層 heatmap + 分隊 dot** — MapView 加 fire-incidents-heatmap + fire-stations-pt + label，補水主題 gate 漏網之魚（reservoirs/river-stations），加 METRIC_NONE「無染色」radio + buildFirePointLayers 5 toggle panel，兼修 1100×700 邊界裁切，z-order fix (beforeId='counties-border')，heatmap paint 漸層調 7-stop。4 commits mini-taiwan-info push |
 | 2026-05-15 | Fire Phase 1 (S5) | ViewA Fire 4 區塊 + queries/hook/mock-fire + 11 components + 響應式 CSS + App routing + 修 4 個 CSS bug；S1 真實接（48,626 件 / 5+22 cause / 22 縣市 / 4 時間切片），S2/S3/S4 mock 標待ETL |
 | 2026-05-15 | fire-etl TODO-1 (S5) | 12_upload_to_supabase.py 跑完 48,626 筆 fire.incidents + 4 MV refresh |
 | 2026-05-15 | gis-platform 104 (S5) | public.fire_* wrapper views + RPCs（PostgREST exposed schema 限制 workaround） |
