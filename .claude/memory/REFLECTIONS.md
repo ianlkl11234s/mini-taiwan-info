@@ -280,6 +280,99 @@ BACKLOG: 移完成項 + B029-B040 共 12 個新項
 
 ---
 
+## 2026-05-16 · Session 6 · B045 fire 地圖層 + B046 fire ViewB（兩個 cycle 一 session）
+
+### 本 session 做了什麼
+
+User 開場引用 HANDOFF_NEXT_SESSION.md，目標「fire mock 換真實」。一次 session 跑完 2 個完整 cycle：
+
+**Cycle 1 — B045 fire 地圖層**（Mode V+P，純前端 1-2 hr）：
+- /theme-loop fire → 4 並行 discovery agent 確認 fire.incidents 100% 有 lat/lng + public.fire_list_incidents RPC 已暴露（不用 migration 105 — agent D 報錯，實際後續驗證需要 wrapper view）
+- MapView 加 fire-incidents-heatmap + fire-stations-pt + fire-stations-label
+- 補水主題 gate 漏網之魚（reservoirs-pt / reservoirs-label / river-stations-pt 沒被 gate）
+- 加「無染色」灰底模式（METRIC_NONE sentinel）— user 截圖踩到「分隊密度紅 + heatmap 紅」整片紅看不清才意識到要做
+- buildFirePointLayers 5 toggle panel（hotspots/stations enabled，hydrants/forestRisk/emsHospital disabled 待 Sprint）
+- 兼修 1100×700 邊界裁切（@media (max-width: 1200px) padding/gap/grid min 縮）
+- B048-B050 backlog 加（800×600 stack / Donut 溢位 / KPI 單位緊貼）
+- Codex 抓 1 critical（heatmap z-order 蓋縣市標籤）→ addLayer beforeId='counties-border' 一行修
+- heatmap paint 漸層調整（user 截圖太紅後 weight 1→0.6 / intensity zoom6 0.6→0.25 / 加 7 個 color stops）
+- 4 commit 上 origin/main
+
+**Cycle 2 — B046 fire ViewB 縣市儀錶板**（Mode D 跨 repo，~3-4 hr）：
+- /theme-loop fire → 4 並行 discovery → 結論：fire 5+22 cause MV 缺 county_id 維度，必須新 migration
+- gis-platform/migrations/105 incidents_by_county_cause_year MV + public wrapper（823 rows applied）
+- frontend ViewBFire.tsx 1170 行（Hero + Radar 5 軸 + 5 sub-tabs：overview/incidents/response/service/others）
+- 雷達拍板「5 軸去掉財損」（schema 無 property_loss 欄位）
+- Codex 抓 2 critical：
+  - **norm() lower-better 軸方向錯**（火災密度 v=14 = 外圈 = 視覺「最危險」但同一圖內 stationDensity v=14 也 = 外圈 = 視覺「最好」，矛盾）→ 統一 score 公式 `lower-better: 1 - v/max`，外圈永遠 = 表現好
+  - **hydrants=0 對 18 縣市被當真值**（4 都才有資料）→ 設 null，雷達/avg/verdict 跳過該軸
+- User 截圖回報「分隊清單看起來只是文字 list」→ 發現移植 ViewBFire 沒一併把設計 bundle 的 fire-* CSS（.fire-radar-card / .fcm-row / .fire-station-grid 等 9 組）append 到 globals.css → 補 184 行 + 加 `--accent-fire-deep` / `--accent-fire-soft` CSS 變數
+- 1 commit gis-platform + 1 commit mini-taiwan-info（含 6 檔）
+
+### What worked
+
+1. **2 cycle 一 session 跑得完** — Mode P (B045) → Mode D (B046) 不同模式都 fire；context 控管靠 discovery agent 並行 + 細部 read 用 grep 限縮
+2. **discovery agent 並行 4 個** 兩個 cycle 都用 — schema 預檢 / data candidates / structure gap / current screenshot；agent D schema 預檢避免亂跑 migration（B045 不需 / B046 需要）
+3. **Codex review 對 critical bug 3 連抓**（B045 z-order / B046 norm 方向 / B046 hydrant 0）— 都是視覺上很難察覺但邏輯上嚴重的錯誤。PB-08 driver 第三次驗證成功，採納為「視覺/數值類大改動必派 codex」strict rule
+4. **/theme-loop skill 5 階段第三 / 四次跑** — TaskList 跟 stage 對應穩定，Stage 2 拍板 AskUserQuestion 用得順
+5. **CSS verbatim 從 design bundle 直接拷貝** — 184 行 fire-* 樣式 grep + append 一氣呵成，沒 rework
+6. **migration 105 用 scaffold-rpc-wrapper 心智模型**（雖然沒實際 invoke skill）— LEFT JOIN cause_taxonomy 保留 null cause + public wrapper view + security_invoker，0 rework
+7. **atomic commit 跨 2 repo** — gis-platform migration 105 / mini-taiwan-info ViewBFire 1 commit 6 檔（合理：B046 是一體變動）
+
+### What didn't / 失誤
+
+1. **B045 user 第一次截圖看到「整片紅」** — 我沒在 heatmap 上線 + 著色指標切到「分隊密度」（紅 ramp）同時 preview 視覺，user 才意識到要做「無染色」模式。**下次：色彩衝突要在 Stage 2 plan 階段就 simulate**
+2. **雷達圖 norm() 方向反向** — 我直接 copy view-b-fire.jsx 公式（`v / max`）沒思考 lower-better / higher-better 混在同圖內視覺意義，codex 才抓
+3. **hydrants 0 對 18 縣市** — copy 設計時沒注意這是「沒這資料」不是「密度真的 0」，雷達 verdict 把每個非 4 都縣市都標「比全國差」，codex 抓
+4. **CSS 移植漏網之魚** — ViewBFire.tsx 寫完 typecheck 過、scaffold 看似完整，但跑 dev server user 看到「只是文字 list」— 沒記得 globals.css 缺對應 fire-* className。**下次：移植 design component 必須 grep `styles.css` 對應 className 區段，一併 append**
+5. **agent D Schema 預檢第一次 wrong call** — 對 B045 報「不需 migration」沒問題；但對 B046（5+22 cause 縣市版）一開始也是 RPC 直接撐住的論點，但後來討論才確認 MV 缺維度。**Discovery 階段 agent 報告要明確問「縣市維度可用嗎」，不要只看「RPC 是否暴露」**
+6. **設計稿 fire-* CSS 沒在 Session 5 fire ViewA 時就移植** — 因為 ViewA 只用到 fire-bar-row / fire-table / fire-timeline，剛好都有 globals.css 內，沒撞牆。等 ViewB 加 fire-radar-card / fcm-row / fire-station-grid / fire-buffer-legend / fire-risk-bar 才爆，這是 Session 5 沒一勞永逸把整套 fire-* CSS 一起移植的後果
+
+### Next-time rules
+
+- **新主題大改動完成後，到瀏覽器切 metric / point layer / theme 4-5 種組合 preview 視覺衝突**（特別是相同 color ramp 同時 active 時）
+- **雷達圖 / 進度條 / score-based 圖表，所有軸用統一 normalized score（0=worst, 1=best），外圈永遠=表現好**；混 higher/lower-better 軸時必須反轉公式不是反 goodDir flag
+- **mock 0 值要區分 missing vs 真實 density 0** — 寫程式時若 mock 對部分縣市/類別不適用，設 null 而非 0，雷達/平均/verdict 跳過
+- **移植 design bundle 元件 SOP（PB-12 提取）**：
+  1. Read 完整 jsx file（不是只 grep 結構）
+  2. Grep 對應 styles.css 的所有 className 區段
+  3. TS strict 化 JSX
+  4. Append CSS 到 globals.css 對應主題段
+  5. 響應式 media query 防 dashboard pane 窄時擠垮
+- **跨 cycle scope creep 處置**：B045 user 中途要求「無染色 + point panel」就重開 Stage 3 不另開 cycle（這次 30min 兼修，順）；但若 user 要求「+ 雷達」那種 1 hr+ 工作量，應該另開 cycle 維持 commit 顆粒度
+- **Stage 4 typecheck PASS + codex review 仍可能漏 CSS** — Stage 4 加「user 真實瀏覽器 screen check」明確列為 checkpoint，typecheck/截圖 agent 都驗不出 CSS 缺失
+
+### Memory 產出（本 session）
+
+更新 8 個 memory 檔：
+- BACKLOG: B045 + B046 → 完成；B048-B050 已加（前次 commit）
+- PRINCIPLES: +3 條（雷達 score-unified / design bundle CSS 一併移植 / mock 0 區分）
+- INCIDENTS: +4 條（heatmap z-order / 雷達 norm 反向 / hydrants null / 設計稿 CSS 缺）
+- PLAYBOOKS: +PB-12（移植 design bundle 元件 4 步 SOP）
+- GLOSSARY: +6 詞（METRIC_NONE / showFireHeatmap / score-unified / FIRE_RADAR_AXES / FIRE_KHH_OUTOF_VILLAGES / 設計稿 className）
+- CROSS_REPO: update（B045 push 完 / B046 commit / gis 105 push）
+- STATUS: rewrite（fire 主題 ViewA+ViewB 全上線，下一目標 B041/B043）
+- REFLECTIONS: 本條
+
+### 對 /theme-loop skill 的反省
+
+- 4 次累計（cycle 1 / 4 / 5 / 6），核心結構穩，但 Stage 1 discovery agent D「schema 預檢」要明確區分兩件事：
+  - 「該 schema 是否 PostgREST exposed」（public wrapper 是否存在）
+  - 「該 schema 內表的維度是否夠用」（如 B046 需要 county_id 維度但既有 MV 沒有）
+  Agent prompt 加「能 by-county filter 嗎 / RPC p_county 對齊嗎」二問
+- Stage 2 plan 階段缺「視覺衝突 preview 機制」— 新主題完整跑前，list 出 metric × point layer × heatmap 可能組合，標出已知會撞色的搭配
+- Stage 4 Verify 三閘還有缺：CSS / 移植完整性閘（用 grep className 對比 globals.css）
+  → 留下次 cycle 跑完一輪後回頭修 SKILL.md（同 v1 反省）
+
+### 對 /wrap-up skill 的反省
+
+- 5 次累計（Session 2 init + Session 2 試跑 + Session 3 + Session 4 + Session 5 + 本次）
+- Mode B Incremental 第 4 次驗證流程順
+- Stage 0 mode 判斷 + Stage 6 harness audit 兩個 v1.1 加的 stage 都實際 fire
+- 待修 SKILL.md：Stage 2 加事件分類表新增類別「移植 design bundle 缺 CSS」→ INCIDENTS
+
+---
+
 ## 2026-05-15 · Session 5 · 消防主題 ViewA Phase 1（4 區塊 + 接通真實）
 
 ### 本 session 做了什麼
