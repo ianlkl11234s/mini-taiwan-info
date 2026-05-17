@@ -118,6 +118,7 @@ export function ViewAWater({ water, river, selectedCounty, onCountyClick, onDril
       <S2Storage
         reservoirs={water.reservoirs}
         summary={water.summary}
+        groundwaterSummary={water.groundwaterSummary}
         onCountyClick={onCountyClick}
         onDrillReservoir={onDrillReservoir}
       />

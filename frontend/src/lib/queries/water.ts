@@ -470,3 +470,85 @@ export async function fetchGovernanceSummary(): Promise<GovernanceSummary> {
     sewage_by_county: sewageByCounty,
   };
 }
+
+// ─────────────────────────────────────────────────
+// 地下水即時水位（RPC: get_groundwater_latest）
+// gis-platform migration 046；Collector 每小時更新 959 監測井
+// ─────────────────────────────────────────────────
+
+export interface GroundwaterStationRow {
+  station_id: string;
+  well_name: string | null;
+  agency_unit: string | null;
+  county: string | null;          // 中文縣市，須 normalize
+  township: string | null;
+  lat: number;
+  lng: number;
+  elevation_m: number | null;
+  water_level_m: number | null;
+  delta_24h: number | null;       // 24 小時水位變化（m）；正值=回補；負值=下降
+  observed_at: string;
+}
+
+export async function fetchGroundwaterLatest(): Promise<GroundwaterStationRow[]> {
+  const { data, error } = await supabase.rpc("get_groundwater_latest");
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[query] get_groundwater_latest failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    station_id: String(r.station_id),
+    well_name: r.well_name == null ? null : String(r.well_name),
+    agency_unit: r.agency_unit == null ? null : String(r.agency_unit),
+    county: r.county == null ? null : String(r.county),
+    township: r.township == null ? null : String(r.township),
+    lat: Number(r.lat),
+    lng: Number(r.lng),
+    elevation_m: r.elevation_m == null ? null : Number(r.elevation_m),
+    water_level_m: r.water_level_m == null ? null : Number(r.water_level_m),
+    delta_24h: r.delta_24h == null ? null : Number(r.delta_24h),
+    observed_at: String(r.observed_at),
+  }));
+}
+
+export interface GroundwaterSummary {
+  total_stations: number;
+  stations_with_reading: number;
+  avg_delta_24h_cm: number;   // 全國平均 24h 變化（cm，方便顯示）
+  rising_count: number;       // delta_24h > 0
+  falling_count: number;      // delta_24h < 0
+  steady_count: number;       // |delta_24h| < 0.005m (0.5 cm) 視為穩定
+  observed_at_latest: string | null;
+}
+
+export function deriveGroundwaterSummary(rows: GroundwaterStationRow[]): GroundwaterSummary {
+  let withReading = 0;
+  let deltaSum = 0;
+  let deltaN = 0;
+  let rising = 0;
+  let falling = 0;
+  let steady = 0;
+  let latest: string | null = null;
+  for (const r of rows) {
+    if (r.water_level_m != null) withReading += 1;
+    if (r.delta_24h != null) {
+      deltaSum += r.delta_24h;
+      deltaN += 1;
+      const abs = Math.abs(r.delta_24h);
+      if (abs < 0.005) steady += 1;
+      else if (r.delta_24h > 0) rising += 1;
+      else falling += 1;
+    }
+    if (r.observed_at && (!latest || r.observed_at > latest)) latest = r.observed_at;
+  }
+  return {
+    total_stations: rows.length,
+    stations_with_reading: withReading,
+    avg_delta_24h_cm: deltaN > 0 ? (deltaSum / deltaN) * 100 : 0,
+    rising_count: rising,
+    falling_count: falling,
+    steady_count: steady,
+    observed_at_latest: latest,
+  };
+}

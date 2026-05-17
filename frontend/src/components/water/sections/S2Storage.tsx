@@ -11,7 +11,7 @@
  * mock + footnote：vs 上月同期（snapshot 30 天保留期不足跨月對比）
  */
 
-import { Waves, Droplet, CloudRain, AlertTriangle } from "lucide-react";
+import { Waves, Droplet, CloudRain, AlertTriangle, ArrowDownToLine } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { KPICard } from "@/components/kpi/KPICard";
 import { PointProfile } from "@/components/point-profile/PointProfile";
@@ -19,6 +19,7 @@ import { WaterCatHeader } from "../WaterCatHeader";
 import type {
   ReservoirStatusRow,
   WaterKpiSummary,
+  GroundwaterSummary,
 } from "@/lib/queries/water";
 import { normalizeReservoirRegion } from "@/lib/queries/water";
 import type { CountyCode3 } from "@/lib/types";
@@ -26,6 +27,7 @@ import type { CountyCode3 } from "@/lib/types";
 interface Props {
   reservoirs: ReservoirStatusRow[];
   summary: WaterKpiSummary | null;
+  groundwaterSummary: GroundwaterSummary | null;
   onCountyClick?: (code: CountyCode3) => void;
   onDrillReservoir?: (id: string) => void;
 }
@@ -48,7 +50,7 @@ function rateTone(r: number): "" | "crit" | "warn" {
   return "";
 }
 
-export function S2Storage({ reservoirs, summary, onCountyClick, onDrillReservoir }: Props) {
+export function S2Storage({ reservoirs, summary, groundwaterSummary, onCountyClick, onDrillReservoir }: Props) {
   // 4 區容量加權 + 全國加權
   const byRegion: RegionRow[] = REGION_ORDER.map((id) => {
     const inRegion = reservoirs.filter(
@@ -152,8 +154,8 @@ export function S2Storage({ reservoirs, summary, onCountyClick, onDrillReservoir
         </div>
       </div>
 
-      {/* 24hr 雨量 + 警戒水庫 KPI */}
-      <div className="kpi-grid cols-2" style={{ marginBottom: 14 }}>
+      {/* 24hr 雨量 + 警戒水庫 + 地下水位 KPI（3 軸即時） */}
+      <div className="kpi-grid cols-3" style={{ marginBottom: 14 }}>
         <KPICard
           icon={<CloudRain size={13} />}
           label="24hr 全國均雨量"
@@ -176,6 +178,36 @@ export function S2Storage({ reservoirs, summary, onCountyClick, onDrillReservoir
             direction: "flat",
             baseline: "即時",
             sentiment: summary && summary.alert_reservoir_count > 3 ? "negative" : "neutral",
+          }}
+        />
+        <KPICard
+          icon={<ArrowDownToLine size={13} />}
+          label="地下水監測井"
+          value={groundwaterSummary ? fmt.num(groundwaterSummary.total_stations) : "—"}
+          unit="井"
+          trend={{
+            delta: groundwaterSummary
+              ? `24h 平均 ${groundwaterSummary.avg_delta_24h_cm >= 0 ? "+" : ""}${groundwaterSummary.avg_delta_24h_cm.toFixed(1)} cm`
+              : "資料載入中",
+            direction:
+              !groundwaterSummary
+                ? "flat"
+                : groundwaterSummary.avg_delta_24h_cm > 0.5
+                  ? "up"
+                  : groundwaterSummary.avg_delta_24h_cm < -0.5
+                    ? "down"
+                    : "flat",
+            baseline: groundwaterSummary
+              ? `↑${groundwaterSummary.rising_count} · ↓${groundwaterSummary.falling_count}`
+              : "WRA IoT 每小時",
+            sentiment:
+              !groundwaterSummary
+                ? "neutral"
+                : groundwaterSummary.avg_delta_24h_cm < -1
+                  ? "negative"
+                  : groundwaterSummary.avg_delta_24h_cm > 1
+                    ? "positive"
+                    : "neutral",
           }}
         />
       </div>

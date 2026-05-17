@@ -16,6 +16,8 @@ import {
   fetchRainGaugeLatest,
   fetchGovernanceSummary,
   fetchFloodPctByCounty,
+  fetchGroundwaterLatest,
+  deriveGroundwaterSummary,
   aggregateWaterKpis,
   aggregateFloodPct,
   type ReservoirStatusRow,
@@ -23,6 +25,8 @@ import {
   type WaterKpiSummary,
   type GovernanceSummary,
   type FloodSummary,
+  type GroundwaterStationRow,
+  type GroundwaterSummary,
 } from "@/lib/queries/water";
 import {
   fetchWaterFacts,
@@ -74,6 +78,9 @@ export interface WaterKpisState {
   sewageNationalHistory: Array<{ year: number; coverage_avg: number }>; // 章 5 trend
   detention: DetentionSummary | null;                   // 章 6 滯洪池
   subsidenceTop: SubsidenceCountyRow[];                 // 章 6 地層下陷
+  // 章 2 補：地下水即時水位（migration 046 + Collector cron 每小時，959 監測井）
+  groundwaterStations: GroundwaterStationRow[];
+  groundwaterSummary: GroundwaterSummary | null;
 }
 
 const EMPTY_STATE: WaterKpisState = {
@@ -97,6 +104,8 @@ const EMPTY_STATE: WaterKpisState = {
   sewageNationalHistory: [],
   detention: null,
   subsidenceTop: [],
+  groundwaterStations: [],
+  groundwaterSummary: null,
 };
 
 export function useWaterKpis(): WaterKpisState {
@@ -126,6 +135,7 @@ export function useWaterKpis(): WaterKpisState {
           fetchSewageNationalHistory(),          // 13
           fetchDetentionSummary(),               // 14
           fetchSubsidenceTopCounties(5),         // 15
+          fetchGroundwaterLatest(),              // 16
         ]);
         if (cancelled) return;
 
@@ -142,6 +152,7 @@ export function useWaterKpis(): WaterKpisState {
           "pipeline", "customer", "treatment_plants_large",
           "sewage_plants_count", "monthly_supply", "water_loss",
           "sewage_national_history", "detention", "subsidence",
+          "groundwater",
         ];
         results.forEach((r, i) => {
           if (r.status === "rejected") {
@@ -166,6 +177,7 @@ export function useWaterKpis(): WaterKpisState {
         const sewageNationalHistory = get(13, [] as Array<{ year: number; coverage_avg: number }>);
         const detention = get<DetentionSummary | null>(14, null);
         const subsidenceTop = get(15, [] as SubsidenceCountyRow[]);
+        const groundwaterStations = get(16, [] as GroundwaterStationRow[]);
         const summary = aggregateWaterKpis(reservoirs, rainStations);
         const flood = aggregateFloodPct(floodRows);
         const scale = buildScale(facts, reservoirs.length, rainStations.length);
@@ -190,6 +202,8 @@ export function useWaterKpis(): WaterKpisState {
           sewageNationalHistory,
           detention,
           subsidenceTop,
+          groundwaterStations,
+          groundwaterSummary: deriveGroundwaterSummary(groundwaterStations),
         });
       } catch (e) {
         if (cancelled) return;
