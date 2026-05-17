@@ -6,8 +6,8 @@
  *   - 散布圖 x = 火災密度（真實，from countyAggregates）
  *   - 散布圖 y = 分隊密度（真實，from stations）
  *
- * 仍 placeholder：
- *   - 5min 圈外人口比 — 需 Sprint 3 PostGIS ST_Buffer × demographics
+ * 2026-05-18 B067：5min 圈外人口接通 fire.service_coverage_by_county MV
+ *   （migration 111 / 113 wrapper）— ST_DWithin 3km 估算，5min ≈ 3km 直線。
  */
 
 import { useMemo, useState } from "react";
@@ -20,7 +20,7 @@ import type { FireDataState } from "@/hooks/useFireData";
 import type { FireCountyAggregate } from "@/lib/queries/fire";
 import { FireCatHeader } from "../FireCatHeader";
 import { FireScatter, FireScatterLegend, type FireScatterPoint } from "../FireScatter";
-import { FIRE_MOCK_BY_COUNTY, FIRE_REGION_COLORS } from "@/lib/mock-fire";
+import { FIRE_REGION_COLORS } from "@/lib/mock-fire";
 
 interface S3Props {
   data: FireDataState;
@@ -74,14 +74,23 @@ export function S3Capacity({ data, countyAggregates, selectedCounty, onCountyCli
     });
   }, [countyAggregates, stationsByCounty]);
 
+  // 各縣市 3km 圈外人口比（真實 from fire.service_coverage_by_county MV）
+  const coverageByCounty = useMemo(() => {
+    const acc = new Map<string, number>();
+    for (const r of data.serviceCoverage) {
+      acc.set(r.county_id, r.uncovered_pop_pct);
+    }
+    return acc;
+  }, [data.serviceCoverage]);
+
   // 量能對照表
   const tableRows = useMemo(() => {
     return COUNTIES.map((c) => {
       const stationCount = stationsByCounty.get(c.id_moi) ?? 0;
       const stationsPerWan = c.pop_2024_wan > 0 ? stationCount / c.pop_2024_wan : 0;
       const stationsPer100km2 = c.area_km2 > 0 ? (stationCount / c.area_km2) * 100 : 0;
-      // 5min 圈外仍 mock — Sprint 3 PostGIS 才能算
-      const outOf5MinPct = FIRE_MOCK_BY_COUNTY[c.code3]?.outOf5MinPct ?? 0;
+      // B067：接通 fire.service_coverage_by_county MV（3km ≈ 5min 估算）
+      const outOf5MinPct = coverageByCounty.get(c.id_moi) ?? 0;
       return {
         code3: c.code3,
         name: c.name_zh,
@@ -93,7 +102,7 @@ export function S3Capacity({ data, countyAggregates, selectedCounty, onCountyCli
         outOf5MinPct,
       };
     }).sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number));
-  }, [stationsByCounty, sortKey]);
+  }, [stationsByCounty, coverageByCounty, sortKey]);
 
   const HCell = ({ k, label, isPending }: { k: SortKey; label: string; isPending?: boolean }) => (
     <th
@@ -117,8 +126,8 @@ export function S3Capacity({ data, countyAggregates, selectedCounty, onCountyCli
           </>
         }
         tagline="分隊密度 vs 火災頻率：哪些縣市量能落差最大（x = 真實火災密度、y = 真實分隊密度）"
-        badge="2 軸接通真實 + 1 軸待 Sprint 3"
-        badgeTone="sampled"
+        badge="3 軸全接通真實"
+        badgeTone="historical"
       />
 
       <div className="kpi-grid cols-3">
@@ -148,18 +157,22 @@ export function S3Capacity({ data, countyAggregates, selectedCounty, onCountyCli
         />
         <KPICard
           icon={<AlertTriangle size={13} />}
-          label={
-            <>
-              5min 圈外人口 <span className="muted" style={{ fontSize: 9 }}>待Sprint3</span>
-            </>
+          label="5min 圈外人口"
+          value={
+            data.nationalCoverage
+              ? data.nationalCoverage.uncovered_pop_pct.toFixed(1)
+              : "—"
           }
-          value="—"
           unit="%"
           trend={{
-            delta: "等 PostGIS ST_Buffer",
+            delta: data.nationalCoverage
+              ? `${fmt.bigNum(data.nationalCoverage.uncovered_pop)} 人圈外`
+              : "資料載入中",
             direction: "flat",
-            baseline: "村里 polygon + demographics",
-            sentiment: "neutral",
+            baseline: data.nationalCoverage
+              ? `${fmt.num(data.nationalCoverage.uncovered_villages)} 村里 / ${fmt.num(data.nationalCoverage.total_villages)} 總計`
+              : "ST_DWithin 3km",
+            sentiment: data.nationalCoverage && data.nationalCoverage.uncovered_pop_pct >= 20 ? "negative" : "neutral",
           }}
         />
       </div>
@@ -195,7 +208,7 @@ export function S3Capacity({ data, countyAggregates, selectedCounty, onCountyCli
               22 縣市量能對照
             </div>
             <div className="section-subtitle">
-              分隊數已接真實、5min 圈外比仍待 Sprint 3 PostGIS 衍生
+              分隊數 + 圈外比皆接通真實（fire.stations + service_coverage_by_county MV）
             </div>
           </div>
           <div className="muted" style={{ fontSize: 11.5 }}>
@@ -213,7 +226,7 @@ export function S3Capacity({ data, countyAggregates, selectedCounty, onCountyCli
                 <HCell k="stations" label="分隊" />
                 <HCell k="stationsPerWan" label="隊/萬人" />
                 <HCell k="stationsPer100km2" label="隊/100km²" />
-                <HCell k="outOf5MinPct" label="圈外 %" isPending />
+                <HCell k="outOf5MinPct" label="圈外 %" />
               </tr>
             </thead>
             <tbody>

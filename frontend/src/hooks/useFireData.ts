@@ -26,6 +26,11 @@ import {
   fetchCasualtyProperty,
   fetchPersonnelVehicles,
   fetchEmsByCountyYear,
+  fetchEmergencyHospitals,
+  fetchServiceCoverageByCounty,
+  fetchUncoveredVillagesTop,
+  deriveHospitalSummary,
+  deriveNationalCoverage,
   deriveNationalSummary,
   deriveCountyAggregates,
   deriveCauseAggregates,
@@ -56,6 +61,11 @@ import {
   type FireCapacitySummary,
   type LocationTypeAggregate,
   type SeverityAggregate,
+  type EmergencyHospitalRow,
+  type EmergencyHospitalSummary,
+  type ServiceCoverageRow,
+  type NationalServiceCoverage,
+  type UncoveredVillageRow,
   type IncidentsByCountyYearRow,
   type IncidentsByCauseYearRow,
   type IncidentsByCountyCauseYearRow,
@@ -94,6 +104,14 @@ export interface FireDataState {
   casualtyRows: CasualtyPropertyRow[];
   personnelRows: PersonnelVehiclesRow[];
   emsYearlyRows: EmsByCountyYearRow[];
+  /** B066 急救醫院 raw + summary（safety.emergency_hospitals via wrapper） */
+  hospitals: EmergencyHospitalRow[];
+  hospitalSummary: EmergencyHospitalSummary | null;
+  /** B067 縣市 3km 服務圈覆蓋 raw + 全國 derive */
+  serviceCoverage: ServiceCoverageRow[];
+  nationalCoverage: NationalServiceCoverage | null;
+  /** B068 圈外人口 Top 100 村里 */
+  uncoveredVillages: UncoveredVillageRow[];
 
   /** Derived 既有 */
   summary: FireNationalSummary | null;
@@ -133,6 +151,11 @@ const EMPTY_STATE: FireDataState = {
   casualtyRows: [],
   personnelRows: [],
   emsYearlyRows: [],
+  hospitals: [],
+  hospitalSummary: null,
+  serviceCoverage: [],
+  nationalCoverage: null,
+  uncoveredVillages: [],
   summary: null,
   countyAggregates: [],
   causeAggregates: [],
@@ -180,6 +203,9 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
         fetchCasualtyProperty(),                              // 14
         fetchPersonnelVehicles(),                             // 15
         fetchEmsByCountyYear(),                               // 16
+        fetchEmergencyHospitals(),                            // 17 B066
+        fetchServiceCoverageByCounty(),                       // 18 B067
+        fetchUncoveredVillagesTop(),                          // 19 B068
       ]);
       if (cancelled) return;
 
@@ -196,6 +222,7 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
         "disaster_incidents", "forest_risk_summary",
         "incidents_by_severity", "incidents_by_location_type",
         "casualty_property", "personnel_vehicles", "ems_by_county_year",
+        "emergency_hospitals", "service_coverage_by_county", "uncovered_villages_top",
       ];
       results.forEach((r, i) => {
         if (r.status === "rejected") {
@@ -222,6 +249,9 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
       const casualtyRows = get(14, [] as CasualtyPropertyRow[]);
       const personnelRows = get(15, [] as PersonnelVehiclesRow[]);
       const emsYearlyRows = get(16, [] as EmsByCountyYearRow[]);
+      const hospitals = get(17, [] as EmergencyHospitalRow[]);
+      const serviceCoverage = get(18, [] as ServiceCoverageRow[]);
+      const uncoveredVillages = get(19, [] as UncoveredVillageRow[]);
 
       const summary = deriveNationalSummary(countyYear, causeYear);
       const latest = summary?.latest_year_minguo ?? 113;
@@ -253,6 +283,11 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
         casualtyRows,
         personnelRows,
         emsYearlyRows,
+        hospitals,
+        hospitalSummary: deriveHospitalSummary(hospitals),
+        serviceCoverage,
+        nationalCoverage: deriveNationalCoverage(serviceCoverage),
+        uncoveredVillages,
         summary,
         countyAggregates: deriveCountyAggregates(countyYear),
         causeAggregates: deriveCauseAggregates(causeYear, latest),

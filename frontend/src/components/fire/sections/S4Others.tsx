@@ -8,8 +8,10 @@
  *   - 重大災變 timeline（fire.disaster_incidents 最新 6 筆 DESC）
  *
  * 仍 placeholder：
- *   - 急救責任醫院（衛福部全國名冊缺，需手爬）
  *   - 火山潛勢（Backlog 不做）
+ *
+ * 2026-05-18 B066：急救責任醫院接通 safety.emergency_hospitals
+ *   （migration 112 / 113 wrapper view）— 252 家、13 縣市覆蓋。
  */
 
 import { useMemo } from "react";
@@ -138,17 +140,23 @@ export function S4Others({ data, selectedCounty, onCountyClick }: S4Props) {
         />
         <KPICard
           icon={<Heart size={13} />}
-          label={
-            <>
-              急救責任醫院 <span className="muted" style={{ fontSize: 9 }}>待ETL</span>
-            </>
-          }
-          value="—"
+          label="急救責任醫院"
+          value={data.hospitalSummary ? fmt.num(data.hospitalSummary.total) : "—"}
           unit="家"
           trend={{
-            delta: "衛福部名冊缺",
+            delta:
+              data.hospitalSummary && data.hospitalSummary.by_level.length > 0
+                ? data.hospitalSummary.by_level
+                    .slice(0, 2)
+                    .map((l) => `${l.level}${l.count}`)
+                    .join(" · ")
+                : data.hospitalSummary
+                  ? `${data.hospitalSummary.covered_counties} 縣市覆蓋`
+                  : "資料載入中",
             direction: "flat",
-            baseline: "需手爬",
+            baseline: data.hospitalSummary
+              ? `${data.hospitalSummary.covered_counties} 縣市 · 13 dataset 合併`
+              : "safety.emergency_hospitals",
             sentiment: "neutral",
           }}
         />

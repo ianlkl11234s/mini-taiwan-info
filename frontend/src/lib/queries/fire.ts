@@ -1344,3 +1344,186 @@ export function deriveSeverityAgg(rows: IncidentsBySeverityRow[]): SeverityAggre
       })),
   };
 }
+
+// ─────────────────────────────────────────────────
+// 17. B066 / B067 / B068 — migration 113 wrapper views
+// ─────────────────────────────────────────────────
+
+/** B066 — 急救責任醫院（safety.emergency_hospitals via public wrapper） */
+export interface EmergencyHospitalRow {
+  hospital_id: string;
+  county_id: string;
+  name: string;
+  level: string | null;
+  address: string | null;
+  phone: string | null;
+  district: string | null;
+  has_emergency_room: boolean | null;
+  has_trauma_center: boolean | null;
+  has_stroke_center: boolean | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+export async function fetchEmergencyHospitals(): Promise<EmergencyHospitalRow[]> {
+  const { data, error } = await db
+    .from("safety_emergency_hospitals")
+    .select(
+      "hospital_id,county_id,name,level,address,phone,district,has_emergency_room,has_trauma_center,has_stroke_center,lat,lng"
+    );
+  if (error) {
+    console.error("[fire] fetchEmergencyHospitals failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    hospital_id: String(r.hospital_id),
+    county_id: String(r.county_id),
+    name: String(r.name),
+    level: r.level == null ? null : String(r.level),
+    address: r.address == null ? null : String(r.address),
+    phone: r.phone == null ? null : String(r.phone),
+    district: r.district == null ? null : String(r.district),
+    has_emergency_room: r.has_emergency_room == null ? null : Boolean(r.has_emergency_room),
+    has_trauma_center: r.has_trauma_center == null ? null : Boolean(r.has_trauma_center),
+    has_stroke_center: r.has_stroke_center == null ? null : Boolean(r.has_stroke_center),
+    lat: r.lat == null ? null : Number(r.lat),
+    lng: r.lng == null ? null : Number(r.lng),
+  }));
+}
+
+export interface EmergencyHospitalSummary {
+  total: number;
+  by_level: Array<{ level: string; count: number }>;
+  by_county: Record<string, number>;
+  with_trauma: number;
+  with_stroke: number;
+  covered_counties: number;
+}
+
+export function deriveHospitalSummary(rows: EmergencyHospitalRow[]): EmergencyHospitalSummary {
+  const levelAcc = new Map<string, number>();
+  const countyAcc = new Map<string, number>();
+  let trauma = 0;
+  let stroke = 0;
+  for (const r of rows) {
+    const lvl = r.level ?? "未分級";
+    levelAcc.set(lvl, (levelAcc.get(lvl) ?? 0) + 1);
+    countyAcc.set(r.county_id, (countyAcc.get(r.county_id) ?? 0) + 1);
+    if (r.has_trauma_center) trauma += 1;
+    if (r.has_stroke_center) stroke += 1;
+  }
+  const LEVEL_ORDER = ["重度級", "中度級", "一般級", "未分級"];
+  return {
+    total: rows.length,
+    by_level: LEVEL_ORDER.filter((l) => levelAcc.has(l)).map((l) => ({
+      level: l,
+      count: levelAcc.get(l) ?? 0,
+    })),
+    by_county: Object.fromEntries(countyAcc),
+    with_trauma: trauma,
+    with_stroke: stroke,
+    covered_counties: countyAcc.size,
+  };
+}
+
+/** B067 — 縣市 3km 服務圈覆蓋（fire.service_coverage_by_county via public wrapper） */
+export interface ServiceCoverageRow {
+  county_id: string;
+  total_villages: number;
+  covered_villages: number;
+  uncovered_villages: number;
+  total_pop: number;
+  covered_pop: number;
+  uncovered_pop: number;
+  uncovered_pop_pct: number;
+}
+
+export async function fetchServiceCoverageByCounty(): Promise<ServiceCoverageRow[]> {
+  const { data, error } = await db
+    .from("fire_service_coverage_by_county")
+    .select(
+      "county_id,total_villages,covered_villages,uncovered_villages,total_pop,covered_pop,uncovered_pop,uncovered_pop_pct"
+    );
+  if (error) {
+    console.error("[fire] fetchServiceCoverageByCounty failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    county_id: String(r.county_id),
+    total_villages: Number(r.total_villages ?? 0),
+    covered_villages: Number(r.covered_villages ?? 0),
+    uncovered_villages: Number(r.uncovered_villages ?? 0),
+    total_pop: Number(r.total_pop ?? 0),
+    covered_pop: Number(r.covered_pop ?? 0),
+    uncovered_pop: Number(r.uncovered_pop ?? 0),
+    uncovered_pop_pct: Number(r.uncovered_pop_pct ?? 0),
+  }));
+}
+
+export interface NationalServiceCoverage {
+  total_pop: number;
+  covered_pop: number;
+  uncovered_pop: number;
+  uncovered_pop_pct: number;
+  total_villages: number;
+  uncovered_villages: number;
+  covered_counties: number;
+}
+
+export function deriveNationalCoverage(rows: ServiceCoverageRow[]): NationalServiceCoverage | null {
+  if (!rows.length) return null;
+  let totalPop = 0;
+  let coveredPop = 0;
+  let uncoveredPop = 0;
+  let totalVillages = 0;
+  let uncoveredVillages = 0;
+  for (const r of rows) {
+    totalPop += r.total_pop;
+    coveredPop += r.covered_pop;
+    uncoveredPop += r.uncovered_pop;
+    totalVillages += r.total_villages;
+    uncoveredVillages += r.uncovered_villages;
+  }
+  return {
+    total_pop: totalPop,
+    covered_pop: coveredPop,
+    uncovered_pop: uncoveredPop,
+    uncovered_pop_pct: totalPop > 0 ? (uncoveredPop / totalPop) * 100 : 0,
+    total_villages: totalVillages,
+    uncovered_villages: uncoveredVillages,
+    covered_counties: rows.length,
+  };
+}
+
+/** B068 — 3km 圈外人口最多 Top 100 村里（fire.uncovered_villages_top via public wrapper） */
+export interface UncoveredVillageRow {
+  village_id: string;
+  county_id: string;
+  town_name: string;
+  village_name: string;
+  centroid_lat: number | null;
+  centroid_lng: number | null;
+  pop: number;
+  nearest_station_m: number | null;
+}
+
+export async function fetchUncoveredVillagesTop(): Promise<UncoveredVillageRow[]> {
+  const { data, error } = await db
+    .from("fire_uncovered_villages_top")
+    .select("village_id,county_id,town_name,village_name,centroid_lat,centroid_lng,pop,nearest_station_m")
+    .order("pop", { ascending: false });
+  if (error) {
+    console.error("[fire] fetchUncoveredVillagesTop failed:", error);
+    throw error;
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    village_id: String(r.village_id),
+    county_id: String(r.county_id),
+    town_name: String(r.town_name ?? ""),
+    village_name: String(r.village_name ?? ""),
+    centroid_lat: r.centroid_lat == null ? null : Number(r.centroid_lat),
+    centroid_lng: r.centroid_lng == null ? null : Number(r.centroid_lng),
+    pop: Number(r.pop ?? 0),
+    nearest_station_m: r.nearest_station_m == null ? null : Number(r.nearest_station_m),
+  }));
+}

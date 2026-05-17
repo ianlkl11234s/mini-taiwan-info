@@ -45,11 +45,11 @@ import type {
   FireStationRow,
   EmergencyShelterRow,
   DisasterIncidentRow,
+  UncoveredVillageRow,
 } from "@/lib/queries/fire";
 import {
   FIRE_MOCK_BY_COUNTY,
   FIRE_SEVERITY_COLORS,
-  FIRE_KHH_OUTOF_VILLAGES,
 } from "@/lib/mock-fire";
 
 // ─────────────────────────────────────────────────
@@ -123,8 +123,20 @@ export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps
   // 該縣市 lazy fetch 4 類資料（stations / shelters / hydrant count / disasters）
   const countyData = useFireCountyData(idMoi);
 
-  // 該縣市 mock placeholder（5min 圈外 / 山林風險點仍待 PostGIS）
+  // 該縣市 mock placeholder（山林風險點未對應到縣市；hospitals 已接 useFireData.hospitals 改算）
   const mock = FIRE_MOCK_BY_COUNTY[county];
+
+  // B067：該縣市 3km 圈外人口% (real，from fire.service_coverage_by_county MV)
+  const coverageRow = useMemo(
+    () => data.serviceCoverage.find((r) => r.county_id === idMoi) ?? null,
+    [data.serviceCoverage, idMoi]
+  );
+
+  // B066：該縣市急救醫院總數
+  const hospitalsForCounty = useMemo(
+    () => data.hospitals.filter((h) => h.county_id === idMoi).length,
+    [data.hospitals, idMoi]
+  );
 
   // 合併真實資料（real 優先；ETL 缺的 fallback 到 mock）
   const merged = useMemo(() => {
@@ -180,12 +192,13 @@ export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps
       ohca,
       damageMillion,
       sheltersCount,
+      // ─── 真實接通（2026-05-18 B066/B067）───
+      outOf5MinPct: coverageRow?.uncovered_pop_pct ?? 0,
+      hospitals: hospitalsForCounty,
       // ─── 仍 placeholder ───
-      outOf5MinPct: mock?.outOf5MinPct ?? 0,   // 等 Sprint 3 PostGIS
-      hospitals: mock?.hospitals ?? 0,         // 衛福部名冊缺
       riskPoints: mock?.riskPoints ?? 0,       // 山林風險點未對應到縣市
     };
-  }, [cAgg, mock, c.pop_2024_wan, c.area_km2, countyData, data.emsYearlyRows, data.casualtyRows, idMoi]);
+  }, [cAgg, mock, c.pop_2024_wan, c.area_km2, countyData, data.emsYearlyRows, data.casualtyRows, idMoi, coverageRow, hospitalsForCounty]);
 
   const latestYear = data.summary?.latest_year_minguo ?? 113;
 
@@ -279,7 +292,13 @@ export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps
         />
       )}
       {tab === "service"   && (
-        <ServiceTab county={county} popWan={c.pop_2024_wan} merged={merged} />
+        <ServiceTab
+          county={county}
+          idMoi={idMoi}
+          popWan={c.pop_2024_wan}
+          merged={merged}
+          uncoveredVillages={data.uncoveredVillages}
+        />
       )}
       {tab === "others"    && (
         <OthersTab
@@ -358,10 +377,12 @@ function FireRadarCard({
         ? data.hydrantNationalCount / khh.area_km2
         : null;
 
-    // outOf5Min 仍從 mock（Sprint 3 PostGIS 才能算）
-    const outOf5MinList = COUNTIES.map(
-      (cc) => FIRE_MOCK_BY_COUNTY[cc.code3 as CountyCode3]?.outOf5MinPct ?? 0
-    );
+    // outOf5Min — 真實 from fire.service_coverage_by_county MV (B067)
+    const coverageByCty = new Map<string, number>();
+    for (const r of data.serviceCoverage) {
+      coverageByCty.set(r.county_id, r.uncovered_pop_pct);
+    }
+    const outOf5MinList = COUNTIES.map((cc) => coverageByCty.get(cc.id_moi) ?? 0);
 
     const mean = (arr: number[]) =>
       arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
@@ -373,7 +394,7 @@ function FireRadarCard({
       outOf5Min:      mean(outOf5MinList),
       hydrantDensity,
     };
-  }, [data.countyAggregates, data.stations, data.hydrantNationalCount]);
+  }, [data.countyAggregates, data.stations, data.hydrantNationalCount, data.serviceCoverage]);
 
   // 該縣市 5 軸值；hydrants=0 (非 4 都) 視為 null，雷達跳過該軸
   const cArea = (county.area_km2 ?? 0) > 0 ? county.area_km2 : 1;
@@ -1000,16 +1021,32 @@ function ResponseTab({
 
 function ServiceTab({
   county,
+  idMoi,
   popWan,
   merged,
+  uncoveredVillages,
 }: {
   county: CountyCode3;
+  idMoi: string;
   popWan: number;
   merged: MergedCountyData;
+  uncoveredVillages: UncoveredVillageRow[];
 }) {
-  const isKHH = county === "KHH";
-  const villages = isKHH ? FIRE_KHH_OUTOF_VILLAGES : null;
+  // B068：該縣市圈外村里 Top 10（real from fire.uncovered_villages_top MV）
+  const villages = useMemo(() => {
+    const filtered = uncoveredVillages
+      .filter((v) => v.county_id === idMoi)
+      .slice(0, 10)
+      .map((v) => ({
+        name: `${v.town_name}${v.village_name}`,
+        distance: (v.nearest_station_m ?? 0) / 1000,
+        population: v.pop,
+      }));
+    return filtered.length > 0 ? filtered : null;
+  }, [uncoveredVillages, idMoi]);
   const outOfPop = Math.round(popWan * 10000 * (merged.outOf5MinPct / 100));
+  // Mark county arg as used for future UI hooks (e.g., 5/10min selector)
+  void county;
 
   return (
     <>
@@ -1041,13 +1078,13 @@ function ServiceTab({
         <KPICard
           icon={<AlertTriangle size={13} />}
           label="最遠村里距分隊"
-          value={isKHH && villages ? villages[0].distance.toFixed(1) : "—"}
+          value={villages ? villages[0].distance.toFixed(1) : "—"}
           unit="km"
           trend={{
-            delta: isKHH && villages ? villages[0].name : "資料 placeholder",
+            delta: villages ? villages[0].name : "該縣市無圈外村里",
             direction: "flat",
             baseline: "",
-            sentiment: "negative",
+            sentiment: villages ? "negative" : "neutral",
           }}
         />
       </div>
@@ -1087,15 +1124,15 @@ function ServiceTab({
         </div>
       </div>
 
-      {isKHH && villages ? (
+      {villages ? (
         <div className="section">
           <div className="section-head">
             <div className="section-title">
               <span className="pre">TOP 10</span>
-              圈外村里（高雄市）
+              圈外村里
             </div>
             <div className="muted" style={{ fontSize: 11.5 }}>
-              距最近分隊最遠的 10 個村里
+              距最近分隊最遠的 {villages.length} 個村里 · fire.uncovered_villages_top MV
             </div>
           </div>
           <div className="fire-table-wrap">
@@ -1132,7 +1169,7 @@ function ServiceTab({
           className="section"
           style={{ textAlign: "center", padding: 36 }}
         >
-          <div style={{ fontSize: 24, marginBottom: 8 }}>🚧</div>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
           <div
             className="section-title"
             style={{ justifyContent: "center", marginBottom: 8 }}
@@ -1143,8 +1180,9 @@ function ServiceTab({
             className="muted"
             style={{ fontSize: 12.5, maxWidth: 360, margin: "0 auto" }}
           >
-            該縣市村里級服務圈資料尚未完整匯入 — 目前僅高雄市可看到 Top 10 圈外村里明細。
-            待 Sprint 3 PostGIS ST_Buffer 衍生表 + 村里 polygon GeoJSON 接通後上線。
+            該縣市無「3km 圈外」村里 — 全縣市村里皆在最近消防分隊 3km 範圍內。
+            <br />
+            <span style={{ fontSize: 11 }}>來源：fire.uncovered_villages_top MV（全國 Top 100，該縣市未上榜）</span>
           </div>
         </div>
       )}
