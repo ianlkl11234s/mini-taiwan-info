@@ -422,3 +422,85 @@ export async function fetchSubsidenceTopCounties(limit = 5): Promise<SubsidenceC
   out.sort((a, b) => (b.avg_mm ?? 0) - (a.avg_mm ?? 0));
   return out.slice(0, limit);
 }
+
+// ─────────────────────────────────────────────────
+// 雨水下水道 — by 縣市 count（4 縣市 only：北/中/桃/嘉市）
+// ─────────────────────────────────────────────────
+
+/**
+ * migration 090 storm_drainage_manholes / _pipes 的 county 欄位是 underscore slug：
+ * taipei / taichung / taoyuan / chiayi_city。其他 18 縣市無資料。
+ */
+const STORM_DRAIN_COUNTY_BY_IDMOI: Record<string, string> = {
+  A: "taipei",
+  B: "taichung",
+  H: "taoyuan",
+  I: "chiayi_city",
+};
+
+/** 該縣市是否在雨水下水道 dataset 覆蓋內（4 縣 only） */
+export function isStormDrainCovered(idMoi: string | null): boolean {
+  return !!idMoi && idMoi in STORM_DRAIN_COUNTY_BY_IDMOI;
+}
+
+export interface StormDrainCountySummary {
+  manholes: number;
+  pipes: number;
+}
+
+/**
+ * 拿單一縣市的雨水下水道 manhole + pipe count。
+ * 非涵蓋縣回 null（4 縣外 ds 沒資料，免 fetch）。
+ */
+export async function fetchStormDrainByCountyIdMoi(
+  idMoi: string | null
+): Promise<StormDrainCountySummary | null> {
+  if (!idMoi) return null;
+  const slug = STORM_DRAIN_COUNTY_BY_IDMOI[idMoi];
+  if (!slug) return null;
+  const [mh, pp] = await Promise.all([
+    supabase
+      .from("storm_drainage_manholes")
+      .select("*", { count: "exact", head: true })
+      .eq("county", slug),
+    supabase
+      .from("storm_drainage_pipes")
+      .select("*", { count: "exact", head: true })
+      .eq("county", slug),
+  ]);
+  return {
+    manholes: mh.count ?? 0,
+    pipes: pp.count ?? 0,
+  };
+}
+
+// ─────────────────────────────────────────────────
+// 滯洪池 — coverage 對映（manifest [A, F, H] + 3 科學園區）
+// ─────────────────────────────────────────────────
+
+/** 滯洪池 detention_basins by_county slug ↔ id_moi 對映 */
+const DETENTION_SLUG_BY_IDMOI: Record<string, string> = {
+  A: "taipei",
+  F: "new-taipei",
+  H: "taoyuan",
+  D: "tainan",
+  E: "kaohsiung",
+};
+
+/** 該縣市是否在滯洪池 dataset 覆蓋內 */
+export function isDetentionCovered(idMoi: string | null): boolean {
+  return !!idMoi && idMoi in DETENTION_SLUG_BY_IDMOI;
+}
+
+/** 從 DetentionSummary.by_county 找該縣市紀錄（無則回 null） */
+export function findDetentionForCounty(
+  detention: DetentionSummary | null,
+  idMoi: string | null
+): { count: number; total_vol_m3: number | null } | null {
+  if (!detention || !idMoi) return null;
+  const slug = DETENTION_SLUG_BY_IDMOI[idMoi];
+  if (!slug) return null;
+  const row = detention.by_county.find((r) => r.county === slug);
+  if (!row) return null;
+  return { count: row.count, total_vol_m3: row.total_vol_m3 };
+}
