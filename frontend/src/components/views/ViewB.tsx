@@ -13,7 +13,7 @@
  *       useWaterQuality 共用，stationType 由 prop 鎖定
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Droplet,
   Waves,
@@ -30,8 +30,28 @@ import {
   Layers,
 } from "lucide-react";
 import type { ThemeManifest, CountyCode3, County } from "@/lib/types";
-import type { ReservoirStatusRow } from "@/lib/queries/water";
+import type {
+  ReservoirStatusRow,
+  RainGaugeRow,
+  GroundwaterStationRow,
+  FloodPctRow,
+} from "@/lib/queries/water";
+import {
+  fetchFloodPctByCounty,
+  fetchRainGaugeLatest,
+  fetchGroundwaterLatest,
+} from "@/lib/queries/water";
+import {
+  fetchDetentionSummary,
+  fetchStormDrainByCountyIdMoi,
+  isStormDrainCovered,
+  isDetentionCovered,
+  findDetentionForCounty,
+  type DetentionSummary,
+  type StormDrainCountySummary,
+} from "@/lib/queries/water-overview";
 import { byCode3 } from "@/lib/counties";
+import { getNearestCounty } from "@/lib/reverseGeocode";
 import { fmt } from "@/lib/format";
 import { KPICard } from "@/components/kpi/KPICard";
 import { TrendChart, type TrendPoint } from "@/components/charts/TrendChart";
@@ -173,9 +193,19 @@ export function ViewB({
         <RiverTab countyCode={county} countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />
       )}
       {tab === "groundwater" && (
-        <GroundwaterTab countyIdMoi={c.id_moi ?? null} countyName={c.name_zh} />
+        <GroundwaterTab
+          countyIdMoi={c.id_moi ?? null}
+          countyCode3={county}
+          countyName={c.name_zh}
+        />
       )}
-      {tab === "flood" && <FloodTab countyName={c.name_zh} />}
+      {tab === "flood" && (
+        <FloodTab
+          countyIdMoi={c.id_moi ?? null}
+          countyCode3={county}
+          countyName={c.name_zh}
+        />
+      )}
       {tab === "supplies" && (
         <SuppliesTab
           lpcdHistory={data.lpcdHistory}
@@ -647,7 +677,100 @@ function RiverTab({
 // Tab: Groundwater（Cycle B — 地下水位 / 水質 / 分區）
 // ─────────────────────────────────────────────────
 
-function GroundwaterTab({ countyIdMoi, countyName }: { countyIdMoi: string | null; countyName: string }) {
+// 地下水分區涵蓋（manifest v1.1 affected_counties）：西部 9 區覆蓋的縣市
+const GROUNDWATER_COVERED_IDMOI = new Set([
+  "A", "F", "H", "O", "J", "K", "B", "N", "M", "P", "Q", "I", "D", "E", "T",
+]);
+
+function GroundwaterTab({
+  countyIdMoi,
+  countyCode3,
+  countyName,
+}: {
+  countyIdMoi: string | null;
+  countyCode3: CountyCode3;
+  countyName: string;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [stations, setStations] = useState<GroundwaterStationRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const rows = await fetchGroundwaterLatest();
+        if (cancelled) return;
+        setStations(rows);
+        setError(null);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const countyStations = useMemo(
+    () =>
+      stations.filter(
+        (s) =>
+          s.lat != null &&
+          s.lng != null &&
+          getNearestCounty(s.lng, s.lat) === countyCode3
+      ),
+    [stations, countyCode3]
+  );
+
+  const summary = useMemo(() => {
+    if (countyStations.length === 0) return null;
+    const withReading = countyStations.filter((s) => s.water_level_m != null);
+    const avgLevel =
+      withReading.length > 0
+        ? withReading.reduce((acc, r) => acc + (r.water_level_m ?? 0), 0) /
+          withReading.length
+        : null;
+    let deltaSum = 0;
+    let deltaN = 0;
+    let rising = 0;
+    let falling = 0;
+    let steady = 0;
+    let latestObservedAt: string | null = null;
+    for (const s of countyStations) {
+      if (s.delta_24h != null) {
+        deltaSum += s.delta_24h;
+        deltaN += 1;
+        const abs = Math.abs(s.delta_24h);
+        if (abs < 0.005) steady += 1;
+        else if (s.delta_24h > 0) rising += 1;
+        else falling += 1;
+      }
+      if (s.observed_at && (!latestObservedAt || s.observed_at > latestObservedAt)) {
+        latestObservedAt = s.observed_at;
+      }
+    }
+    return {
+      stations: countyStations.length,
+      stationsWithReading: withReading.length,
+      avgLevelM: avgLevel,
+      avgDelta24hCm: deltaN > 0 ? (deltaSum / deltaN) * 100 : null,
+      rising,
+      falling,
+      steady,
+      latestObservedAt,
+    };
+  }, [countyStations]);
+
+  const inCoverage = countyIdMoi ? GROUNDWATER_COVERED_IDMOI.has(countyIdMoi) : false;
+  const showWarningNoCoverage = !loading && !error && !inCoverage;
+  const showWarningCoveredButEmpty =
+    !loading && !error && inCoverage && countyStations.length === 0;
+
   return (
     <>
       <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
@@ -656,15 +779,101 @@ function GroundwaterTab({ countyIdMoi, countyName }: { countyIdMoi: string | nul
             <div className="section-title">
               <span className="pre">GW LEVEL</span>
               {countyName} 地下水位
+              {summary && <span style={liveBadgeStyle}>LIVE</span>}
             </div>
             <div className="section-subtitle">
-              realtime.groundwater_level_readings 200 萬筆表已建（Cycle F 待接 server-side aggregate）
+              realtime.groundwater_level_readings · 全國 959 監測井（collector cron 每小時）
             </div>
           </div>
+          {summary?.latestObservedAt && (
+            <DataAgeBadge sampledAt={summary.latestObservedAt} label="最新觀測" />
+          )}
         </div>
-        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
-          🚧 地下水位 realtime 資料待 Cycle F（collector cron 真跑，已就緒；前端要 RPC down-sample）
-        </div>
+
+        {loading && (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            讀取中…
+          </div>
+        )}
+
+        {error && (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5, color: "#B91C1C" }}>
+            ❌ 讀取失敗：{error}
+          </div>
+        )}
+
+        {showWarningNoCoverage && (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            ⚠️ 資料未開放 — {countyName} 不在地下水分區涵蓋範圍（水利署西部 9 分區 only）
+          </div>
+        )}
+
+        {showWarningCoveredButEmpty && (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            ⚠️ {countyName} 雖在地下水分區範圍內，但目前無 active 監測井 reading
+          </div>
+        )}
+
+        {summary && (
+          <div className="kpi-grid cols-4" style={{ marginTop: 12 }}>
+            <KPICard
+              icon={<Layers size={13} />}
+              label="監測井"
+              value={summary.stations.toString()}
+              unit="井"
+              trend={{
+                delta: `有讀值 ${summary.stationsWithReading}`,
+                direction: "flat",
+                baseline: "",
+                sentiment: "neutral",
+              }}
+            />
+            <KPICard
+              icon={<Waves size={13} />}
+              label="平均水位"
+              value={summary.avgLevelM != null ? summary.avgLevelM.toFixed(1) : "—"}
+              unit="m"
+              trend={{
+                delta: "井口至水面",
+                direction: "flat",
+                baseline: "",
+                sentiment: "neutral",
+              }}
+            />
+            <KPICard
+              icon={<TrendingUp size={13} />}
+              label="24h 變化"
+              value={
+                summary.avgDelta24hCm != null
+                  ? `${summary.avgDelta24hCm >= 0 ? "+" : ""}${summary.avgDelta24hCm.toFixed(1)}`
+                  : "—"
+              }
+              unit="cm"
+              trend={{
+                delta: summary.avgDelta24hCm != null
+                  ? (summary.avgDelta24hCm > 0 ? "回補" : summary.avgDelta24hCm < 0 ? "下降" : "穩定")
+                  : "—",
+                direction: summary.avgDelta24hCm != null
+                  ? (summary.avgDelta24hCm > 0 ? "up" : summary.avgDelta24hCm < 0 ? "down" : "flat")
+                  : "flat",
+                baseline: "縣均",
+                sentiment: summary.avgDelta24hCm != null && summary.avgDelta24hCm > 0 ? "positive" : "neutral",
+              }}
+            />
+            <KPICard
+              icon={<Activity size={13} />}
+              label="井位分布"
+              value={`${summary.rising}↑ ${summary.falling}↓ ${summary.steady}—`}
+              unit=""
+              trend={{
+                delta: `回補 / 下降 / 穩定`,
+                direction: "flat",
+                baseline: "",
+                sentiment: "neutral",
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <WaterQualitySection
@@ -680,79 +889,357 @@ function GroundwaterTab({ countyIdMoi, countyName }: { countyIdMoi: string | nul
 // Tab: Flood（Cycle B — 淹水 / 滯洪池 / 雨水下水道 / 即時雨量）
 // ─────────────────────────────────────────────────
 
-function FloodTab({ countyName }: { countyName: string }) {
+type FloodScenario = 200 | 350 | 500;
+
+function FloodTab({
+  countyIdMoi,
+  countyCode3,
+  countyName,
+}: {
+  countyIdMoi: string | null;
+  countyCode3: CountyCode3;
+  countyName: string;
+}) {
+  const [scenario, setScenario] = useState<FloodScenario>(350);
+  const [loading, setLoading] = useState(true);
+  const [floodByScenario, setFloodByScenario] = useState<
+    Record<FloodScenario, FloodPctRow[]>
+  >({ 200: [], 350: [], 500: [] });
+  const [rainStations, setRainStations] = useState<RainGaugeRow[]>([]);
+  const [detention, setDetention] = useState<DetentionSummary | null>(null);
+  const [stormDrain, setStormDrain] = useState<StormDrainCountySummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const tasks: Array<Promise<unknown>> = [
+        fetchFloodPctByCounty(200, 24),
+        fetchFloodPctByCounty(350, 24),
+        fetchFloodPctByCounty(500, 24),
+        fetchRainGaugeLatest(),
+        isDetentionCovered(countyIdMoi) ? fetchDetentionSummary() : Promise.resolve(null),
+        isStormDrainCovered(countyIdMoi)
+          ? fetchStormDrainByCountyIdMoi(countyIdMoi)
+          : Promise.resolve(null),
+      ];
+      const results = await Promise.allSettled(tasks);
+      if (cancelled) return;
+      const get = <T,>(idx: number, fallback: T): T =>
+        results[idx].status === "fulfilled"
+          ? ((results[idx] as PromiseFulfilledResult<T>).value ?? fallback)
+          : fallback;
+      const failed = results
+        .map((r, i) => (r.status === "rejected" ? i : -1))
+        .filter((i) => i >= 0);
+      if (failed.length > 0) {
+        // eslint-disable-next-line no-console
+        console.warn("[FloodTab] some queries failed:", failed);
+      }
+      setFloodByScenario({
+        200: get(0, [] as FloodPctRow[]),
+        350: get(1, [] as FloodPctRow[]),
+        500: get(2, [] as FloodPctRow[]),
+      });
+      setRainStations(get(3, [] as RainGaugeRow[]));
+      setDetention(get<DetentionSummary | null>(4, null));
+      setStormDrain(get<StormDrainCountySummary | null>(5, null));
+      setError(null);
+      setLoading(false);
+    })().catch((e) => {
+      if (cancelled) return;
+      setError(e instanceof Error ? e.message : String(e));
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [countyIdMoi]);
+
+  const countyFloodPct = useMemo(() => {
+    if (!countyIdMoi) return null;
+    const row = floodByScenario[scenario].find((r) => r.county_id === countyIdMoi);
+    return row ?? null;
+  }, [countyIdMoi, scenario, floodByScenario]);
+
+  const countyRain = useMemo(() => {
+    const stations = rainStations.filter(
+      (s) =>
+        s.lat != null &&
+        s.lng != null &&
+        getNearestCounty(s.lng, s.lat) === countyCode3
+    );
+    const with24 = stations.filter((s) => s.precipitation_24hr != null);
+    const avg24 =
+      with24.length > 0
+        ? with24.reduce((acc, s) => acc + (s.precipitation_24hr ?? 0), 0) /
+          with24.length
+        : null;
+    const max24Station =
+      with24.length > 0
+        ? with24.reduce((best, s) =>
+            (s.precipitation_24hr ?? 0) > (best.precipitation_24hr ?? 0) ? s : best
+          )
+        : null;
+    let latestObservedAt: string | null = null;
+    for (const s of stations) {
+      if (s.observed_at && (!latestObservedAt || s.observed_at > latestObservedAt)) {
+        latestObservedAt = s.observed_at;
+      }
+    }
+    return { stations: stations.length, avg24, max24Station, latestObservedAt };
+  }, [rainStations, countyCode3]);
+
+  const detentionRow = useMemo(
+    () => findDetentionForCounty(detention, countyIdMoi),
+    [detention, countyIdMoi]
+  );
+
+  const hasDetentionCoverage = isDetentionCovered(countyIdMoi);
+  const hasStormDrainCoverage = isStormDrainCovered(countyIdMoi);
+
   return (
     <>
+      {/* FLOOD KPI + scenario switch */}
       <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
         <div className="section-head">
           <div>
             <div className="section-title">
               <span className="pre">FLOOD</span>
               {countyName} 淹水高潛勢
+              {countyFloodPct && <span style={liveBadgeStyle}>LIVE</span>}
             </div>
             <div className="section-subtitle">
-              flood_hazard_pct_by_county MV LIVE（NLDCB 靜態場景，350mm/24hr 預設）
+              flood_hazard_pct_by_county MV · NLDCB 24hr 場景
             </div>
           </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {([200, 350, 500] as FloodScenario[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setScenario(s)}
+                className={scenario === s ? "btn primary" : "btn ghost"}
+                style={{ fontSize: 11, padding: "4px 10px" }}
+              >
+                {s}mm
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
-          🚧 縣市淹水佔比 + 場景切換 (200/350/500mm) 待 Cycle I 接 ViewA props
-        </div>
+        {loading ? (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            讀取中…
+          </div>
+        ) : error ? (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5, color: "#B91C1C" }}>
+            ❌ 讀取失敗：{error}
+          </div>
+        ) : countyFloodPct ? (
+          <div className="kpi-grid cols-2" style={{ marginTop: 12 }}>
+            <KPICard
+              icon={<CloudRain size={13} />}
+              label="淹水高潛勢佔比"
+              value={countyFloodPct.pct_of_county.toFixed(1)}
+              unit="%"
+              trend={{
+                delta: `情境 ${scenario}mm/24hr`,
+                direction: "flat",
+                baseline: "全縣面積",
+                sentiment: "neutral",
+              }}
+            />
+            <KPICard
+              icon={<Layers size={13} />}
+              label="淹水面積"
+              value={fmt.num(countyFloodPct.hazard_km2, 1)}
+              unit="km²"
+              trend={{
+                delta: `情境 ${scenario}mm/24hr`,
+                direction: "flat",
+                baseline: "全縣模擬",
+                sentiment: "neutral",
+              }}
+            />
+          </div>
+        ) : (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            {countyName} 該情境無資料
+          </div>
+        )}
       </div>
 
+      {/* DETENTION */}
       <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
         <div className="section-head">
           <div>
             <div className="section-title">
               <span className="pre">DETENTION</span>
-              滯洪池
+              {countyName} 滯洪池
+              {detentionRow && <span style={liveBadgeStyle}>LIVE</span>}
+              {!hasDetentionCoverage && <span style={coverageWarningBadgeStyle}>資料未開放</span>}
             </div>
             <div className="section-subtitle">
-              detention_basins 140 個 polygon 表已建（5 縣市 + 3 科園 only，coverage 不全 → warning）
+              detention_basins 表 · 涵蓋臺北 / 新北 / 桃園 / 臺南 / 高雄 + 3 科學園區
             </div>
           </div>
         </div>
-        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
-          🚧 待 Cycle I 接 map layer
-        </div>
+        {loading && hasDetentionCoverage ? (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            讀取中…
+          </div>
+        ) : !hasDetentionCoverage ? (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            ⚠️ {countyName} 不在滯洪池 dataset 涵蓋範圍（5 縣市 + 3 科園 only）
+          </div>
+        ) : detentionRow ? (
+          <div className="kpi-grid cols-2" style={{ marginTop: 12 }}>
+            <KPICard
+              icon={<Layers size={13} />}
+              label="滯洪池"
+              value={detentionRow.count.toString()}
+              unit="座"
+            />
+            <KPICard
+              icon={<Droplet size={13} />}
+              label="設計總容量"
+              value={
+                detentionRow.total_vol_m3 != null
+                  ? fmt.num(detentionRow.total_vol_m3 / 10000, 1)
+                  : "—"
+              }
+              unit="萬 m³"
+            />
+          </div>
+        ) : (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            {countyName} 在涵蓋範圍內但目前無滯洪池資料
+          </div>
+        )}
       </div>
 
+      {/* STORM DRAIN */}
       <div className="section" style={{ marginBottom: "var(--section-gap)" }}>
         <div className="section-head">
           <div>
             <div className="section-title">
               <span className="pre">STORM DRAIN</span>
-              雨水下水道
+              {countyName} 雨水下水道
+              {stormDrain && <span style={liveBadgeStyle}>LIVE</span>}
+              {!hasStormDrainCoverage && <span style={coverageWarningBadgeStyle}>資料未開放</span>}
             </div>
             <div className="section-subtitle">
-              storm_drainage_pipes 26,652 條 + manholes 28,609 個（3 縣市 only）
+              storm_drainage_pipes + manholes · 涵蓋臺北 / 臺中 / 桃園 / 嘉義市
             </div>
           </div>
         </div>
-        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
-          🚧 待 Cycle I 接 map layer (zoom &gt; 12 才顯示)
-        </div>
+        {loading && hasStormDrainCoverage ? (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            讀取中…
+          </div>
+        ) : !hasStormDrainCoverage ? (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            ⚠️ {countyName} 不在雨水下水道 dataset 涵蓋範圍（4 縣市 only）
+          </div>
+        ) : stormDrain ? (
+          <div className="kpi-grid cols-2" style={{ marginTop: 12 }}>
+            <KPICard
+              icon={<Activity size={13} />}
+              label="管線"
+              value={fmt.num(stormDrain.pipes)}
+              unit="條"
+            />
+            <KPICard
+              icon={<Layers size={13} />}
+              label="人孔"
+              value={fmt.num(stormDrain.manholes)}
+              unit="個"
+            />
+          </div>
+        ) : (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            {countyName} 雨水下水道資料目前為空
+          </div>
+        )}
       </div>
 
+      {/* RAIN GAUGE */}
       <div className="section">
         <div className="section-head">
           <div>
             <div className="section-title">
               <span className="pre">RAIN</span>
-              即時雨量站
+              {countyName} 即時雨量站
+              {countyRain.stations > 0 && <span style={liveBadgeStyle}>LIVE</span>}
             </div>
             <div className="section-subtitle">
-              realtime.rain_gauge_readings collector cron 持續抓 1306 站
+              realtime.rain_gauge_readings · collector cron 全國 1306 站
             </div>
           </div>
+          {countyRain.latestObservedAt && (
+            <DataAgeBadge sampledAt={countyRain.latestObservedAt} label="最新觀測" />
+          )}
         </div>
-        <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
-          🚧 該縣市即時雨量分布 map layer 待 Cycle I
-        </div>
+        {loading ? (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            讀取中…
+          </div>
+        ) : countyRain.stations === 0 ? (
+          <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12.5 }}>
+            ⚠️ {countyName} 目前無 active 雨量站
+          </div>
+        ) : (
+          <div className="kpi-grid cols-3" style={{ marginTop: 12 }}>
+            <KPICard
+              icon={<CloudRain size={13} />}
+              label="觀測站"
+              value={countyRain.stations.toString()}
+              unit="站"
+            />
+            <KPICard
+              icon={<Droplet size={13} />}
+              label="24hr 均雨量"
+              value={countyRain.avg24 != null ? countyRain.avg24.toFixed(1) : "—"}
+              unit="mm"
+              trend={{
+                delta: "縣均",
+                direction: "flat",
+                baseline: "",
+                sentiment: "neutral",
+              }}
+            />
+            <KPICard
+              icon={<TrendingUp size={13} />}
+              label="24hr 最大站"
+              value={
+                countyRain.max24Station?.precipitation_24hr != null
+                  ? countyRain.max24Station.precipitation_24hr.toFixed(1)
+                  : "—"
+              }
+              unit="mm"
+              trend={{
+                delta: countyRain.max24Station?.station_name ?? "—",
+                direction: "flat",
+                baseline: "",
+                sentiment: "neutral",
+              }}
+            />
+          </div>
+        )}
       </div>
     </>
   );
 }
+
+const coverageWarningBadgeStyle: React.CSSProperties = {
+  marginLeft: 6,
+  fontSize: 9,
+  fontWeight: 700,
+  color: "#B45309",
+  background: "#FEF3C7",
+  padding: "1px 4px",
+  borderRadius: 3,
+};
 
 // ─────────────────────────────────────────────────
 // Tab: Usage（LPCD + 接管率歷年）
