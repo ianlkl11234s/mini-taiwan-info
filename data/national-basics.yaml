@@ -1,0 +1,271 @@
+# Mini Taiwan Info · 全國基礎統計 SSOT
+# 用於首頁「全台概覽 · 基礎統計」KPI 卡片 + 文案
+#
+# 設計原則：
+#   - tier=static：固定值（行政區、面積），人工檢視，年度確認一次
+#   - tier=yearly：年度更新，一次性 import 即可（戶政司年報 / SEGIS）
+#   - tier=monthly：月度更新，B 階段做半動態 pipeline（不走 collector cron）
+#
+# 數字來源權威優先順序：
+#   1. 內政部戶政司「人口統計資料」(www.ris.gov.tw)         — 人口、出生、死亡、性比例（月）
+#   2. 內政部統計處「內政統計年報 / 通報」(www.moi.gov.tw)   — 行政區、面積、海岸線（年）
+#   3. 內政部統計處 SEGIS (segis.moi.gov.tw)                 — 行政區人口指標、老化（年）
+#   4. 內政部國土測繪中心 (www.nlsc.gov.tw)                  — 邊界、地形（年）
+#
+# 數值同步紀錄：
+#   2026-05-20  初版 — baseline 來自內政部戶政司 2026-04 月底 + Wikipedia 彙整
+
+meta:
+  version: "1.0"
+  last_updated: "2026-05-20"
+  last_verified_against_source: "2026-05-20"
+  next_review: "2026-08-20"  # 每季人工確認一次，動態值更頻繁
+  authority: "中華民國內政部"
+
+# ─────────────────────────────────────────────────
+# Section A · 行政區（tier=static，幾乎不變）
+# ─────────────────────────────────────────────────
+administrative:
+  # 一級
+  cities_total:
+    value: 22
+    label: "縣市總數"
+    breakdown:
+      municipality: 6       # 直轄市：北、新北、桃、中、南、高
+      provincial_city: 3    # 市：基隆、新竹、嘉義
+      county: 13            # 縣
+    source: "內政部「直轄市縣市行政區劃」"
+    source_url: "https://www.moi.gov.tw"
+    note: "2014/12/25 桃園升格後固定至今"
+    tier: static
+    as_of: "2026-05"
+
+  # 二級
+  townships_total:
+    value: 368
+    label: "鄉鎮市區總數"
+    breakdown:
+      district: 170          # 區（含 6 山地原住民區）
+      county_city: 14        # 縣轄市
+      town: 38               # 鎮
+      township: 122          # 鄉
+      mountain_township: 24  # 山地鄉
+    source: "內政部統計處 SEGIS「行政區人口統計」"
+    source_url: "https://segis.moi.gov.tw"
+    tier: static
+    as_of: "2026-05"
+
+  # 三級
+  villages_total:
+    value: 7748
+    label: "村里總數"
+    source: "內政部戶政司「鄉鎮市區村里鄰數」"
+    source_url: "https://www.ris.gov.tw/app/portal/346"
+    note: "緩變指標，每年小幅調整（合併/分區），baseline 為 2024 年底數字"
+    tier: yearly
+    as_of: "2024-12"
+
+  # 四級
+  neighborhoods_total:
+    value: 144820
+    label: "鄰總數"
+    source: "內政部戶政司「鄉鎮市區村里鄰數」"
+    tier: yearly
+    as_of: "2024-12"
+
+# ─────────────────────────────────────────────────
+# Section B · 國土面積（tier=static）
+# ─────────────────────────────────────────────────
+territory:
+  total_area_km2:
+    value: 36197.06
+    label: "總面積"
+    unit: "km²"
+    source: "內政部統計年報「臺灣面積及海岸長度」+ 國土測繪中心"
+    note: "含臺灣本島、澎湖、金門、馬祖；不含領海"
+    tier: static
+
+  main_island_area_km2:
+    value: 35808.0
+    label: "臺灣本島面積"
+    unit: "km²"
+    source: "內政部國土測繪中心"
+    tier: static
+
+  offshore_islands_area_km2:
+    value: 389.06
+    label: "離島總面積"
+    unit: "km²"
+    breakdown:
+      penghu: 126.86          # 澎湖
+      kinmen: 151.66          # 金門
+      lienchiang: 28.80       # 馬祖（連江）
+      orchid_green_etc: 81.74 # 蘭嶼、綠島、小琉球…
+    source: "內政部統計年報「臺灣島嶼位置及面積」"
+    tier: static
+
+  inland_water_area_km2:
+    value: 74.6
+    label: "內陸水域面積"
+    unit: "km²"
+    note: "湖泊、水庫、河川等地表水域（不含領海）；國土利用調查約值"
+    source: "內政部「國土利用調查成果」"
+    tier: static
+    confidence: medium  # 各來源略有差異（35–95 km² 之間，因水域定義不同）
+
+  coastline_length_km:
+    value: 1988
+    label: "海岸線總長"
+    unit: "km"
+    note: "含本島 + 主要離島；潮汐基準線量測"
+    source: "內政部國土測繪中心 / 海洋委員會"
+    tier: static
+
+  highest_elevation_m:
+    value: 3952.43
+    label: "最高峰（玉山）"
+    unit: "m"
+    source: "國土測繪中心 1/5000 數值地形"
+    tier: static
+
+  largest_natural_lake_km2:
+    value: 8.0
+    label: "最大天然湖泊（日月潭）"
+    unit: "km²"
+    tier: static
+
+# ─────────────────────────────────────────────────
+# Section C · 人口（tier=monthly，B 階段做 pipeline）
+# ─────────────────────────────────────────────────
+population:
+  total:
+    value: 23262544
+    label: "全國總人口"
+    unit: "人"
+    source: "內政部戶政司「全國人口資料庫統計月報」"
+    source_url: "https://www.ris.gov.tw/app/portal/346"
+    tier: monthly
+    as_of: "2026-04"
+
+  male:
+    value: 11439382
+    unit: "人"
+    tier: monthly
+    as_of: "2026-04"
+
+  female:
+    value: 11823162
+    unit: "人"
+    tier: monthly
+    as_of: "2026-04"
+
+  sex_ratio:
+    value: 96.75
+    label: "性比例（男/女 × 100）"
+    unit: "%"
+    tier: monthly
+    as_of: "2026-04"
+
+  density:
+    value: 642.66
+    label: "人口密度"
+    unit: "人/km²"
+    note: "= total / total_area_km2"
+    tier: monthly
+    as_of: "2026-04"
+
+  households:
+    value: 9894000
+    label: "戶數"
+    unit: "戶"
+    confidence: low  # 推算自戶量 + 總人口
+    note: "≈ total / 2.3509（戶量）"
+    tier: monthly
+    as_of: "2026-04"
+
+  household_size:
+    value: 2.3509
+    label: "平均戶量"
+    unit: "人/戶"
+    tier: monthly
+    as_of: "2026-04"
+
+# ─────────────────────────────────────────────────
+# Section D · 年齡結構（tier=monthly）
+# ─────────────────────────────────────────────────
+age_structure:
+  population_0_14:
+    value: 2652508
+    pct: 11.40
+    label: "幼年人口（0–14 歲）"
+    tier: monthly
+    as_of: "2026-04"
+
+  population_15_64:
+    value: 15873366
+    pct: 68.24
+    label: "壯年人口（15–64 歲）"
+    tier: monthly
+    as_of: "2026-04"
+
+  population_65_plus:
+    value: 4736670
+    pct: 20.36
+    label: "高齡人口（65+）"
+    note: "已達 WHO「超高齡社會」標準（20%）"
+    tier: monthly
+    as_of: "2026-04"
+
+  aging_index:
+    value: 178.57
+    label: "老化指數（65+ ÷ 0-14 × 100）"
+    unit: "%"
+    tier: monthly
+    as_of: "2026-04"
+
+  dependency_ratio:
+    value: 46.55
+    label: "扶養比"
+    unit: "%"
+    note: "= (0-14 + 65+) / 15-64 × 100"
+    tier: monthly
+    as_of: "2026-04"
+
+# ─────────────────────────────────────────────────
+# Section E · 人口動態（tier=monthly / yearly）
+# ─────────────────────────────────────────────────
+vital_statistics:
+  birth_rate:
+    value: 4.26
+    label: "粗出生率"
+    unit: "‰"
+    note: "2026-04 月度數據（年化）"
+    tier: monthly
+    as_of: "2026-04"
+
+  death_rate:
+    value: 8.36
+    label: "粗死亡率"
+    unit: "‰"
+    tier: monthly
+    as_of: "2026-04"
+
+  natural_increase_rate:
+    value: -2.87
+    label: "自然增加率"
+    unit: "‰"
+    note: "2024 全年度；連續多年負成長，台灣已進入人口減少階段"
+    tier: yearly
+    as_of: "2024"
+
+# ─────────────────────────────────────────────────
+# Section F · 衍生標語（給 UI 文案用）
+# ─────────────────────────────────────────────────
+narrative:
+  tagline: "認識你的台灣 vital signs"
+  one_liner: "2,326 萬人，6 都 16 縣市，368 鄉鎮市區，7,748 村里 — 36,197 km² 上的台灣"
+  highlights:
+    - "已進入「超高齡社會」（65+ 佔 20.36%）"
+    - "人口連續負成長（自然增加率 -2.87‰）"
+    - "老化指數 178.57%，65+ 是 0-14 歲人口的 1.8 倍"
+    - "本島 35,808 km² + 離島 389 km²，海岸線近 1,988 km"
