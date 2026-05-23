@@ -2996,3 +2996,1278 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   background: var(--surface-2);
   color: var(--text-secondary);
 }
+
+/* ============================================================
+   ViewA · Home (基礎) — 5 章節獨家視覺
+   ============================================================ */
+
+/* ----- 01 行政區：層級樹（直立堆疊金字塔反向）----- */
+.admin-tree {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px 22px 16px;
+  display: grid;
+  gap: 10px;
+}
+.admin-tree-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 130px;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  position: relative;
+}
+.admin-tree-row .lvl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text);
+}
+.admin-tree-row .lvl .ix {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.admin-tree-bar {
+  height: 22px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-ramp-4) 100%);
+  border-radius: 5px;
+  position: relative;
+  display: flex; align-items: center;
+  padding: 0 10px;
+  color: white;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.admin-tree-row .num {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-align: right;
+  display: flex; align-items: baseline; justify-content: flex-end; gap: 4px;
+}
+.admin-tree-row .num .unit {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.admin-tree-row .sub {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.admin-tree-foot {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  display: flex; gap: 18px; flex-wrap: wrap;
+}
+.admin-tree-foot b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ----- 02 國土地理：本島 vs 離島 方塊比例 ----- */
+.territory-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+  align-items: stretch;
+}
+.territory-visual {
+  position: relative;
+  background: var(--accent-ramp-0);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  min-height: 200px;
+}
+.territory-block {
+  position: relative;
+  border-radius: 8px;
+  padding: 10px 12px 10px;
+  color: white;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  overflow: hidden;
+  transition: transform 0.18s var(--ease-out);
+}
+.territory-block:hover { transform: translateY(-2px); }
+.territory-block.main {
+  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-deep) 100%);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.territory-block.out {
+  background: linear-gradient(160deg, var(--accent-ramp-4) 0%, var(--accent-ramp-5) 100%);
+}
+.territory-block .tb-label {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.92;
+  letter-spacing: 0.02em;
+}
+.territory-block .tb-val {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.territory-block .tb-val .unit {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+  margin-left: 3px;
+}
+.territory-block .tb-pct {
+  font-size: 10.5px;
+  font-weight: 500;
+  opacity: 0.85;
+  margin-top: 1px;
+}
+.territory-block.out .tb-val { font-size: 16px; }
+.territory-meta {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.territory-fact {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: 9px;
+  border: 1px solid var(--border);
+}
+.territory-fact .ico {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-deep);
+  display: grid; place-items: center;
+}
+.territory-fact .lbl {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.territory-fact .lbl b {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 1px;
+}
+.territory-fact .v {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+.territory-fact .v .unit {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 2px;
+}
+
+/* ----- 03 人口總量：Hero + 男女條 + density ----- */
+.pop-hero {
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--surface) 60%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 22px 24px;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 22px;
+  align-items: center;
+}
+.pop-hero .ph-big-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.pop-hero .ph-big {
+  font-size: 52px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  margin-top: 6px;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.pop-hero .ph-big .unit {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.pop-hero .ph-foot {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  display: flex; gap: 14px; flex-wrap: wrap;
+  align-items: center;
+}
+.pop-hero .ph-foot .delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--danger-soft);
+  color: #B91C1C;
+}
+.pop-hero .ph-sex {
+  display: grid; gap: 6px;
+}
+.pop-hero .ph-sex-bar {
+  display: flex;
+  height: 30px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.pop-hero .ph-sex-bar .seg {
+  display: flex; align-items: center;
+  padding: 0 10px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pop-hero .ph-sex-bar .seg.male {
+  background: linear-gradient(90deg, #3B82F6 0%, #2563EB 100%);
+}
+.pop-hero .ph-sex-bar .seg.female {
+  background: linear-gradient(90deg, #EC4899 0%, #DB2777 100%);
+  justify-content: flex-end;
+}
+.pop-hero .ph-sex-meta {
+  display: flex; justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.pop-hero .ph-sex-meta b { color: var(--text); font-weight: 600; }
+
+/* density chip — global rank comparison */
+.density-chip {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 18px;
+  margin-top: 12px;
+}
+.density-chip .dc-num {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+}
+.density-chip .dc-num .unit {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 3px;
+}
+.density-chip .dc-bars {
+  display: grid;
+  gap: 5px;
+  font-size: 11.5px;
+}
+.density-chip .dc-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 56px;
+  gap: 8px;
+  align-items: center;
+}
+.density-chip .dc-row .nm {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.density-chip .dc-row.self .nm { color: var(--accent-deep); font-weight: 700; }
+.density-chip .dc-row .b {
+  height: 7px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.density-chip .dc-row .b > div {
+  height: 100%;
+  background: var(--accent-ramp-3);
+  border-radius: 4px;
+}
+.density-chip .dc-row.self .b > div { background: var(--accent); }
+.density-chip .dc-row .v {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 11px;
+}
+
+/* ----- 04 年齡結構：人口金字塔（3 段橫條）----- */
+.pyramid-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px 20px 16px;
+}
+.pyramid-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 14px;
+  flex-wrap: wrap; gap: 6px;
+}
+.pyramid-head .t { font-size: 13px; font-weight: 600; color: var(--text); }
+.pyramid-head .threshold {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.pyramid-head .threshold b { color: var(--text-secondary); font-weight: 600; }
+.pyramid-rows { display: grid; gap: 10px; }
+.pyr-row {
+  display: grid;
+  grid-template-columns: 92px 1fr 130px;
+  align-items: center;
+  gap: 14px;
+}
+.pyr-row .age-label {
+  display: flex; flex-direction: column;
+  gap: 1px;
+}
+.pyr-row .age-label .grp {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.pyr-row .age-label .tag {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+.pyr-bar-wrap {
+  position: relative;
+  height: 28px;
+  background: var(--surface-3);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.pyr-bar {
+  height: 100%;
+  border-radius: 6px;
+  display: flex; align-items: center;
+  padding: 0 10px;
+  color: white;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: width 0.5s var(--ease-out);
+}
+.pyr-bar.young  { background: linear-gradient(90deg, #22C55E 0%, #16A34A 100%); }
+.pyr-bar.adult  { background: linear-gradient(90deg, var(--accent-ramp-4) 0%, var(--accent-ramp-5) 100%); }
+.pyr-bar.old    { background: linear-gradient(90deg, #F87171 0%, #DC2626 100%); }
+.pyr-row .val-side {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pyr-row .val-side .v {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  line-height: 1.1;
+}
+.pyr-row .val-side .v .unit {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 2px;
+}
+.pyr-row .val-side .sub {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.pyr-row.crit .val-side .v { color: #B91C1C; }
+.pyr-row .crit-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--danger-soft);
+  color: #B91C1C;
+  margin-left: 6px;
+  vertical-align: 2px;
+}
+
+.pyramid-foot {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.pyramid-foot .pf-cell {
+  display: grid; gap: 2px;
+}
+.pyramid-foot .pf-cell .pf-lbl {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.pyramid-foot .pf-cell .pf-val {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+  display: flex; align-items: baseline; gap: 4px;
+}
+.pyramid-foot .pf-cell .pf-val .unit {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.pyramid-foot .pf-cell .pf-meta {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* ----- 05 人口動態：出生 vs 死亡 雙向條 + 自然增加 ----- */
+.dyn-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px 22px;
+}
+.dyn-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 16px;
+}
+.dyn-head .t { font-size: 13px; font-weight: 600; color: var(--text); }
+.dyn-head .yr { font-size: 11.5px; color: var(--text-tertiary); }
+
+.dyn-rows { display: grid; gap: 14px; }
+.dyn-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 88px;
+  align-items: center;
+  gap: 14px;
+}
+.dyn-row .lbl {
+  display: flex; flex-direction: column; gap: 1px;
+}
+.dyn-row .lbl .nm {
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.dyn-row .lbl .yr {
+  font-size: 10.5px; color: var(--text-tertiary);
+}
+.dyn-row .bar-wrap {
+  height: 22px;
+  background: var(--surface-3);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.dyn-row .bar {
+  height: 100%;
+  border-radius: 5px;
+  display: flex; align-items: center;
+  padding: 0 10px;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.dyn-row.birth .bar { background: linear-gradient(90deg, #34D399 0%, #059669 100%); }
+.dyn-row.death .bar { background: linear-gradient(90deg, #FCA5A5 0%, #B91C1C 100%); }
+.dyn-row .val {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text);
+}
+.dyn-row .val .unit {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 2px;
+}
+
+.dyn-result {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 2px dashed var(--border);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+.dyn-result .rs-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.dyn-result .rs-label b {
+  color: var(--text);
+  font-weight: 700;
+  display: block;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+.dyn-result .rs-num {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: #B91C1C;
+  line-height: 1;
+  display: flex; align-items: baseline; gap: 4px;
+}
+.dyn-result .rs-num .unit {
+  font-size: 14px;
+  color: #B91C1C;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* Birth/Death dual-line chart */
+.bd-trend {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.bd-trend-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+  font-size: 11.5px;
+}
+.bd-trend-head .t { color: var(--text-secondary); font-weight: 600; }
+.bd-trend-head .legend { display: flex; gap: 14px; }
+.bd-trend-head .legend span { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); }
+.bd-trend-head .legend i { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
+
+/* ----- 03 hero KPI strip ----- */
+.home-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.home-strip .strip-cell {
+  background: var(--surface);
+  padding: 14px 16px;
+  display: grid; gap: 3px;
+}
+.home-strip .strip-cell .sc-lbl {
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+}
+.home-strip .strip-cell .sc-val {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  display: flex; align-items: baseline; gap: 3px;
+  line-height: 1.1;
+}
+.home-strip .strip-cell .sc-val .unit {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.home-strip .strip-cell .sc-sub {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+
+/* dependency ratio tile (D5 in pyramid foot — extra) */
+
+
+/* ============================================================
+   ViewB · Home (基礎縣市) — 5 章節對齊 ViewA
+   ============================================================ */
+
+/* ----- Hero · 縣市名片 + 4 fact tile ----- */
+.county-hero-card {
+  margin-top: 6px;
+  margin-bottom: var(--section-gap);
+}
+.county-hero-card .ch-titlerow {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.county-hero-card .ch-titlerow h1 {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0;
+  white-space: nowrap;
+}
+.county-hero-card .ch-en {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.ch-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.ch-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ch-chip.muni {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+.ch-chip.region {
+  background: var(--surface-3);
+}
+.ch-chip .swatch {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.county-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.county-fact-tile {
+  background: var(--surface);
+  padding: 14px 16px 14px;
+  display: grid;
+  gap: 4px;
+  position: relative;
+  min-width: 0;
+}
+.county-fact-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--accent-ramp-0) 0%, transparent 70%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.county-fact-tile > * { position: relative; z-index: 1; }
+.county-fact-tile .cft-lbl {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 5px;
+}
+.county-fact-tile .cft-lbl .ico {
+  width: 16px; height: 16px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-deep);
+}
+.county-fact-tile .cft-val {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  display: flex; align-items: baseline; gap: 3px;
+  line-height: 1.1;
+}
+.county-fact-tile .cft-val .unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.county-fact-tile .cft-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+}
+.county-fact-tile .cft-rank {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent-deep);
+  font-variant-numeric: tabular-nums;
+}
+.county-fact-tile .cft-rank.high {
+  color: #B91C1C;
+}
+.county-fact-tile .cft-rank.low {
+  color: #047857;
+}
+.county-fact-tile .cft-delta {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.county-fact-tile .cft-delta b {
+  font-weight: 700;
+}
+.county-fact-tile .cft-delta b.pos { color: #047857; }
+.county-fact-tile .cft-delta b.neg { color: #B91C1C; }
+
+/* ----- 01 行政區結構 ----- */
+.cs-admin-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.cs-admin-cell {
+  background: var(--surface);
+  padding: 14px 18px;
+  display: grid; gap: 3px;
+}
+.cs-admin-cell .lbl {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.cs-admin-cell .val {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  display: flex; align-items: baseline; gap: 4px;
+  line-height: 1.1;
+}
+.cs-admin-cell .val .unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.cs-admin-cell .meta {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+.cs-admin-cell .meta.etl {
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.cs-admin-cell .meta.etl::before {
+  content: "";
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--warning);
+  display: inline-block;
+}
+
+/* 鄉鎮 ranking with mock + ETL marker */
+.township-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+}
+.township-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.township-head .t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+.township-head .t .pre {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+}
+.etl-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: var(--warning-soft);
+  color: #B45309;
+  text-transform: uppercase;
+}
+.etl-badge .dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #F59E0B;
+}
+.township-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+.township-col h4 {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+  letter-spacing: 0.02em;
+}
+.township-row {
+  display: grid;
+  grid-template-columns: 18px 1fr 1fr 64px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+.township-row .rk {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.township-row .nm {
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.township-row .b {
+  height: 5px;
+  background: var(--surface-3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.township-row .b > div {
+  height: 100%;
+  background: var(--accent-ramp-4);
+  border-radius: 3px;
+}
+.township-row .v {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+}
+.township-foot {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* ----- 02 地理位置 ----- */
+.geo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+}
+.geo-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 18px;
+}
+.geo-stats {
+  display: grid; gap: 10px;
+  align-content: start;
+}
+.geo-stat {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.geo-stat:last-child { border-bottom: none; }
+.geo-stat .lbl {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.geo-stat .lbl b {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 1px;
+}
+.geo-stat .v {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-align: right;
+}
+.geo-stat .v .unit {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 2px;
+}
+.geo-stat .v .sub {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  margin-top: 1px;
+}
+
+.neighbor-block {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.neighbor-block .nb-lbl {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.neighbor-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.neighbor-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+.neighbor-chip:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--accent-deep);
+}
+.neighbor-chip .arr {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+/* ----- vs 全國對照雙條（在 03/04/05 章重用）----- */
+.vs-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 18px;
+}
+.vs-card-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 12px;
+}
+.vs-card-head .t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.vs-card-head .meta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.vs-rows { display: grid; gap: 10px; }
+.vs-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 96px;
+  align-items: center;
+  gap: 14px;
+  font-size: 12.5px;
+}
+.vs-row .lbl {
+  display: flex; flex-direction: column;
+  gap: 1px;
+}
+.vs-row .lbl .nm {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.vs-row .lbl .nm.muted-nm { color: var(--text-secondary); font-weight: 500; }
+.vs-row .lbl .sub {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+.vs-bar-wrap {
+  height: 18px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.vs-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s var(--ease-out);
+}
+.vs-bar.self { background: linear-gradient(90deg, var(--accent) 0%, var(--accent-deep) 100%); }
+.vs-bar.nat  { background: var(--accent-ramp-3); }
+.vs-row .val {
+  text-align: right;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.vs-row .val .unit {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 2px;
+}
+.vs-row.muted-row .val { color: var(--text-secondary); font-weight: 500; }
+.vs-card-foot {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  display: flex; align-items: center; gap: 6px;
+}
+.vs-card-foot .delta-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.vs-card-foot .delta-tag.pos { background: var(--positive-soft); color: #047857; }
+.vs-card-foot .delta-tag.neg { background: var(--danger-soft); color: #B91C1C; }
+.vs-card-foot .delta-tag.flat { background: var(--surface-3); color: var(--text-secondary); }
+
+/* ----- 03 人口總量 mini compact pop hero (sub variant) ----- */
+.county-pop-hero {
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--surface) 60%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 22px;
+  align-items: center;
+}
+.county-pop-hero .cph-big-lbl {
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.county-pop-hero .cph-big {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  margin-top: 6px;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.county-pop-hero .cph-big .unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.county-pop-hero .cph-rank {
+  margin-top: 8px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.county-pop-hero .cph-rank b {
+  color: var(--accent-deep);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.county-pop-hero .ph-sex-bar {
+  display: flex;
+  height: 26px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.county-pop-hero .ph-sex-bar .seg {
+  display: flex; align-items: center;
+  padding: 0 8px;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+}
+.county-pop-hero .ph-sex-bar .seg.male {
+  background: linear-gradient(90deg, #3B82F6 0%, #2563EB 100%);
+}
+.county-pop-hero .ph-sex-bar .seg.female {
+  background: linear-gradient(90deg, #EC4899 0%, #DB2777 100%);
+  justify-content: flex-end;
+}
+.county-pop-hero .ph-sex-meta {
+  display: flex; justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  margin-top: 5px;
+}
+.county-pop-hero .ph-sex-meta b { color: var(--text); font-weight: 600; }
+
+/* households */
+.household-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.household-row .hr-cell {
+  background: var(--surface);
+  padding: 12px 14px;
+}
+.household-row .hr-cell .hr-lbl {
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+.household-row .hr-cell .hr-val {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  margin-top: 2px;
+  display: flex; align-items: baseline; gap: 4px;
+}
+.household-row .hr-cell .hr-val .unit {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.household-row .hr-cell .hr-sub {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
+/* ----- 04 pyramid: county vs national overlay ----- */
+.pyramid-with-overlay .pyr-bar-wrap {
+  position: relative;
+}
+.pyramid-with-overlay .pyr-nat-tick {
+  position: absolute;
+  top: -2px; bottom: -2px;
+  width: 2px;
+  background: var(--text);
+  opacity: 0.55;
+  border-radius: 1px;
+  z-index: 2;
+}
+.pyramid-with-overlay .pyr-nat-tick::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 8px; height: 8px;
+  background: var(--text);
+  border-radius: 50%;
+  transform: translateY(-4px);
+}
+.pyramid-overlay-legend {
+  display: flex; gap: 12px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+}
+.pyramid-overlay-legend i {
+  display: inline-block;
+  width: 2px; height: 12px;
+  background: var(--text);
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+/* aging dual line legend variant (same as bd-trend but renamed for view-b) */
+.dual-trend-legend {
+  display: flex; gap: 14px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+}
+.dual-trend-legend span {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--text-secondary);
+}
+.dual-trend-legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.dual-trend-legend i.dashed { background: repeating-linear-gradient(90deg, var(--text-tertiary) 0 4px, transparent 4px 7px); }
+
