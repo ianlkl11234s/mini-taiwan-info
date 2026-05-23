@@ -3,7 +3,7 @@
 > **Living document**。每完成一個 task / 做一個決定 / 發現新 backlog，就更新這份檔。
 > 一日一次同步：每天結束時對齊 TaskList tool 與本檔。
 
-**最後更新**：2026-05-15 (Session 5 結束 · 消防主題 ViewA Phase 1 上線 · 1 區塊真實 / 3 區塊 mock)
+**最後更新**：2026-05-22 (home theme ViewB 5 章節縣市鑽取上線 — 設計檔 2 導入 + URL deeplink + 接 LIVE 全國 baseline)
 **當前 Phase**：水主題 Phase 0 已收尾 · 消防主題 **ViewA Phase 1 完成**（4 區塊上線，等 mock → 真實替換）
 **當前 Focus**：📍 消防主題 mock 替換 — 下個 session 把 S2/S3/S4 mock 換真實（B041-B047）
 **用詞守則**：「LIVE」嚴格定義為 collector cron + 上游 realtime；其他用「接通真實資料」
@@ -332,6 +332,91 @@ Cycle 1 前的選項（已併入水循環 Roadmap）：
 - 選 B Phase 0d 月雨量 MV → 變成 Cycle K
 - 選 C 22 縣市 ranking 真實化 → Cycle 1 已完成
 - 選 D 4 主題 v1.1 → 不在水資源體系內（其他主題 roadmap）
+
+---
+
+# 🏠 home theme（基礎統計）— 全台概覽資料層上線（2026-05-20）
+
+**狀態**：🟢 資料層 A+B 階段完成，等用戶 apply migration 114 + UI 重新設計
+
+## 2026-05-20 完成
+
+| 項目 | 路徑 | 狀態 |
+|---|---|---|
+| **A1 SSOT yaml** | `data/national-basics.yaml` (23 指標, v1.0) | ✅ |
+| **A2 TS 衍生** | `frontend/src/lib/national-basics.ts` | ✅ |
+| **A3 指標清單** | `docs/themes/home-basics-indicators.md` (給設計師) | ✅ |
+| **B1 Supabase migration** | `gis-platform/migrations/114_reference_national_basics.sql` (含 baseline) | ✅ 待 user apply |
+| **B2 Catalog v2** | `../taipei-gis-analytics/docs/data-catalog/demographics/national_basics.md` | ✅ |
+| **B3 Registry entry** | `../taipei-gis-analytics/docs/data-registry.yaml` | ✅ |
+| **B4 Pipeline 骨架** | `../taipei-gis-analytics/pipelines/demographics/national_basics/` (README + 01 + 12) | ✅ 骨架 |
+| **B5 前端 query** | `frontend/src/lib/queries/national-basics.ts` (Supabase + fallback) | ✅ |
+| **B6 前端 hook** | `frontend/src/hooks/useNationalBasics.ts` (INITIAL + Supabase) | ✅ |
+
+## 資料層設計
+
+- **靜態指標**（A 行政區 + B 面積，12 項）— 永遠 hardcode 在 ts，不入 DB
+- **動態指標**（C 人口 + D 年齡 + E 動態，11 項）— Supabase `reference.national_basics_monthly/yearly` + `national_basics_latest` VIEW
+- 跨 repo 重用：mini-taiwan-pulse / plan-art / gis-platform 都可 `SELECT * FROM reference.national_basics_latest`
+
+## 2026-05-22 完成（ViewA 設計實作）
+
+| 項目 | 路徑 | 狀態 |
+|---|---|---|
+| **Migration 114 apply** | `reference.national_basics_monthly + yearly + latest VIEW` | ✅ Supabase verified（pop_total 23,262,544、aging 178.57） |
+| **設計檔導入** | `/tmp/mtw_design/mini-taiwan-info/` (chat6 5 章節版型) | ✅ 讀完 6 個 chat |
+| **新 CSS 段** | `frontend/src/styles/globals.css` +621 行（admin-tree/territory/pop-hero/density-chip/pyramid/dyn-card/bd-trend） | ✅ |
+| **ViewAHome.tsx** | `frontend/src/components/views/ViewAHome.tsx` 459 行 | ✅ |
+| **mock-home.ts** | `frontend/src/lib/mock-home.ts`（22 縣市 ranking、AGING_HISTORY、BIRTH_DEATH_HISTORY、DENSITY_COMPARE） | ✅ |
+| **App.tsx routing** | `theme === "home-basics"` → ViewAHome | ✅ |
+| **typecheck** | 0 error | ✅ |
+| **agent-browser snapshot** | 5 章節全渲染 + Footer 顯示「LIVE Supabase」 | ✅ |
+
+## 5 章節結構（對齊水資源頁編號 CatHeader）
+
+1. **01 行政區** — 對數縮放層級樹（22 / 368 / 7,748 / 144,820）+ 平均統計
+2. **02 國土地理** — 本島 vs 離島面積方塊（98.9% / 1.1%）+ 5 張地理 fact
+3. **03 人口總量** — 23.26M Hero + 男女漸層條 + 全球密度比較
+4. **04 年齡結構**（主視覺）— 三段人口金字塔 + 老化指數歷年（2017 死亡交叉）+ 22 縣市 ranking
+5. **05 人口動態** — 出生 4.26‰ vs 死亡 8.36‰ 對立雙條 + 自然增加 -2.87‰ + 2000-2026 雙線趨勢
+
+## 2026-05-22 補完（ViewB 縣市鑽取上線）
+
+| 項目 | 路徑 | 狀態 |
+|---|---|---|
+| **設計檔 2** | `/tmp/mtw_design2/mini-taiwan-info/` (view-b.jsx ViewB_Home) | ✅ 解析 + 移植 |
+| **+652 行 CSS** | `frontend/src/styles/globals.css` (county-hero/cs-admin/township/geo-card/neighbor/vs-card/dual-trend) | ✅ |
+| **mock-home 擴充** | `frontend/src/lib/mock-home.ts` +COUNTY_TOWNSHIPS_MOCK / MUNI_INFO / COASTAL_COUNTIES | ✅ |
+| **county-stats helpers** | `frontend/src/lib/county-stats.ts` deriveHomeStats / rankAmongCounties / vsNationalTag / neighborCounties | ✅ |
+| **ViewBHomeBasics 完整版** | `frontend/src/components/views/ViewBHomeBasics.tsx` (620 行 5 章節) | ✅ |
+| **URL deeplink** | `App.tsx` 解析 `?county=TNN&view=B&theme=home-basics` | ✅ |
+| **typecheck** | 0 error | ✅ |
+| **agent-browser 驗證** | ViewA + ViewB 視覺正常、Supabase LIVE baseline 接通 | ✅ |
+
+## ViewB 結構（對齊 ViewA Home 5 章節）
+
+- **Hero · 縣市名片** — 中英文 + 區域 chip + 直轄市/省轄市 + 鄉鎮市區/村里 chip
+- **4 fact tile** — 人口 / 面積 / 密度 / 老化指數 + 22 縣市排名 + vs 全國
+- **01 行政區結構** — 鄉鎮市區/村里/鄰 strip + 鄉鎮人口 TOP/BOTTOM 5 drill-in (mock)
+- **02 地理位置** — 區域/面積占全國/海岸線/座標 + 同區域鄰縣 chip (可點切換)
+- **03 人口總量** — 縣市人口 Hero + 男女漸層 + 戶數戶量 + vs 全國密度雙條
+- **04 年齡結構**（主視覺）— 三段金字塔 + 全國基準線 tick + 老化指數歷年雙線 (縣市 vs 全國)
+- **05 人口動態** — 出生死亡對立雙條 + 自然增加 + vs 全國對照 + 縣市歷年雙線
+
+## 真實 vs Mock 分布
+
+| 來源 | 涵蓋 |
+|---|---|
+| ✅ **LIVE Supabase** `reference.national_basics_latest` | 全國 baseline（pop_total / aging / birth/death / 密度 / pct_*） |
+| ✅ **COUNTIES SSOT**（已 apply migration 093） | 22 縣市名/區域/面積/2024 人口/centroid |
+| 🟡 **mock-home.ts** | 22 縣市老化/出生死亡/鄉鎮數 + 歷年趨勢 + 鄉鎮名稱 |
+| 🟡 **deriveHomeStats** 推導 | per-county 男女拆分 / 年齡三段 / 戶數 / 村里鄰估算 |
+
+## 下一步
+
+1. ⬜ 月度 pipeline parser（戶政司月報 ETL）
+2. ⬜ Migration 115 — `reference.national_basics_by_county_monthly/yearly` + ETL pipeline
+3. ⬜ ViewBHomeBasics 切換 mock → query per-county Supabase（hook fallback 留著）
 
 ---
 

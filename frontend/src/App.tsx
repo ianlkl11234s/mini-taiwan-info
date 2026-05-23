@@ -17,6 +17,8 @@ import { TwoSectionLayers, type PointLayerToggle, METRIC_NONE } from "@/componen
 import { ViewA } from "@/components/views/ViewA";
 import { ViewAFire } from "@/components/views/ViewAFire";
 import { ViewAWater } from "@/components/views/ViewAWater";
+import { ViewAHome } from "@/components/views/ViewAHome";
+import { ViewBHomeBasics } from "@/components/views/ViewBHomeBasics";
 import { ViewB } from "@/components/views/ViewB";
 import { ViewBFire } from "@/components/views/ViewBFire";
 import { ViewC } from "@/components/views/ViewC";
@@ -76,11 +78,23 @@ export default function App() {
   const themeList = useMemo(() => getThemeList(manifests), [manifests]);
 
   // App state
-  const [theme, setTheme] = useState<string>(import.meta.env.VITE_DEFAULT_THEME ?? "water");
+  const [theme, setTheme] = useState<string>(import.meta.env.VITE_DEFAULT_THEME ?? "home-basics");
   const [view, setView] = useState<AppView>("A");
   const [county, setCounty] = useState<CountyCode3 | null>(null);
   const [reservoirId, setReservoirId] = useState<string | null>(null);
   const [comparing, setComparing] = useState(false);
+
+  // URL search params 解析（?county=TNN&view=B&theme=home-basics）— 給分享連結與 deeplink 用
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const t = sp.get("theme");
+    const c = sp.get("county");
+    const v = sp.get("view");
+    if (t) setTheme(t);
+    if (c && /^[A-Z]{3}$/.test(c)) setCounty(c as CountyCode3);
+    if (v === "A" || v === "B" || v === "C" || v === "D") setView(v);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const manifest: ThemeManifest | null = manifests[theme] ?? null;
 
@@ -484,6 +498,11 @@ export default function App() {
                     setView("C");
                   }}
                 />
+              ) : theme === "home-basics" ? (
+                <ViewAHome
+                  selectedCounty={county}
+                  onCountyClick={goCity}
+                />
               ) : (
                 <ViewA
                   manifest={manifest}
@@ -521,6 +540,13 @@ export default function App() {
                   county={county}
                   onBack={goHome}
                   onAddCompare={() => { setComparing(true); }}
+                />
+              ) : theme === "home-basics" ? (
+                <ViewBHomeBasics
+                  county={county}
+                  onBack={goHome}
+                  onAddCompare={() => { setComparing(true); }}
+                  onCityClick={goCity}
                 />
               ) : (
                 <ViewB
