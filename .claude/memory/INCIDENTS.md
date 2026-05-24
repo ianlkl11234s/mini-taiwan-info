@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-05-24 主題 accent key mismatch + ramp 沒 rebind → 基礎統計整片變水藍
+
+**現象**：home-basics（基礎統計）主題的 KPI 卡、章節標題、行政區層級 bar、人口金字塔全變水藍，跟水資源撞色。user 從設計稿記得基礎該是中性 slate 灰。地圖 choropleth 卻是對的（灰）。socioeconomic 同樣中招（該紫變水藍）。
+
+**根因**：兩個 bug 疊加。(1) `App.tsx` `THEME_ACCENT_VARS` 的 key 寫 `"home"`，但 `theme` state 值是 manifest id `"home-basics"` → `THEME_ACCENT_VARS[theme]` miss → 舊 code `?? THEME_ACCENT_VARS.water` fallback 成水藍（accent/deep/soft）。(2) 切 theme 只 rebind `--accent/-deep/-soft`，沒 rebind `--accent-ramp-0..6` → 儀錶板圖表（`.pyr-bar` / `.ranking-row .bar` / `.vs-bar`）殘留 `:root` 預設水藍 ramp。地圖沒事是因為它讀 `manifest.theme.color_ramp → COLOR_RAMPS`（另一套資料源）。
+
+**對策**：App.tsx 改成從 manifest 推導三色 + ramp（見 PRINCIPLES 2026-05-24「主題配色單一 SSOT」），`THEME_ACCENT_VARS` key 修成 `home-basics`，並迴圈寫 7 階 `--accent-ramp-${i}`。socioeconomic 因走 manifest 推導自動修好。typecheck pass + 4 主題截圖驗證（home 灰 / socio 紫 / water 藍無 regression）。
+
+**教訓**：同一件事（主題色）有兩套資料源（manifest+COLOR_RAMPS 給地圖；THEME_ACCENT_VARS+CSS ramp 給儀錶板）必然 drift。debug 配色時別只看地圖 — 地圖對不代表儀錶板對。
+
+---
+
 ## 2026-05-16 Fire heatmap addLayer 沒加 beforeId → 蓋掉縣市標籤
 
 **現象**：B045 fire 主題切過去，火災 heatmap 渲染在 county-fill / county-border / county-labels 之上，深紅熱區把縣市名 + 邊線都壓掉。
