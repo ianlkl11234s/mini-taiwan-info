@@ -54,6 +54,14 @@
 - 邊界縣市可能誤判但對「明顯在縣市中心」的水庫足夠
 - 未來改進：admin.counties polygon migration + ST_Contains
 
+### 2026-05-24: 主題配色單一 SSOT = manifest，App 不硬寫
+
+- **唯一真相**：每個主題的色 = `themes/{theme}.yaml` 的 `color_accent` + `color_ramp`。`color_ramp` 必須是 `lib/mapbox.ts` `COLOR_RAMPS` 的 key（blues/reds/grays/purples/...）
+- **App.tsx 從 manifest 推導**，不再硬寫 fallback 成水藍：`accent = theme.color_accent`、`deep = ramp[last]`、`soft = ramp[1]`，並在切 theme 時迴圈 rebind 7 階 `--accent-ramp-${i}`（地圖 choropleth 與儀錶板圖表同一 ramp）
+- `THEME_ACCENT_VARS` 只當「精準品牌色 override」，**key 必須 = manifest `theme.id`**（如 `home-basics` 不是 `home`）；對不上不會壞（會自動走 manifest 推導），但 override 會被忽略
+- **新主題上線後**：肉眼確認 accent 不是水藍（key typo / ramp 打錯字的徵兆）
+- 詳見 INCIDENTS 2026-05-24「主題 accent key mismatch」
+
 ## 行為原則（Claude 自律）
 
 ### Atomic Commit
