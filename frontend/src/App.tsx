@@ -13,6 +13,7 @@ import { ThemeSwitcher } from "@/components/chrome/ThemeSwitcher";
 import type { CrumbItem } from "@/components/chrome/Breadcrumb";
 import { MapView } from "@/components/map/MapView";
 import { MapLegend } from "@/components/map/MapLegend";
+import { COLOR_RAMPS } from "@/lib/mapbox";
 import { TwoSectionLayers, type PointLayerToggle, METRIC_NONE } from "@/components/map/TwoSectionLayers";
 import { ViewA } from "@/components/views/ViewA";
 import { ViewAFire } from "@/components/views/ViewAFire";
@@ -32,10 +33,12 @@ import { getNearestCounty } from "@/lib/reverseGeocode";
 import { FIRE_MOCK_BY_COUNTY } from "@/lib/mock-fire";
 
 // 主題色映射（與 manifest theme.color_accent 對齊）
+// key 必須對齊 theme state 值（= manifest theme.id），否則 THEME_ACCENT_VARS[theme]
+// 會 miss 而 fallback 到 water — home-basics 之前就因 key 寫 "home" 而整片變水藍。
 const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: string }> = {
-  water: { accent: "#0EA5E9", deep: "#0369A1", soft: "#E0F2FE" },
-  fire:  { accent: "#DC2626", deep: "#991B1B", soft: "#FEF2F2" },
-  home:  { accent: "#475569", deep: "#1E293B", soft: "#F1F5F9" },
+  water:         { accent: "#0EA5E9", deep: "#0369A1", soft: "#E0F2FE" },
+  fire:          { accent: "#DC2626", deep: "#991B1B", soft: "#FEF2F2" },
+  "home-basics": { accent: "#475569", deep: "#1E293B", soft: "#F1F5F9" },
 };
 
 // Phase 0b+ A-2: 水主題點位圖層定義（reservoir 已 LIVE，其他 Phase 1+ 規劃）
@@ -106,13 +109,25 @@ export default function App() {
   }, [theme, manifest?.overview.default_choropleth_metric]);
 
   // 主題色 apply 到 :root CSS var
+  // 對應 prototype app.jsx：除了 accent/deep/soft，還要 rebind 7 階 --accent-ramp-*，
+  // 否則 dashboard 圖表（人口金字塔 / ranking bar / vs-bar）會殘留 :root 預設的水藍 ramp。
+  // 三色 + ramp 都跟 manifest 同一 SSOT：THEME_ACCENT_VARS 有精準品牌色就用，沒有
+  // （如 socioeconomic）就從 manifest.theme.color_accent + color_ramp 推導，避免 miss-key
+  // fallback 成水藍（home-basics / socioeconomic 之前就因此整片變水藍）。
   useEffect(() => {
+    if (!manifest) return;
     const root = document.documentElement;
-    const preset = THEME_ACCENT_VARS[theme] ?? THEME_ACCENT_VARS.water;
+    const ramp = COLOR_RAMPS[manifest.theme.color_ramp] ?? COLOR_RAMPS.blues;
+    const preset = THEME_ACCENT_VARS[theme] ?? {
+      accent: manifest.theme.color_accent,
+      deep: ramp[ramp.length - 1],
+      soft: ramp[1],
+    };
     root.style.setProperty("--accent", preset.accent);
     root.style.setProperty("--accent-deep", preset.deep);
     root.style.setProperty("--accent-soft", preset.soft);
-  }, [theme]);
+    ramp.forEach((c, i) => root.style.setProperty(`--accent-ramp-${i}`, c));
+  }, [theme, manifest]);
 
   // 從 manifest 找當前 metric 的設定
   const colorMetric = manifest?.overview.color_metrics.find((m) => m.id === metric) ?? null;
