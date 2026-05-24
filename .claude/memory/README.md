@@ -44,15 +44,31 @@ Mini Taiwan Info 專案記憶系統。Session 開頭讀這裡，結束時透過 
 
 ## 分層
 
-| 層級 | 位置 | 性質 |
+| 層級 | 位置 | 性質 | 每次 session 自動載入？ |
+|---|---|---|---|
+| 全域 / 偏好 | `~/.claude/projects/.../memory/` | 跨 session 偏好 + 跨專案事實 + **指向本層的薄索引** | ✅ 開場進 context |
+| 規則 | `mini-taiwan-info/CLAUDE.md` | 不變規則（架構、技術棧、技術選擇） | ✅ |
+| **狀態** ⭐ | `mini-taiwan-info/.claude/memory/`（本資料夾） | **變動狀態 + 決策 + 踩坑 + 反省 + backlog** | ❌ skill / 主動讀才進 |
+| user-facing | `mini-taiwan-info/_STATUS.md` | Phase 進度 + Decision Log + Backlog (給 user 看的版本) | ❌ |
+| 規劃 SSOT | `mini-taiwan-info/docs/00-10*.md` | 設計階段規劃文件 | ❌ |
+| 主題 SSOT | `mini-taiwan-info/themes/*.yaml` | 主題 manifest | ❌ |
+| 縣市 SSOT | `mini-taiwan-info/data/counties.yaml` | 22 縣市對照 | ❌ |
+| 長文 | `mini-taiwan-info/.claude/pitfalls/` | 事件 long-form archive | ❌ |
+
+## 什麼寫哪（路由表）⭐ 避免「兩份真相」
+
+兩套記憶分工的關鍵：**自動載入的（harness 全域）保持薄；深的知識放 git 版本控制的本層。**
+
+| 你想記的東西 | 寫進 | 理由 |
 |---|---|---|
-| 全域 | `~/.claude/projects/.../memory/` | 跨專案 + 用戶偏好 + API 事實 |
-| 規則 | `mini-taiwan-info/CLAUDE.md` | 不變規則（架構、技術棧、技術選擇） |
-| **狀態** | `mini-taiwan-info/.claude/memory/` | **變動狀態 + 反省 + backlog** |
-| user-facing | `mini-taiwan-info/_STATUS.md` | Phase 進度 + Decision Log + Backlog (給 user 看的版本) |
-| 規劃 SSOT | `mini-taiwan-info/docs/00-10*.md` | 設計階段規劃文件 |
-| 主題 SSOT | `mini-taiwan-info/themes/*.yaml` | 主題 manifest |
-| 縣市 SSOT | `mini-taiwan-info/data/counties.yaml` | 22 縣市對照 |
-| 長文 | `mini-taiwan-info/.claude/pitfalls/` | 事件 long-form archive |
+| 不變規則（語言、Python3、build、目錄、技術選擇） | `CLAUDE.md` | 永遠載入、極少改 |
+| 專案決策 / 不用再溝通的預設（配色 SSOT、LIVE 用詞、響應式斷點） | `PRINCIPLES.md` | 團隊共享、進 git、有演進史 |
+| 踩過的坑（≥1 次 rework 或靜默錯誤） | `INCIDENTS.md` | append-only、不刪、保留學習軌跡 |
+| Session 反省 / 下次規則 | `REFLECTIONS.md` | append-only |
+| 固定 SOP（做過 ≥2 次） | `PLAYBOOKS.md` | 定型才寫 |
+| 跨 session 要自動記得的「**怎麼跟這個 user 協作 / 偏好**」 | harness 全域（薄、一檔一事 + `MEMORY.md` 索引） | 每次開場進 context |
+| 深度知識（踩坑全文、決策細節） | 本層 `.claude/memory/`，harness 只放**指路牌**指過來 | 不重複、單一真相 |
+
+**反模式**：把同一件事同時寫進 harness 全域 + `.claude/memory/`（= 兩份真相，會 drift）。harness 那邊遇到深的東西只寫一句 + 「詳見 `.claude/memory/INCIDENTS.md 某條`」。
 
 完整說明見 [../FRAMEWORK.md](../FRAMEWORK.md)
