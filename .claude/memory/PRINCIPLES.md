@@ -318,3 +318,21 @@ Reference: `useWaterKpis.ts` Session 8 改造；codex review 抓的 BLOCKER。
 **為什麼**：mini-taiwan-info 是公開縣市儀錶板，顯示假數字 = 對外承諾失敗。誠實 footnote 比假裝完整更值得信任。對齊 LIVE badge 嚴守 pattern（2026-05-14 拍板）。
 
 Reference: Session 9 fire 主題去 mock 化 — A 類缺資料處置（user 拍板「接通 + footnote 揭露完整即可」）；ViewAFire S1/S2/S4 + ViewBFire OthersTab。
+
+### 2026-05-26: 部署費用量級 — Supabase egress 非瓶頸，Mapbox map loads 才是較低天花板
+
+上線前費用盤點實測結論（user 是 Supabase **Pro**，非 Free）：
+
+**Supabase（Pro：egress 250GB/月，超額 $0.09/GB）**
+- PostgREST 預設開 gzip。實測真實線上 egress：fire 5 萬筆 = **498KB**、地層下陷 10 萬筆 = **21KB**、災害 2000 筆 = **36KB**（皆 `curl --compressed`）。
+- 重度訪客（逛 water+fire）≈ **~1MB egress/session** → 250GB ≈ **~25 萬重度人次/月**才碰配額。對縣市儀錶板等級流量，egress **不是風險**。
+- Pro 超額會「**計費**」（Free 是限流不計費）→ 要絕對杜絕帳單驚嚇就在 Billing 開 **Spend Cap**（超額改限流不收費）；否則關著 + 設用量告警容許小額 overage。
+- **Small Compute Hours** 是 DB 實例 24h 開機的**時間成本，與流量無關**，不隨訪客暴增。
+
+**Mapbox（map loads 50,000/月免費，超額按千次計）= 較低天花板**
+- 1 session = 1 map load（MapView 只 `new Map()` 一次，切 view/county/theme 靠 `flyTo`/`setData`）→ **5 萬訪客/月**就到頂，比 Supabase Pro 的 25 萬低 5×。
+- 上線成本告警**優先設 Mapbox**。pk token 必在 Mapbox 後台設 **URL referrer 限制**（防盜刷，bundle 公開，程式層無法防）。
+
+**同時人數 ≠ 配額軸**：app 純 REST（走連線池）、**無 realtime websocket**，100/1000 人同時不會因配額壞；配額一律整月累計。
+
+Reference: 2026-05-26 上線前盤點，實測 `curl --compressed`；坑見 INCIDENTS 2026-05-26「未壓縮估 egress」。

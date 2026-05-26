@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-05-26 用「未壓縮 JSON 大小」估 Supabase egress → 高估 ~7× 的假警報
+
+**現象**：上線前費用盤點，sub-agent 估算 fire 主題單次抓 5 萬筆 ≈ 8–11MB egress/session，推論「Supabase 免費 5GB 約 350–420 session/月就爆」，列為 ❌ 高風險上線阻擋項。實測後完全推翻。
+
+**根因**：估算用「未壓縮 JSON 字串長度」。實測 `fire_list_incidents(limit:50000)` 原始 3.55MB，但 Supabase（PostgREST）**預設開 gzip**，瀏覽器送 `Accept-Encoding: gzip` 後**線上實傳僅 498KB**（7× 落差）。egress 計費是壓縮後的線上位元組，不是 JSON 長度。地層下陷 10 萬筆（`station_id` + 小數，重複性極高）更誇張：gzip 後僅 **21KB**。
+
+**對策**：估 egress 一律 `curl -s --compressed -w "%{size_download}"` 實測線上 bytes，禁止用 `wc -c` 量 JSON 推估。實測值與量級結論見 PRINCIPLES 2026-05-26「部署費用量級」。
+
+**教訓**：(1)「筆數」≠「流量」— 窄欄位高重複性 gzip 壓縮率可達 90%+。(2) 費用估算**先實測再下風險等級**，未壓縮估算會誤判、誤觸發不必要的優化（差點為了「省錢」去重寫 fire 聚合 RPC，實際 egress 根本不是瓶頸）。(3) 此案 user 是 Supabase Pro（250GB），實際 ~25 萬重度人次/月才碰配額。
+
+---
+
 ## 2026-05-24 主題 accent key mismatch + ramp 沒 rebind → 基礎統計整片變水藍
 
 **現象**：home-basics（基礎統計）主題的 KPI 卡、章節標題、行政區層級 bar、人口金字塔全變水藍，跟水資源撞色。user 從設計稿記得基礎該是中性 slate 灰。地圖 choropleth 卻是對的（灰）。socioeconomic 同樣中招（該紫變水藍）。
