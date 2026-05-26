@@ -19,7 +19,8 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
-    sourcemap: true,
+    // 公開上線：不輸出 source map，避免反編譯出完整原始碼/結構
+    sourcemap: false,
   },
   assetsInclude: ["**/*.yaml"],
 });

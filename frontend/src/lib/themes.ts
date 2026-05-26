@@ -28,9 +28,6 @@ function extractThemeId(path: string): string {
  */
 export function loadAllManifests(): Record<string, ThemeManifest> {
   const out: Record<string, ThemeManifest> = {};
-  const found = Object.keys(yamlModules);
-  // eslint-disable-next-line no-console
-  console.log("[themes] glob matched files:", found);
   for (const [path, raw] of Object.entries(yamlModules)) {
     const themeId = extractThemeId(path);
     if (themeId.startsWith("_")) continue; // skip _template.yaml / _schema.json
@@ -38,15 +35,6 @@ export function loadAllManifests(): Record<string, ThemeManifest> {
       const parsed = yaml.load(raw) as ThemeManifest;
       if (parsed?.theme?.id) {
         out[parsed.theme.id] = applyManifestDefaults(parsed);
-        // eslint-disable-next-line no-console
-        console.log(
-          `[themes] loaded ${parsed.theme.id} (${parsed.meta?.version ?? "?"})`,
-          {
-            color_metrics: parsed.overview?.color_metrics?.length ?? 0,
-            kpis: parsed.overview?.kpis?.length ?? 0,
-            has_point_profile: !!parsed.overview?.point_profile,
-          }
-        );
       } else {
         // eslint-disable-next-line no-console
         console.warn(`[themes] ${path} 缺 theme.id，跳過`);
