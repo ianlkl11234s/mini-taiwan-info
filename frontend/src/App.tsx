@@ -28,6 +28,12 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWaterKpis } from "@/hooks/useWaterKpis";
 import { useRiverWaterLevel } from "@/hooks/useRiverWaterLevel";
 import { useFireData } from "@/hooks/useFireData";
+import { useDemographicsData } from "@/hooks/useDemographicsData";
+import { useRailData } from "@/hooks/useRailData";
+import { useMaritimeData } from "@/hooks/useMaritimeData";
+import { ViewADemographics } from "@/components/views/ViewADemographics";
+import { ViewARail } from "@/components/views/ViewARail";
+import { ViewAMaritime } from "@/components/views/ViewAMaritime";
 import { codeConvert, normalizeCountyName, COUNTIES, byCode3, byIdMoi } from "@/lib/counties";
 import { getNearestCounty } from "@/lib/reverseGeocode";
 import { FIRE_MOCK_BY_COUNTY } from "@/lib/mock-fire";
@@ -39,6 +45,9 @@ const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: st
   water:         { accent: "#0EA5E9", deep: "#0369A1", soft: "#E0F2FE" },
   fire:          { accent: "#DC2626", deep: "#991B1B", soft: "#FEF2F2" },
   "home-basics": { accent: "#475569", deep: "#1E293B", soft: "#F1F5F9" },
+  demographics:  { accent: "#7C3AED", deep: "#5B21B6", soft: "#F3E8FF" },
+  rail:          { accent: "#4F46E5", deep: "#3730A3", soft: "#E0E7FF" },
+  maritime:      { accent: "#0D9488", deep: "#115E59", soft: "#CCFBF1" },
 };
 
 // Phase 0b+ A-2: 水主題點位圖層定義（reservoir 已 LIVE，其他 Phase 1+ 規劃）
@@ -140,6 +149,11 @@ export default function App() {
   // 消防主題 Supabase 資料（只在 fire 主題啟用，省 RPC quota）
   const fire = useFireData({ enabled: theme === "fire" });
   const useFireRealData = theme === "fire";
+
+  // 三新主題 Supabase 資料（依 theme enable，省往返）
+  const demographics = useDemographicsData({ enabled: theme === "demographics" });
+  const rail = useRailData({ enabled: theme === "rail" });
+  const maritime = useMaritimeData({ enabled: theme === "maritime" });
 
   // 把雨量站（中文 county）聚合成 22 縣市平均 24hr 雨量 → code3
   const rain24ByCode3 = useMemo(() => {
@@ -515,6 +529,24 @@ export default function App() {
                 />
               ) : theme === "home-basics" ? (
                 <ViewAHome
+                  selectedCounty={county}
+                  onCountyClick={goCity}
+                />
+              ) : theme === "demographics" ? (
+                <ViewADemographics
+                  data={demographics}
+                  selectedCounty={county}
+                  onCountyClick={goCity}
+                />
+              ) : theme === "rail" ? (
+                <ViewARail
+                  data={rail}
+                  selectedCounty={county}
+                  onCountyClick={goCity}
+                />
+              ) : theme === "maritime" ? (
+                <ViewAMaritime
+                  data={maritime}
                   selectedCounty={county}
                   onCountyClick={goCity}
                 />
