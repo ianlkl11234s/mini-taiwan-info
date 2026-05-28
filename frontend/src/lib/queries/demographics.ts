@@ -1,0 +1,479 @@
+/**
+ * Demographics theme · Supabase queries
+ *
+ * 對應 themes/demographics.yaml KPI。Backend schema 已 exposed（PostgREST 直連），
+ * 無需 public wrapper，用 withSchema('demographics') / withSchema('spatial') 直接 query。
+ *
+ * 資料來源：
+ *   - demographics.population_by_age_sex_county (836)   — 22 縣市 × 19 age_band × 男女
+ *   - spatial.national_population_trend (10)            — 民國 104-113 全國加總
+ *   - spatial.village_demographics_yearly (77,811)      — 民國 104-113 村里級
+ *
+ * 設計來源：designs Mini Taiwan Info.html / data-population.js (mock 為 SSOT 數字)
+ */
+
+import { withSchema } from "../supabase";
+import { COUNTIES, byIdMoi } from "../counties";
+import type { CountyCode3, CountyIdMoi } from "../types";
+
+const db = withSchema("demographics");
+const dbSpatial = withSchema("spatial");
+
+// 民國年 → 西元 (year_minguo + 1911 = year_western)
+const MINGUO_OFFSET = 1911;
+const LATEST_YEAR_MINGUO = 113; // = 2024
+const BASE_YEAR_MINGUO = 104;   // = 2015
+
+// ─────────────────────────────────────────────────
+// 1. Raw row 型別
+// ─────────────────────────────────────────────────
+
+export interface PopulationByAgeSexRow {
+  county_id: CountyIdMoi;      // 'A' - 'Z'
+  county_name: string;          // '臺北市' / '新北市' ...
+  age_band: string;             // '0-4', '5-9', ..., '95-99', '100+'
+  sex: "male" | "female" | "M" | "F" | string;
+  population: number;
+  stat_year: number;            // 西元 2024
+}
+
+export async function fetchPopulationByAgeSex(): Promise<PopulationByAgeSexRow[]> {
+  const { data, error } = await db.from("population_by_age_sex_county").select("*");
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[demographics] population_by_age_sex failed:", error);
+    throw error;
+  }
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    county_id: String(r.county_id) as CountyIdMoi,
+    county_name: String(r.county_name ?? ""),
+    age_band: String(r.age_band ?? ""),
+    sex: String(r.sex ?? "") as "male" | "female",
+    population: Number(r.population ?? 0),
+    stat_year: Number(r.stat_year ?? 0),
+  }));
+}
+
+export interface NationalTrendRow {
+  year: number;                 // 民國年 (104-113)
+  village_count: number;
+  total_population: number;
+  avg_elderly_ratio: number;    // %
+  avg_aging_index: number;      // 65+ / 0-14 × 100
+  avg_median_age: number;
+  total_births: number;
+  total_deaths: number;
+  total_natural_increase: number;
+}
+
+export async function fetchNationalTrend(): Promise<NationalTrendRow[]> {
+  const { data, error } = await dbSpatial
+    .from("national_population_trend")
+    .select("*")
+    .order("year");
+  if (error) {
+    console.error("[demographics] national_population_trend failed:", error);
+    throw error;
+  }
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    year: Number(r.year),
+    village_count: Number(r.village_count ?? 0),
+    total_population: Number(r.total_population ?? 0),
+    avg_elderly_ratio: Number(r.avg_elderly_ratio ?? 0),
+    avg_aging_index: Number(r.avg_aging_index ?? 0),
+    avg_median_age: Number(r.avg_median_age ?? 0),
+    total_births: Number(r.total_births ?? 0),
+    total_deaths: Number(r.total_deaths ?? 0),
+    total_natural_increase: Number(r.total_natural_increase ?? 0),
+  }));
+}
+
+export interface VillageDemographicsRow {
+  year: number;                  // 民國年
+  county: string;                // 中文縣市名 e.g. '新北市'
+  town: string;
+  village: string;
+  household_count: number | null;
+  population: number;
+  male_count: number;
+  female_count: number;
+  age_0_14: number;
+  age_15_64: number;
+  age_65_up: number;
+  sex_ratio: number;
+  dependency_ratio: number;
+  aging_index: number;
+  median_age: number;
+  birth_total: number;
+  death_total: number;
+  natural_increase: number;
+}
+
+/** 拉指定民國年的村里資料（限縮 row 數） */
+export async function fetchVillageYearly(years: number[]): Promise<VillageDemographicsRow[]> {
+  if (years.length === 0) return [];
+  const out: VillageDemographicsRow[] = [];
+  // 每年 ~7,800 筆 < Supabase default limit 1000 → 拆 year 多次 fetch 並 range
+  for (const y of years) {
+    let from = 0;
+    const pageSize = 1000; // PostgREST 預設 max-rows，超過會被截
+    // pagination 直到取完
+    while (true) {
+      const { data, error } = await dbSpatial
+        .from("village_demographics_yearly")
+        .select(
+          "year,county,town,village,household_count,population,male_count,female_count,age_0_14,age_15_64,age_65_up,sex_ratio,dependency_ratio,aging_index,median_age,birth_total,death_total,natural_increase",
+        )
+        .eq("year", y)
+        .range(from, from + pageSize - 1);
+      if (error) {
+        console.error(`[demographics] village_yearly year=${y} failed:`, error);
+        throw error;
+      }
+      const rows = (data ?? []) as Array<Record<string, unknown>>;
+      for (const r of rows) {
+        out.push({
+          year: Number(r.year),
+          county: String(r.county ?? ""),
+          town: String(r.town ?? ""),
+          village: String(r.village ?? ""),
+          household_count: r.household_count == null ? null : Number(r.household_count),
+          population: Number(r.population ?? 0),
+          male_count: Number(r.male_count ?? 0),
+          female_count: Number(r.female_count ?? 0),
+          age_0_14: Number(r.age_0_14 ?? 0),
+          age_15_64: Number(r.age_15_64 ?? 0),
+          age_65_up: Number(r.age_65_up ?? 0),
+          sex_ratio: Number(r.sex_ratio ?? 0),
+          dependency_ratio: Number(r.dependency_ratio ?? 0),
+          aging_index: Number(r.aging_index ?? 0),
+          median_age: Number(r.median_age ?? 0),
+          birth_total: Number(r.birth_total ?? 0),
+          death_total: Number(r.death_total ?? 0),
+          natural_increase: Number(r.natural_increase ?? 0),
+        });
+      }
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────
+// 2. Derived 型別
+// ─────────────────────────────────────────────────
+
+export interface DemographicsNationalSummary {
+  totalPop: number;
+  popMale: number;
+  popFemale: number;
+  sexRatio: number;        // ♂/100♀
+  pct014: number;          // %
+  pct1564: number;
+  pct65: number;
+  agingIndex: number;      // 65+/0-14 × 100
+  dependencyRatio: number; // (0-14 + 65+) / 15-64 × 100
+  depYoung: number;        // 0-14 / 15-64 × 100
+  depOld: number;          // 65+ / 15-64 × 100
+  density: number;         // 人/km²
+  household: number;       // 戶量
+  births: number;
+  deaths: number;
+  natural: number;
+  /** 較民國 104 的 10 年成長率（%） */
+  growth10y: number;
+  /** 死亡交叉年（民國年） */
+  crossYearMinguo: number | null;
+  /** 較民國 112 變動 */
+  totalPopDelta: number;
+}
+
+export interface AgeRow {
+  age: string;       // '0-4'..'95-99'/'100+'（合併後）
+  male: number;
+  female: number;
+}
+
+export interface VitalRow {
+  year: number;      // 西元
+  yearMinguo: number;
+  birth: number;
+  death: number;
+  natural: number;
+}
+
+export interface AgingHistoryRow {
+  year: number;      // 西元
+  yearMinguo: number;
+  value: number;     // aging_index
+}
+
+export interface CountyDemographics {
+  code3: CountyCode3;
+  id_moi: CountyIdMoi;
+  name: string;
+  pop: number;
+  popMale: number;
+  popFemale: number;
+  density: number;
+  agingIndex: number;
+  growth10y: number;     // %
+  depRatio: number;
+  depYoung: number;
+  depOld: number;
+  hhSize: number;
+  medianAge: number;
+  birth: number;
+  death: number;
+  natural: number;
+  /** 出生 - 死亡 已含 natural；社會增加 = pop(113) - pop(104) - 自然增加(累計10年) — approx */
+  social: number;
+}
+
+// ─────────────────────────────────────────────────
+// 3. Derive functions
+// ─────────────────────────────────────────────────
+
+/** 把不同口徑 sex 統一成 'M' / 'F' */
+function normSex(s: string): "M" | "F" | null {
+  const u = s.toLowerCase();
+  if (u === "m" || u === "male" || u === "男") return "M";
+  if (u === "f" || u === "female" || u === "女") return "F";
+  return null;
+}
+
+/** 解析 age_band 中的下界數字（用於排序與 0-14 / 15-64 / 65+ 分群） */
+function parseAgeLow(band: string): number {
+  const m = band.match(/(\d+)/);
+  return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+/** 19 組金字塔（資料若 21 組，把 95-99 + 100+ 合併） */
+export function deriveNationalPyramid(rows: PopulationByAgeSexRow[]): AgeRow[] {
+  const bucket = new Map<string, { male: number; female: number }>();
+  for (const r of rows) {
+    const sex = normSex(r.sex);
+    if (!sex) continue;
+    let band = r.age_band.trim();
+    // 合併最高齡組
+    if (band === "100+" || band === "100-104" || band === "105+") band = "95+";
+    if (band === "95-99") band = "95+";
+    const slot = bucket.get(band) ?? { male: 0, female: 0 };
+    if (sex === "M") slot.male += r.population;
+    else slot.female += r.population;
+    bucket.set(band, slot);
+  }
+  const arr: AgeRow[] = Array.from(bucket.entries())
+    .map(([age, v]) => ({ age, ...v }))
+    .sort((a, b) => parseAgeLow(a.age) - parseAgeLow(b.age));
+  return arr;
+}
+
+/** 全國 KPI 加總（依 pyramid + national trend + 縣市 area） */
+export function deriveNationalSummary(
+  rows: PopulationByAgeSexRow[],
+  trend: NationalTrendRow[],
+): DemographicsNationalSummary {
+  let male = 0;
+  let female = 0;
+  let p014 = 0;
+  let p1564 = 0;
+  let p65 = 0;
+  for (const r of rows) {
+    const sex = normSex(r.sex);
+    if (!sex) continue;
+    if (sex === "M") male += r.population;
+    else female += r.population;
+    const low = parseAgeLow(r.age_band);
+    if (low < 15) p014 += r.population;
+    else if (low < 65) p1564 += r.population;
+    else p65 += r.population;
+  }
+  const totalPop = male + female;
+  const sexRatio = female > 0 ? (male / female) * 100 : 0;
+  const agingIndex = p014 > 0 ? (p65 / p014) * 100 : 0;
+  const depYoung = p1564 > 0 ? (p014 / p1564) * 100 : 0;
+  const depOld = p1564 > 0 ? (p65 / p1564) * 100 : 0;
+  const dependencyRatio = depYoung + depOld;
+
+  const totalArea = COUNTIES.reduce((s, c) => s + (c.area_km2 ?? 0), 0);
+  const density = totalArea > 0 ? totalPop / totalArea : 0;
+
+  const latest = trend.find((t) => t.year === LATEST_YEAR_MINGUO);
+  const base = trend.find((t) => t.year === BASE_YEAR_MINGUO);
+  const prev = trend.find((t) => t.year === LATEST_YEAR_MINGUO - 1);
+  const growth10y =
+    base && base.total_population > 0
+      ? ((totalPop - base.total_population) / base.total_population) * 100
+      : 0;
+
+  // 死亡交叉年：首年 total_natural_increase < 0
+  let crossYearMinguo: number | null = null;
+  for (const t of trend) {
+    if (t.total_natural_increase < 0) {
+      crossYearMinguo = t.year;
+      break;
+    }
+  }
+
+  // 戶量：用 national trend 沒有，先以已知值 2.53 為 fallback；hook 內可從 village 加總 override
+  const household = 2.53;
+
+  return {
+    totalPop,
+    popMale: male,
+    popFemale: female,
+    sexRatio: Number(sexRatio.toFixed(2)),
+    pct014: totalPop > 0 ? Number(((p014 / totalPop) * 100).toFixed(2)) : 0,
+    pct1564: totalPop > 0 ? Number(((p1564 / totalPop) * 100).toFixed(2)) : 0,
+    pct65: totalPop > 0 ? Number(((p65 / totalPop) * 100).toFixed(2)) : 0,
+    agingIndex: Number(agingIndex.toFixed(1)),
+    dependencyRatio: Number(dependencyRatio.toFixed(1)),
+    depYoung: Number(depYoung.toFixed(1)),
+    depOld: Number(depOld.toFixed(1)),
+    density: Math.round(density),
+    household,
+    births: latest?.total_births ?? 0,
+    deaths: latest?.total_deaths ?? 0,
+    natural: latest?.total_natural_increase ?? 0,
+    growth10y: Number(growth10y.toFixed(2)),
+    crossYearMinguo,
+    totalPopDelta: prev ? totalPop - prev.total_population : 0,
+  };
+}
+
+/** 出生 vs 死亡 雙線（民國 104-113 = 西元 2015-2024） */
+export function deriveVitalsTrend(trend: NationalTrendRow[]): VitalRow[] {
+  return trend.map((t) => ({
+    year: t.year + MINGUO_OFFSET,
+    yearMinguo: t.year,
+    birth: t.total_births,
+    death: t.total_deaths,
+    natural: t.total_natural_increase,
+  }));
+}
+
+/** 老化指數歷年（民國 104-113） */
+export function deriveAgingHistory(trend: NationalTrendRow[]): AgingHistoryRow[] {
+  return trend.map((t) => ({
+    year: t.year + MINGUO_OFFSET,
+    yearMinguo: t.year,
+    value: Number(t.avg_aging_index.toFixed(1)),
+  }));
+}
+
+/** 22 縣市 demographics 聚合 — 用 village rows 加總（year=113 + year=104 給 growth） */
+export function deriveCountyAggregates(
+  pyramid: PopulationByAgeSexRow[],
+  villages: VillageDemographicsRow[],
+): CountyDemographics[] {
+  // 縣市中文名 → id_moi
+  const zhToId = new Map<string, CountyIdMoi>();
+  for (const c of COUNTIES) {
+    zhToId.set(c.name_zh, c.id_moi);
+    if (c.name_zh_alt && c.name_zh_alt !== c.name_zh) zhToId.set(c.name_zh_alt, c.id_moi);
+  }
+
+  // pyramid 加總每縣市 — pop / male / female / age_0_14 / 15-64 / 65+
+  const pyramidAgg = new Map<
+    CountyIdMoi,
+    { pop: number; male: number; female: number; p014: number; p1564: number; p65: number }
+  >();
+  for (const r of pyramid) {
+    const slot =
+      pyramidAgg.get(r.county_id) ?? { pop: 0, male: 0, female: 0, p014: 0, p1564: 0, p65: 0 };
+    const sex = normSex(r.sex);
+    if (sex === "M") slot.male += r.population;
+    else if (sex === "F") slot.female += r.population;
+    slot.pop += r.population;
+    const low = parseAgeLow(r.age_band);
+    if (low < 15) slot.p014 += r.population;
+    else if (low < 65) slot.p1564 += r.population;
+    else slot.p65 += r.population;
+    pyramidAgg.set(r.county_id, slot);
+  }
+
+  // village 加總 — 用 county 中文名匹配
+  // year=113: hh / pop / birth / death / natural / medianAge weighted / depRatio weighted
+  // year=104: pop（給 growth10y）
+  const v113 = new Map<
+    CountyIdMoi,
+    {
+      hh: number;
+      pop: number;
+      birth: number;
+      death: number;
+      natural: number;
+      medianAgeWeighted: number;
+      depRatioWeighted: number;
+      weight: number;
+    }
+  >();
+  const v104 = new Map<CountyIdMoi, { pop: number }>();
+  for (const v of villages) {
+    const id = zhToId.get(v.county);
+    if (!id) continue;
+    if (v.year === LATEST_YEAR_MINGUO) {
+      const slot =
+        v113.get(id) ??
+        { hh: 0, pop: 0, birth: 0, death: 0, natural: 0, medianAgeWeighted: 0, depRatioWeighted: 0, weight: 0 };
+      slot.hh += v.household_count ?? 0;
+      slot.pop += v.population;
+      slot.birth += v.birth_total;
+      slot.death += v.death_total;
+      slot.natural += v.natural_increase;
+      slot.medianAgeWeighted += v.median_age * v.population;
+      slot.depRatioWeighted += v.dependency_ratio * v.population;
+      slot.weight += v.population;
+      v113.set(id, slot);
+    } else if (v.year === BASE_YEAR_MINGUO) {
+      const s = v104.get(id) ?? { pop: 0 };
+      s.pop += v.population;
+      v104.set(id, s);
+    }
+  }
+
+  return COUNTIES.map((c) => {
+    const pyr = pyramidAgg.get(c.id_moi) ?? { pop: 0, male: 0, female: 0, p014: 0, p1564: 0, p65: 0 };
+    const v = v113.get(c.id_moi);
+    const vBase = v104.get(c.id_moi);
+    const popLatest = pyr.pop || (v?.pop ?? 0);
+    const area = c.area_km2 ?? 0;
+    const density = area > 0 ? popLatest / area : 0;
+    const aging = pyr.p014 > 0 ? (pyr.p65 / pyr.p014) * 100 : 0;
+    const depRatio = pyr.p1564 > 0 ? ((pyr.p014 + pyr.p65) / pyr.p1564) * 100 : 0;
+    const depYoung = pyr.p1564 > 0 ? (pyr.p014 / pyr.p1564) * 100 : 0;
+    const depOld = pyr.p1564 > 0 ? (pyr.p65 / pyr.p1564) * 100 : 0;
+    const growth10y =
+      vBase && vBase.pop > 0 ? ((popLatest - vBase.pop) / vBase.pop) * 100 : 0;
+    const hhSize = v && v.hh > 0 ? v.pop / v.hh : 0;
+    const medianAge = v && v.weight > 0 ? v.medianAgeWeighted / v.weight : 0;
+    const natural = v?.natural ?? 0;
+    // social = popDelta(113-104) - natural10yr — 但只有 birth/death 12月當月值 → 用 popDelta 近似
+    const popDelta = vBase ? popLatest - vBase.pop : 0;
+    const social = popDelta; // 近似：含社會 + 自然，UI 標明
+    return {
+      code3: c.code3,
+      id_moi: c.id_moi,
+      name: c.name_zh,
+      pop: popLatest,
+      popMale: pyr.male,
+      popFemale: pyr.female,
+      density: Math.round(density),
+      agingIndex: Number(aging.toFixed(1)),
+      growth10y: Number(growth10y.toFixed(2)),
+      depRatio: Number(depRatio.toFixed(1)),
+      depYoung: Number(depYoung.toFixed(1)),
+      depOld: Number(depOld.toFixed(1)),
+      hhSize: Number(hhSize.toFixed(2)),
+      medianAge: Number(medianAge.toFixed(1)),
+      birth: v?.birth ?? 0,
+      death: v?.death ?? 0,
+      natural,
+      social,
+    };
+  });
+}
+
+export { LATEST_YEAR_MINGUO, BASE_YEAR_MINGUO, MINGUO_OFFSET, byIdMoi };
