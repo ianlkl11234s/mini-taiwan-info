@@ -15,7 +15,7 @@ theme:
   description: 環島港口分類、漁業生產與漁船能量 — 一份靜態的海洋帳。即時船舶動態歸 pulse。
   tagline: 環島港口與漁業的靜態帳
   priority: 55
-  status: draft
+  status: beta
 
 # ─────────────────────────────────────────────────
 # overview：View A 全國概覽

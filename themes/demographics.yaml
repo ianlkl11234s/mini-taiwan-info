@@ -15,7 +15,7 @@ theme:
   description: 全台人口結構深度分析 — 性別金字塔、年齡組成、成長分解、城鄉與老化差距。
   tagline: 人口金字塔下的島嶼結構
   priority: 15
-  status: draft
+  status: beta
 
 # ─────────────────────────────────────────────────
 # View A 全國概覽
