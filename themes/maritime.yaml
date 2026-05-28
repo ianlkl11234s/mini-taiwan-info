@@ -1,0 +1,514 @@
+# Mini Taiwan Info · Maritime Theme Manifest
+# v0.1 (2026-05-26) — draft，待 Sprint 0 前置 ETL 完成才升 beta
+# 定位：靜態統計策展（港口分類 + 漁業統計）；即時 AIS 船舶歸 mini-taiwan-pulse，本主題不放即時
+# 資料盤點 SSOT: taipei-gis-analytics/data/processed/transportation/ports/ + environment/fishery_rights/
+#               agriculture/漁業署縣市統計 + 航港局 iMarine（缺口，Sprint 0 補）
+
+theme:
+  id: maritime
+  name: 航運
+  name_en: Maritime
+  emoji: ⚓
+  icon: anchor
+  color_accent: "#0D9488"          # teal-600
+  color_ramp: teal
+  description: 環島港口分類、漁業生產與漁船能量 — 一份靜態的海洋帳。即時船舶動態歸 pulse。
+  tagline: 環島港口與漁業的靜態帳
+  priority: 55
+  status: draft
+
+# ─────────────────────────────────────────────────
+# overview：View A 全國概覽
+#   主軸 1 港口分類（現成 277 筆，全量上 Supabase 後可上）
+#   主軸 2 漁業統計（產量/產值/漁船數，Sprint 0 撈）
+#   主軸 3 港埠運量（iMarine 進出港/貨櫃，Sprint 0 撈，無座標 → 指標卡/趨勢）
+# ─────────────────────────────────────────────────
+overview:
+  default_choropleth_metric: port_count
+
+  color_metrics:
+    - id: port_count
+      label: 港口數
+      unit: 處
+      ramp_direction: default        # 越多越深
+      domain: [0, 75]
+    - id: fishing_port_count
+      label: 漁港數
+      unit: 處
+      ramp_direction: default
+      domain: [0, 70]
+    - id: fishery_value_billion
+      label: 漁業產值
+      unit: 億
+      ramp_direction: default
+      domain: [0, 200]
+      coverage_note: "待 Sprint 0 漁業署縣市統計 ETL（maritime.fishery_stats_by_county）"
+    - id: port_calls_yearly
+      label: 年進出港船舶
+      unit: 艘次
+      ramp_direction: default
+      domain: [0, 50000]
+      coverage_note: "待 Sprint 0 iMarine ETL；僅國際/國內商港有，著色限商港縣市"
+
+  kpis:
+    # ───── 主軸 1 港口（現成 277 筆，缺口 1 全量上 Supabase 後可上） ─────
+    - id: total_ports
+      label: 總港口數
+      unit: 處
+      source: ports_merged
+      query: maritime_ports_count
+      group: structural
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
+      response_shape: { value: number, delta: number }
+      explode:
+        - mode: dimension
+          by: port_class           # 國際商港/國內商港/漁港/渡輪… donut
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number }]
+        - mode: dimension
+          by: county
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+
+    - id: fishing_port_count
+      label: 漁港數
+      unit: 處
+      source: ports_merged
+      query: maritime_fishing_ports_count
+      group: structural
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
+      response_shape: { value: number, delta: number }
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+
+    - id: commercial_port_count
+      label: 商港數
+      unit: 處
+      source: ports_merged
+      query: maritime_commercial_ports_count
+      group: structural
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
+      response_shape: { value: number, delta: number }
+      coverage_note: "國際商港 7 + 國內商港 4 = 11；含基隆/高雄/臺中/花蓮等"
+
+    - id: fishery_rights_area_km2
+      label: 漁業權水域面積
+      unit: km²
+      source: fishery_rights
+      query: maritime_fishery_rights_area
+      group: structural
+      format: { precision: 1, compare_to: none, sentiment_when_up: neutral }
+      response_shape: { value: number, delta: number }
+      explode:
+        - mode: dimension
+          by: county
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+
+    - id: lighthouse_count
+      label: 燈塔數
+      unit: 座
+      source: lighthouse
+      query: maritime_lighthouse_count
+      group: structural
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
+      response_shape: { value: number, delta: number }
+
+    # ───── 主軸 2 漁業統計（缺口 2，Sprint 0 撈 → fishery_stats_by_county） ─────
+    - id: fishery_production_tonnes
+      label: 漁業生產量
+      unit: 公噸
+      source: coa_fishery_production
+      query: maritime_fishery_production_placeholder
+      group: structural
+      format: { precision: 0, compare_to: previous_year, sentiment_when_up: positive }
+      response_shape: { value: number, delta: number }
+      coverage_note: "等 Sprint 0 漁業署「漁業生產量─按漁業、縣市別分」ETL"
+
+    - id: fishery_value_billion
+      label: 漁業產值
+      unit: 億
+      source: coa_fishery_value
+      query: maritime_fishery_value_placeholder
+      group: structural
+      format: { precision: 1, compare_to: previous_year, sentiment_when_up: positive }
+      response_shape: { value: number, delta: number }
+      coverage_note: "等 Sprint 0 漁業署「漁業生產值─按縣市別分」ETL"
+
+    - id: fishing_vessels_count
+      label: 現有漁船數
+      unit: 艘
+      source: dgbas_fishing_vessels
+      query: maritime_fishing_vessels_placeholder
+      group: structural
+      format: { precision: 0, compare_to: previous_year, sentiment_when_up: neutral }
+      response_shape: { value: number, delta: number }
+      coverage_note: "等 Sprint 0 主計處各縣市現有漁船數 ETL（純指標 no_spatial）"
+
+    # ───── 主軸 3 港埠運量（缺口 3 iMarine，Sprint 0 撈 → port_traffic_yearly） ─────
+    - id: port_calls_yearly
+      label: 年進出港船舶
+      unit: 艘次
+      source: imarine_port_traffic
+      query: maritime_port_calls_placeholder
+      group: structural
+      format: { precision: 0, compare_to: previous_year, sentiment_when_up: neutral }
+      response_shape: { value: number, delta: number }
+      coverage_note: "等 Sprint 0 iMarine 進出港船舶(171745) ETL；全國級無座標"
+
+    - id: container_teu_yearly
+      label: 年貨櫃量
+      unit: TEU
+      source: imarine_container
+      query: maritime_container_teu_placeholder
+      group: structural
+      format: { precision: 0, compare_to: previous_year, sentiment_when_up: positive }
+      response_shape: { value: number, delta: number }
+      coverage_note: "等 Sprint 0 iMarine 貨櫃進出口(171741/171742/171743) ETL"
+
+  # 選用、低調：歷史日均在港/海域船數（來自 realtime.ship_trails_days_summary 預聚合，非即時）
+  point_profile:
+    enabled: true
+    title: 全國 277 處港口
+    source: maritime_ports_with_class   # 對應 query（Sprint 0 上 Supabase 後可用）
+    response_shape:
+      items: [{ id: string, name: string, port_class: string, county_id: string, lat: number, lng: number }]
+    modes:
+      - id: class
+        label: 按港口分類
+        type: bucket
+        thresholds:
+          - { label: 國際商港, color: "#0F766E" }
+          - { label: 國內商港, color: "#14B8A6" }
+          - { label: 漁港, color: "#5EEAD4" }
+          - { label: 渡輪/觀光碼頭, color: "#99F6E4" }
+      - id: region
+        label: 按地理區
+        type: region
+        groups_from: data/counties.yaml
+    default_mode: class
+
+  hook_rules:
+    - id: fishing_port_dominance
+      condition: "fishing_port_pct > 0.7"
+      template: "全國 {total_ports} 處港口，漁港占 {fishing_port_pct}%（{fishing_port_count} 處）— 這是一座漁業之島。"
+      severity: info
+    - id: penghu_concentration
+      condition: "top_port_county == 'X'"
+      template: "{top_port_county_name} 以 {top_port_count} 處港口居冠 — 離島小港密度遠勝本島。"
+      severity: info
+    - default: true
+      template: "環島 {total_ports} 處港口、{lighthouse_count} 座燈塔、{fishery_rights_count} 處漁業權水域 — 一份靜態的海洋帳。"
+      severity: info
+
+  ranking:
+    primary_metric: port_count
+    available_metrics:
+      - port_count
+      - fishing_port_count
+      - fishery_rights_area_km2
+      - fishery_value_billion        # Sprint 0 後
+      - port_calls_yearly            # Sprint 0 後
+    top_n: 10
+    bottom_n: 3
+
+# ─────────────────────────────────────────────────
+# county_dashboard：View B（5 Tab）
+# ─────────────────────────────────────────────────
+county_dashboard:
+  hero:
+    facts:
+      - { source: ports,           suffix: 處港口 }
+      - { source: fishing_ports,   suffix: 處漁港 }
+      - { source: lighthouse,      suffix: 座燈塔 }
+  default_tab: overview
+  tabs:
+    - id: overview
+      label: 概覽
+      icon: anchor
+      type: charts
+      layers: [ports_point, port_polygons, fishery_rights_polygon, lighthouse_point]
+      kpis: [total_ports, fishing_port_count, fishery_rights_area_km2, lighthouse_count]
+    - id: ports
+      label: 港口
+      icon: ship
+      type: charts
+      layers: [ports_point, port_polygons]
+      kpis: [total_ports, commercial_port_count, fishing_port_count]
+      explore_links:
+        - to: "dataset/port/:id"
+          when: click_point_on_map
+    - id: fishery
+      label: 漁業
+      icon: fish
+      type: charts
+      layers: [fishery_rights_polygon]
+      kpis: [fishery_production_tonnes, fishery_value_billion, fishing_vessels_count]
+    - id: routes
+      label: 航線
+      icon: route
+      type: charts
+      layers: [ferry_routes_line]
+      kpis: []
+      coverage_note: "離島/澎湖定期客船 36 條為主，本島縣市多無定期航線"
+    - id: ranking
+      label: 排名
+      icon: trending-up
+      type: ranking_panel
+      metrics: [port_count, fishing_port_count, fishery_rights_area_km2, fishery_value_billion]
+
+# ─────────────────────────────────────────────────
+# datasets：View C 資料集詳情頁
+# ─────────────────────────────────────────────────
+datasets:
+  - id: port
+    label: 港口
+    layer: point
+    source_table: maritime.ports
+    detail_fields:
+      - { key: name,        label: 港口名稱 }
+      - { key: name_en,     label: 英文名稱 }
+      - { key: port_class,  label: 港口分類 }
+      - { key: county,      label: 所在縣市 }
+      - { key: phone,       label: 聯絡電話 }
+    download:
+      csv: /api/dataset/port/:id/csv
+      api: /api/dataset/port/:id
+
+  - id: fishery_right
+    label: 漁業權水域
+    layer: polygon
+    source_table: public.fishery_rights
+    detail_fields:
+      - { key: name,        label: 漁業權名稱 }
+      - { key: county,      label: 所在縣市 }
+      - { key: status,      label: 狀態 }
+      - { key: area_km2,    label: 面積, unit: km² }
+    download:
+      csv: /api/dataset/fishery_right/:id/csv
+      api: /api/dataset/fishery_right/:id
+
+# ─────────────────────────────────────────────────
+# compare：View D 跨縣市比較
+# ─────────────────────────────────────────────────
+compare:
+  comparable_metrics:
+    - id: port_count
+      label: 港口數
+      unit: 處
+      source: ports_merged
+      ranking_better: neutral
+      coverage_note: "南投縣、嘉義市內陸無港"
+    - id: fishing_port_count
+      label: 漁港數
+      unit: 處
+      source: ports_merged
+      ranking_better: neutral
+      coverage_note: "限沿海縣市"
+    - id: fishery_rights_area_km2
+      label: 漁業權水域面積
+      unit: km²
+      source: fishery_rights
+      ranking_better: neutral
+      coverage_note: "限 12 沿海縣市"
+    - id: fishery_value_billion
+      label: 漁業產值
+      unit: 億
+      source: coa_fishery_value
+      ranking_better: higher
+      coverage_note: "等 Sprint 0 ETL；內陸縣市僅內陸養殖/淡水漁業"
+    - id: port_calls_yearly
+      label: 年進出港船舶
+      unit: 艘次
+      source: imarine_port_traffic
+      ranking_better: neutral
+      coverage_note: "等 Sprint 0 ETL；限有商港縣市"
+
+# ─────────────────────────────────────────────────
+# crosslink：跨主題聯動（皆選用）
+# ─────────────────────────────────────────────────
+crosslink:
+  - with: demographics
+    metric_pair: [fishing_vessels_count, aging_index]
+    trigger: "abs(corr(fishing_vessels_count, aging_index)) > 0.3"
+    template: "{county} 漁船 {vessels} 艘 · 高齡 {aging}% — 漁村人口老化假設"
+  - with: socioeconomic
+    metric_pair: [fishery_value_billion, gdp_per_capita]
+    trigger: "always"
+    template: "{county} 漁業產值 {value} 億 · 人均所得 {income} 萬"
+
+# ─────────────────────────────────────────────────
+# layers_catalog：地圖圖層
+# ─────────────────────────────────────────────────
+layers_catalog:
+  - id: ports_point
+    type: point
+    source: maritime_ports_with_class
+    style:
+      mode: class                  # 依 port_class 分級著色
+      label_min_zoom: 8.0
+  - id: port_polygons
+    type: polygon
+    source: public.port_polygons
+    style: { stroke: "#0D9488", fill: "rgba(13,148,136,0.12)" }
+  - id: fishery_rights_polygon
+    type: polygon
+    source: public.fishery_rights
+    style: { stroke: "#0891B2", fill: "rgba(8,145,178,0.10)" }
+  - id: lighthouse_point
+    type: point
+    source: public.lighthouse
+    style: { color: "#F59E0B", radius: 4, shape: "triangle" }
+  - id: ferry_routes_line
+    type: line
+    source: maritime_ship_routes
+    style: { stroke: "#14B8A6", width: 2, dash: [4, 2] }
+
+# ─────────────────────────────────────────────────
+# data_sources
+# ─────────────────────────────────────────────────
+data_sources:
+  - id: ports_merged
+    title: 全台港口點位（漁業署漁港 + TDX 商港/客運港 合併 277 筆）
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/dataset/27130
+    updated_field: ~
+    refresh_cadence: static
+    supabase_tables: [maritime.ports]
+    note: "缺口 1：線上 ports 表僅 73 筆 TDX 子集，Sprint 0 全量同步 277 筆（含 port_class/county）"
+
+  - id: fishery_rights
+    title: 農業部漁業署 — 漁業權水域範圍
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/dataset/25785
+    updated_field: ~
+    refresh_cadence: yearly
+    supabase_tables: [public.fishery_rights]
+    note: "19 筆 polygon，已上線；含 name/county/status/area_km2（部分縣市名「台」需 normalize）"
+
+  - id: lighthouse
+    title: 交通部航港局 — 全國燈塔
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/dataset/26944
+    updated_field: ~
+    refresh_cadence: static
+    supabase_tables: [public.lighthouse]
+    note: "36 座，已上線"
+
+  - id: coa_fishery_production
+    title: 農業部漁業署 — 漁業生產量（按漁業、縣市別分）
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/search?q=%E6%BC%81%E6%A5%AD%E7%94%9F%E7%94%A2%E9%87%8F
+    updated_field: stat_year
+    refresh_cadence: yearly
+    supabase_tables: [maritime.fishery_stats_by_county]
+    note: "缺口 2：has_admin_district 可縣市著色，尚未撈，Sprint 0 新 pipeline"
+
+  - id: coa_fishery_value
+    title: 農業部漁業署 — 漁業生產值（按縣市別分）
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/search?q=%E6%BC%81%E6%A5%AD%E7%94%9F%E7%94%A2%E5%80%BC
+    updated_field: stat_year
+    refresh_cadence: yearly
+    supabase_tables: [maritime.fishery_stats_by_county]
+    note: "缺口 2，Sprint 0；同表另含養殖漁業放養量 / 漁船船員執業證書人數"
+
+  - id: dgbas_fishing_vessels
+    title: 行政院主計總處 — 各縣市現有漁船數 / 養殖面積
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/search?q=%E6%BC%81%E8%88%B9
+    updated_field: stat_year
+    refresh_cadence: yearly
+    supabase_tables: [maritime.fishery_stats_by_county]
+    note: "缺口 2，純指標 no_spatial，Sprint 0"
+
+  - id: imarine_port_traffic
+    title: 交通部航港局 — iMarine 進出港船舶（171745）
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/dataset/171745
+    updated_field: stat_period
+    refresh_cadence: yearly
+    supabase_tables: [maritime.port_traffic_yearly]
+    note: "缺口 3：iMarine 航港發展資料庫 ~50 dataset，不定期更新、全國級無座標；Sprint 0 撈後 join 港口點位"
+
+  - id: imarine_container
+    title: 交通部航港局 — iMarine 貨櫃進出口（171741/171742/171743）
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/dataset/171741
+    updated_field: stat_period
+    refresh_cadence: yearly
+    supabase_tables: [maritime.port_traffic_yearly]
+    note: "缺口 3；另含國輪外輪承運量(171744)、貨物 21 大類；無座標當指標卡/趨勢圖"
+
+  - id: maritime_ship_routes
+    title: TDX — 定期客船航線（離島/澎湖為主，36 條）
+    license: 政府資料開放授權條款第 1 版
+    url: https://tdx.transportdata.tw/
+    updated_field: ~
+    refresh_cadence: monthly
+    supabase_tables: [maritime.ship_routes]
+    note: "含起訖港/距離/票價/營運商；taiwan_ship_routes.json"
+
+  - id: ship_trails_summary
+    title: (選用) 歷史日均在港/海域船數（AIS 預聚合彙整）
+    license: 衍生自 realtime.ship_trails_days_summary
+    url: ""
+    updated_field: summary_date
+    refresh_cadence: daily
+    supabase_tables: [realtime.ship_trails_days_summary]
+    note: "選用、低調處理；即時 AIS 動態歸 mini-taiwan-pulse，本主題僅取歷史靜態彙整指標"
+
+# ─────────────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────────────
+meta:
+  version: "0.1.0"
+  spec_version: "1.1"
+  last_reviewed: "2026-05-26"
+  reviewer: "migu + Claude"
+  coverage_notes:
+    - dataset: ports_merged
+      affected_counties: [M, I]      # 南投縣 / 嘉義市（內陸無港）
+      mode: excluded
+      ui_treatment: hide
+      reason: "南投縣、嘉義市為內陸無海岸，無港口點位"
+    - dataset: ports_merged
+      affected_counties: [A, F, H, B, D, E, C, O, J, K, N, P, Q, T, G, U, V, X, W, Z]
+      mode: only_in
+      ui_treatment: warning_badge
+      reason: "港口涵蓋 16 沿海縣市（澎湖 73 / 新北 38 / 高雄 27 / 屏東 26 為大宗）；另含對岸福建/浙江港口 6 處不對映本國縣市"
+    - dataset: fishery_rights
+      affected_counties: [C, H, B, K, N, P, D, E, T, G, U, V]
+      mode: only_in
+      ui_treatment: warning_badge
+      reason: "漁業權水域僅 12 沿海縣市開放（19 筆 polygon）"
+    - metric: fishery_value_billion
+      affected_counties: []
+      mode: pending_geocode
+      ui_treatment: placeholder
+      reason: "缺口 2：等 Sprint 0 漁業署縣市統計 ETL（maritime.fishery_stats_by_county）"
+    - metric: fishery_production_tonnes
+      affected_counties: []
+      mode: pending_geocode
+      ui_treatment: placeholder
+      reason: "缺口 2：等 Sprint 0 漁業署縣市統計 ETL"
+    - metric: fishing_vessels_count
+      affected_counties: []
+      mode: pending_geocode
+      ui_treatment: placeholder
+      reason: "缺口 2：等 Sprint 0 主計處各縣市現有漁船數 ETL"
+    - metric: port_calls_yearly
+      affected_counties: []
+      mode: placeholder
+      ui_treatment: placeholder
+      reason: "缺口 3：等 Sprint 0 iMarine 進出港 ETL；全國級無座標，僅商港縣市可著色"
+    - metric: container_teu_yearly
+      affected_counties: []
+      mode: placeholder
+      ui_treatment: placeholder
+      reason: "缺口 3：等 Sprint 0 iMarine 貨櫃量 ETL"

@@ -1,0 +1,507 @@
+# Mini Taiwan Info · Demographics Theme Manifest
+# v0.1 (2026-05-26) — 深入版人口分析（金字塔 / 年齡結構 / 成長分解 / 城鄉老化差距）
+# 邊界：home-basics(priority 1) = 首頁 vital signs 總覽；本主題 = 深入版人口專題，互補不重複。
+# Backend SSOT: gis-platform migrations 093/114/017/020 + taipei-gis-analytics demographics pipeline
+# 詳規見 docs/themes/demographics.md
+
+theme:
+  id: demographics
+  name: 人口
+  name_en: Demographics
+  emoji: 👥
+  icon: users
+  color_accent: "#7C3AED"        # violet-600
+  color_ramp: purples
+  description: 全台人口結構深度分析 — 性別金字塔、年齡組成、成長分解、城鄉與老化差距。
+  tagline: 人口金字塔下的島嶼結構
+  priority: 15
+  status: draft
+
+# ─────────────────────────────────────────────────
+# View A 全國概覽
+# ─────────────────────────────────────────────────
+overview:
+  default_choropleth_metric: aging_index
+
+  color_metrics:
+    - id: aging_index
+      label: 老化指數
+      unit: ""                       # 老化指數為比值（65+ / 0-14 ×100），無單位
+      ramp_direction: default        # 越高越深（老化越嚴重）
+      domain: [40, 300]
+    - id: population
+      label: 總人口
+      unit: 人
+      ramp_direction: default
+      domain: [13000, 4030000]
+    - id: population_density
+      label: 人口密度
+      unit: 人/km²
+      ramp_direction: default
+      domain: [20, 10000]
+    - id: growth_10y_pct
+      label: 10 年成長率
+      unit: "%"
+      ramp_direction: default        # 越高越深（成長），負成長走淺色
+      domain: [-15, 25]
+
+  kpis:
+    - id: national_population
+      label: 全國總人口
+      unit: 人
+      source: ref_national_basics
+      query: aggregate_national_population
+      group: structural
+      format: { precision: 0, compare_to: previous_year, sentiment_when_up: positive, compact: true }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+        - mode: time
+          windows: [10y, all]
+          response_shape:
+            series: [{ x: timestamp, y: number }]
+
+    - id: sex_ratio
+      label: 性別比
+      unit: "♂/100♀"
+      source: ref_national_basics
+      query: aggregate_national_sex_ratio
+      group: structural
+      format: { precision: 1, compare_to: previous_year, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+
+    - id: aging_index
+      label: 老化指數
+      unit: ""
+      source: ref_national_basics
+      query: aggregate_national_aging_index
+      group: structural
+      format: { precision: 1, compare_to: previous_year, sentiment_when_up: negative }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+        - mode: time
+          windows: [10y, all]
+          response_shape:
+            series: [{ x: timestamp, y: number }]
+
+    - id: dependency_ratio
+      label: 扶養比
+      unit: "%"
+      source: ref_national_basics
+      query: aggregate_national_dependency_ratio
+      group: structural
+      format: { precision: 1, compare_to: previous_year, sentiment_when_up: negative }
+      response_shape:
+        value: number
+        delta: number
+
+    - id: population_density
+      label: 人口密度
+      unit: 人/km²
+      source: ref_counties
+      query: aggregate_national_density
+      group: structural
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: dimension
+          by: county
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+
+    - id: household_size
+      label: 戶量
+      unit: 人/戶
+      source: ref_national_basics
+      query: aggregate_national_household_size
+      group: structural
+      format: { precision: 2, compare_to: previous_year, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+
+  # ── 核心圖表（不是 KPI 卡，但 View A 直接渲染）──
+  signature_charts:
+    - id: national_pyramid
+      label: 全國性別金字塔
+      type: pyramid
+      source: demographics_age_sex          # ⚠️ Sprint 0 缺口表，前端先 placeholder
+      x_male: -male_pop
+      x_female: female_pop
+      y: age_band                            # 5 歲組 0-4 … 100+
+      coverage_note: "等 Sprint 0 性別×年齡交叉 ETL（demographics.population_by_age_sex_county）"
+      response_shape:
+        series: [{ age_band: string, male_pop: number, female_pop: number }]
+    - id: birth_death_cross
+      label: 出生率 vs 死亡率（死亡交叉）
+      type: trend
+      source: village_population_trend
+      x: stat_year
+      y_series: [birth_rate, death_rate]
+      windows: [10y, all]
+      response_shape:
+        series: [{ x: timestamp, birth_rate: number, death_rate: number }]
+        annotations: [{ at_index: int, label: string, severity: info_warn_danger }]
+    - id: growth_rank_10y
+      label: 縣市 10 年成長率排名
+      type: bar
+      source: village_population_trend
+      x: county
+      y: growth_10y_pct
+      response_shape:
+        items: [{ id: string, name: string, value: number, county_id: string }]
+
+  hook_rules:
+    - id: death_cross
+      condition: "national_death_rate > national_birth_rate"
+      template: "全國已過「死亡交叉」— 死亡率 {death_rate}‰ 超越出生率 {birth_rate}‰，自然減少 {natural_decrease} 人。"
+      severity: danger
+    - id: aging_gap
+      condition: "max_county_aging / min_county_aging > 3"
+      template: "老化指數縣市差距達 {ratio} 倍 — 最老 {max_county}（{max_value}）vs 最年輕 {min_county}（{min_value}）。"
+      severity: warn
+    - default: true
+      template: "全國 {total} 人 · 性別比 {sex_ratio} · 老化指數 {aging} · 扶養比 {dependency}% · 戶量 {household_size} 人/戶。"
+      severity: info
+
+  ranking:
+    primary_metric: aging_index
+    available_metrics:
+      - aging_index
+      - growth_10y_pct
+      - population_density
+      - dependency_ratio
+      - birth_rate
+    top_n: 5
+    bottom_n: 5
+
+# ─────────────────────────────────────────────────
+# View B 縣市儀錶板
+# ─────────────────────────────────────────────────
+county_dashboard:
+  hero:
+    facts:
+      - { source: population,    suffix: 人,    format: compact }
+      - { source: area,          suffix: km²,   format: num }
+      - { source: aging_index,   suffix: "",    label: 老化指數 }
+      - { source: village_count, suffix: 村里 }
+  default_tab: overview
+  tabs:
+    - id: overview
+      label: 概覽
+      icon: users
+      type: charts
+      layers: [county_choropleth]
+      kpis: [county_population, county_aging_index, county_dependency_ratio, county_growth_10y]
+      charts:
+        - id: county_population_history
+          type: trend
+          query: county_population_trend_10y
+          response_shape:
+            series: [{ x: timestamp, y: number }]
+            annotations?: array
+          windows: [10y, all]
+
+    - id: age_structure
+      label: 年齡結構
+      icon: bar-chart-3
+      type: charts
+      kpis: [county_aging_index, county_median_age, county_sex_ratio]
+      charts:
+        - id: county_pyramid
+          type: pyramid
+          query: county_age_sex_pyramid          # ⚠️ Sprint 0 缺口表
+          x_male: -male_pop
+          x_female: female_pop
+          y: age_band
+          response_shape:
+            series: [{ age_band: string, male_pop: number, female_pop: number }]
+        - id: county_vs_national_radar
+          type: radar
+          query: county_age_three_group_vs_national
+          response_shape:
+            series: [{ axis: string, county: number, national: number }]
+
+    - id: dynamics
+      label: 人口動態
+      icon: trending-up
+      type: charts
+      kpis: [county_birth_rate, county_death_rate, county_social_increase]
+      charts:
+        - id: birth_death_yearly
+          type: trend
+          query: county_birth_death_yearly
+          response_shape:
+            series: [{ x: timestamp, birth_rate: number, death_rate: number }]
+        - id: natural_social_balance
+          type: bar
+          query: county_natural_social_increase_yearly
+          response_shape:
+            series: [{ x: timestamp, natural_increase: number, social_increase: number }]
+
+    - id: urban_rural
+      label: 城鄉分布
+      icon: map
+      type: charts
+      layers: [village_polygons, minimal_area_polygons, h3_demographics]
+      kpis: [county_density, county_daynight_ratio]
+      charts:
+        - id: village_density_rank
+          type: ranking_panel
+          query: county_village_density_rank
+          metric: population_density
+        - id: daynight_population
+          type: bar
+          query: county_daynight_population
+          response_shape:
+            series: [{ x: timestamp, day_pop: number, night_pop: number }]
+      explore_links:
+        - to: "drill/village/:id"
+          when: click_village_on_map
+        - to: "dataset/minimal_area/:id"
+          when: click_point_on_map
+
+# ─────────────────────────────────────────────────
+# View C 資料集詳情
+# ─────────────────────────────────────────────────
+datasets:
+  - id: county_population
+    label: 縣市人口時序
+    layer: choropleth
+    source_table: spatial.village_population_trend
+    detail_fields:
+      - { key: county,           label: 縣市 }
+      - { key: total_population,  label: 總人口, unit: 人 }
+      - { key: avg_median_age,    label: 中位數年齡, unit: 歲 }
+    timeseries:
+      - source: village_population_trend
+        x: year
+        y: total_population
+        label: 總人口
+
+  - id: village
+    label: 村里人口（10 年歷年）
+    layer: polygon
+    source_table: spatial.village_demographics_yearly
+    detail_fields:
+      - { key: village_name,      label: 村里 }
+      - { key: population,        label: 人口, unit: 人 }
+      - { key: birth_total,       label: 出生, unit: 人 }
+      - { key: death_total,       label: 死亡, unit: 人 }
+      - { key: natural_increase,  label: 自然增加, unit: 人 }
+      - { key: social_increase,   label: 社會增加, unit: 人 }
+    timeseries:
+      - source: village_demographics_yearly
+        x: year
+        y: population
+        label: 人口
+
+  - id: minimal_area
+    label: 最小統計區（345 欄綜合）
+    layer: polygon
+    source_table: spatial.minimal_statistical_area
+    detail_fields:
+      - { key: area_code,    label: 統計區代碼 }
+      - { key: population,   label: 人口, unit: 人 }
+      - { key: day_pop,      label: 日間人口, unit: 人 }
+      - { key: night_pop,    label: 夜間人口, unit: 人 }
+      - { key: daynight_ratio, label: 日夜比 }
+    download:
+      csv: /api/dataset/minimal_area/:id/csv
+      api: /api/dataset/minimal_area/:id
+
+# ─────────────────────────────────────────────────
+# View D 比較模式
+# ─────────────────────────────────────────────────
+compare:
+  comparable_metrics:
+    - id: population
+      label: 總人口
+      unit: 人
+      source: ref_counties
+      ranking_better: neutral
+      coverage_note: ~                  # 全 22 縣市
+    - id: population_density
+      label: 人口密度
+      unit: 人/km²
+      source: ref_counties
+      ranking_better: neutral
+    - id: aging_index
+      label: 老化指數
+      unit: ""
+      source: ref_national_basics
+      ranking_better: lower
+    - id: growth_10y_pct
+      label: 10 年成長率
+      unit: "%"
+      source: village_population_trend
+      ranking_better: higher
+    - id: dependency_ratio
+      label: 扶養比
+      unit: "%"
+      source: ref_national_basics
+      ranking_better: lower
+    - id: median_age
+      label: 中位數年齡
+      unit: 歲
+      source: h3_demographics_yearly
+      ranking_better: lower
+    - id: sex_ratio
+      label: 性別比
+      unit: "♂/100♀"
+      source: demographics_age_sex
+      ranking_better: neutral
+      coverage_note: "等 Sprint 0 性別×年齡交叉 ETL"
+
+# ─────────────────────────────────────────────────
+# 跨主題聯動
+# ─────────────────────────────────────────────────
+crosslink:
+  - with: water
+    metric_pair: [aging_index, lpcd]
+    trigger: "abs(corr(aging_index, lpcd)) > 0.3"
+    text: "{county} 高齡 {aging} vs 全國 {national_aging} · 人均用水 {lpcd}L — 老化 vs 用水"
+
+  - with: fire
+    metric_pair: [aging_index, fire_per_10k]
+    trigger: "abs(corr(aging_index, fire_per_10k)) > 0.3"
+    text: "老化 {aging} vs 火災 {fire}件/萬人 — 獨居長者電氣火災假設"
+
+  - with: medical
+    metric_pair: [aging_index, hospital_bed_per_capita]
+    trigger: "always"
+    text: "高齡 {aging} · 醫療床位 {beds}/萬人 — 老人 vs 醫療量能"
+
+# ─────────────────────────────────────────────────
+# 地圖圖層目錄
+# ─────────────────────────────────────────────────
+layers_catalog:
+  - id: county_choropleth
+    type: polygon
+    source: ref_counties
+    style: { mode: rate, ramp: purples }
+  - id: village_polygons
+    type: polygon
+    source: spatial.village_demographics_yearly
+    style: { stroke: "#A78BFA", fill: "rgba(167,139,250,0.15)" }
+  - id: minimal_area_polygons
+    type: polygon
+    source: spatial.minimal_statistical_area
+    style: { stroke: "#C4B5FD", fill: "rgba(196,181,253,0.12)" }
+  - id: h3_demographics
+    type: polygon
+    source: get_h3_demographics_yearly
+    style: { mode: rate, ramp: purples }
+
+# ─────────────────────────────────────────────────
+# 資料來源
+# ─────────────────────────────────────────────────
+data_sources:
+  - id: ref_counties
+    title: reference.counties（22 縣市人口 + 面積 + centroid）
+    license: OGDL-Taiwan-1.0
+    url: https://www.ris.gov.tw/app/portal/346
+    updated_field: stat_year
+    refresh_cadence: yearly
+    supabase_tables: [reference.counties]
+    note: "gis-platform migration 093，pop_2024_wan + area_km2 + centroid，現成可上線"
+
+  - id: ref_national_basics
+    title: reference.national_basics_latest（全國 vital signs VIEW）
+    license: OGDL-Taiwan-1.0
+    url: https://www.ris.gov.tw/app/portal/346
+    updated_field: stat_month
+    refresh_cadence: monthly
+    supabase_tables: [reference.national_basics_latest]
+    note: "gis-platform migration 114，總/男/女人口 + 密度 + 三分組 + 老化 + 扶養 + 出生死亡率；月度但當靜態用，現成可上線"
+
+  - id: village_population_trend
+    title: spatial.village_population_trend（year×county 趨勢 VIEW）
+    license: OGDL-Taiwan-1.0
+    url: https://segis.moi.gov.tw/
+    updated_field: year
+    refresh_cadence: yearly
+    supabase_tables: [spatial.village_population_trend]
+    note: "gis-platform migration 017，total_population / avg_median_age 趨勢；成長率來源，現成可上線"
+
+  - id: h3_demographics_yearly
+    title: get_h3_demographics_yearly（H3 年度 RPC）
+    license: OGDL-Taiwan-1.0
+    url: https://segis.moi.gov.tw/
+    updated_field: roc_year
+    refresh_cadence: yearly
+    supabase_tables: [get_h3_demographics_yearly]
+    note: "gis-platform migration 020，民國 104-113，sex_ratio/aging_index/median_age/三分組；現成可上線"
+
+  - id: demographics_age_sex
+    title: 現住人口性別×年齡 5 歲組交叉（缺口，Sprint 0 必補）
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/
+    refresh_cadence: yearly
+    supabase_tables: [demographics.population_by_age_sex_county]
+    note: "🔴 唯一硬缺口：現有 5 歲組與性別未交叉，畫不了標準金字塔。需抓戶政司「現住人口性別、年齡、婚姻狀況」national 級，或各縣市民政局「按性別及年齡分」(catalog 命中臺南/臺中/基隆/新竹縣/澎湖/連江)。Sprint 0 ETL → demographics.population_by_age_sex_county"
+
+  - id: village_demographics_yearly
+    title: 村里 10 年歷年人口（本地成品，待上 Supabase）
+    license: OGDL-Taiwan-1.0
+    url: https://segis.moi.gov.tw/
+    updated_field: year
+    refresh_cadence: yearly
+    supabase_tables: [spatial.village_demographics_yearly]
+    note: "taipei-gis-analytics data/processed/demographics/population/yearly/village_demographics_all.parquet（77,821 列 = 7,800 村里 × 民國104-113，含 birth/death/natural/migration/social）。Sprint 0 上 Supabase，目前線上面圖只有雙北+新竹"
+
+  - id: minimal_statistical_area
+    title: 最小統計區 345 欄綜合（本地成品，待上 Supabase）
+    license: OGDL-Taiwan-1.0
+    url: https://segis.moi.gov.tw/
+    refresh_cadence: yearly
+    supabase_tables: [spatial.minimal_statistical_area]
+    note: "minimal_area_comprehensive.geojson（157,933 區 polygon）+ taiwan_daynight_population.parquet 日夜人流（內政部大數據『模擬』10% 抽樣，非真實戶籍要標註）。Sprint 0 上 Supabase"
+
+# ─────────────────────────────────────────────────
+# Meta
+# ─────────────────────────────────────────────────
+meta:
+  version: "0.1.0"
+  spec_version: "1.1"
+  last_reviewed: "2026-05-26"
+  reviewer: "migu + Claude"
+  coverage_notes:
+    - metric: sex_ratio_by_age
+      affected_counties: []
+      mode: pending_geocode
+      ui_treatment: placeholder
+      reason: "🔴 性別×5歲年齡組交叉金字塔資料缺口，Sprint 0 補 demographics.population_by_age_sex_county 後上線"
+    - dataset: village_demographics_yearly
+      affected_counties: [A, F, O]
+      mode: only_in
+      ui_treatment: warning_badge
+      reason: "全國村里面圖（7,800 村里 × 10 年）本地成品已備，但線上 Supabase 目前只有雙北+新竹；Sprint 0 全國上傳後解除"
+    - dataset: minimal_statistical_area
+      affected_counties: []
+      mode: pending_geocode
+      ui_treatment: placeholder
+      reason: "最小統計區 345 欄 + 日夜人流（157,933 區）本地成品，Sprint 0 上 Supabase 後上線；日夜人流為大數據模擬 10% 抽樣，UI 須標註非真實戶籍"
+    - dataset: ref_national_basics
+      affected_counties: [A, F, H, B, D, E, C, O, I, J, K, N, M, P, Q, T, G, U, V, X, W, Z]
+      mode: only_in
+      ui_treatment: warning_badge
+      reason: "全國 vital signs VIEW 為 national 級彙總；縣市級老化/扶養/性別比走 h3_demographics_yearly 與 village_population_trend 補齊 22 縣市"

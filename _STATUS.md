@@ -3,7 +3,7 @@
 > **Living document**。每完成一個 task / 做一個決定 / 發現新 backlog，就更新這份檔。
 > 一日一次同步：每天結束時對齊 TaskList tool 與本檔。
 
-**最後更新**：2026-05-22 (home theme ViewB 5 章節縣市鑽取上線 — 設計檔 2 導入 + URL deeplink + 接 LIVE 全國 baseline)
+**最後更新**：2026-05-27 (新增 3 主題 draft：人口 `demographics` / 軌道 `rail` / 航運 `maritime` — manifest + 詳規 + Sprint 0 handoff 完成，待 taipei-gis-analytics 執行前置 ETL；見本檔末三主題段)
 **當前 Phase**：水主題 Phase 0 已收尾 · 消防主題 **ViewA Phase 1 完成**（4 區塊上線，等 mock → 真實替換）
 **當前 Focus**：📍 消防主題 mock 替換 — 下個 session 把 S2/S3/S4 mock 換真實（B041-B047）
 **用詞守則**：「LIVE」嚴格定義為 collector cron + 上游 realtime；其他用「接通真實資料」
@@ -249,7 +249,7 @@ python3 pipelines/infrastructure/datagov_26815_sewage.py --full  # 接管率 22 
 - **月雨量 MV** (`rain_gauge_monthly_by_county`)：原 Phase 0d 規劃，但目前無 view 使用（ViewB 用 LPCD/接管率歷年；ViewC 用 reservoir timeseries）。月雨量是 nice-to-have，待 Phase 1 月雨量 trend UI 上線時再做。
 
 ### 🔵 規格延伸（未來主題）
-- 5-8 主題：fire / medical / transport / population / environment / realestate — 都還 `disabled: true`
+- 5-8 主題：medical / environment / realestate — 仍 `disabled: true`（fire 已上線；**population→`demographics` / transport→`rail` / 航運→`maritime` 已產 draft manifest + 詳規 + Sprint 0 handoff，見本檔末三主題段**）
 - mockup 的 Tweaks panel（density / radius / mapStyle / waterAccent）—Phase 1 才上線
 - 暗色模式 — 已有 CSS 變數，沒驗證；Phase 1
 - 手機版 — 「這輪只做桌機 1280+」(chat1 user 確認)，手機版 Phase 2
@@ -275,6 +275,7 @@ python3 pipelines/infrastructure/datagov_26815_sewage.py --full  # 接管率 22 
 | 2026-05-14 | MVP 範圍 = **View A 完整 + 含 2 個 ETL**（LPCD + 接管率） | 6 KPI 全真實資料；不再有 mock |
 | 2026-05-14 | manifest 先重構（R1+R2+R3）再寫 frontend | 否則 hardcode 進 view 後重構超痛 |
 | 2026-05-14 | Phase 0 拆 5 子階段（0a-0e） | 每子階段 0.5-2 天，可量化進度 |
+| 2026-05-27 | 新增人口/軌道/航運 3 主題（draft）；定錨「**靜態統計、不放即時**」（即時歸 mini-taiwan-pulse）+「**缺口先補再上線**」 | info 定位為統計策展；8 項缺口排 Sprint 0 前置 ETL，前端 view 在其後 |
 
 ---
 
@@ -543,3 +544,50 @@ Cycle 1 前的選項（已併入水循環 Roadmap）：
 ```
 > /water-loop 跑 Cycle E 河川流量 + map layers
 ```
+
+---
+
+# 👥🚆⚓ 三新主題（人口 / 軌道 / 航運）— 規劃完成 + Sprint 0 待執行（2026-05-27）
+
+**狀態**：🟡 manifest + 詳規 + 跨 repo Sprint 0 handoff 全產出（draft），**待 taipei-gis-analytics 執行 9 項前置 ETL** 才升 beta、接前端。
+
+**定錨決策（2026-05-27）**：① 靜態統計、不放即時（列車即時/AIS 船舶歸 mini-taiwan-pulse）② 缺口先補再上線。
+
+## 產出檔案
+
+| 主題 | manifest | 詳規 | KPI / Tab |
+|---|---|---|---|
+| 👥 人口 `demographics` | `themes/demographics.yaml` | `docs/themes/demographics.md` | 6 / 4 |
+| 🚆 軌道 `rail` | `themes/rail.yaml` | `docs/themes/rail.md` | 7 / 5 |
+| ⚓ 航運 `maritime` | `themes/maritime.yaml` | `docs/themes/maritime.md` | 10 / 5 |
+| — | 跨 repo 執行清單 | **`docs/themes/_SPRINT0_HANDOFF.md`** ⭐ | 8 工作項 |
+
+> 三份 YAML 已通過 js-yaml 解析驗證。`rail.yaml` 有 spec 外頂層 key `rail_systems`（無 `_schema.json` validator 故無妨）。顏色/priority(15/50/55) 可調；`status: draft` → 不出現在主題切換器。
+
+## Sprint 0 前置 ETL（落在 taipei-gis-analytics + gis-platform，詳見 handoff）
+
+| ID | 工作 | 目標 Supabase 表 | migration | 批次 | 狀態 |
+|---|---|---|---|---|---|
+| S0-MAR-1 | 277 港口全量上傳 ⭐最快（資料現成）| `maritime.ports` | 120 | 1 | ⬜ |
+| S0-RAIL-1 | 逐站 county join ⭐其他軌道項前提 | `rail.stations` | 117 | 1 | ⬜ |
+| S0-DEMO-2 | 全國村里/統計區屬性上傳 | `spatial.village_*` | 116 | 1 | ⬜ |
+| S0-DEMO-1 | 性別×5歲組金字塔 🔴硬缺口 | `demographics.population_by_age_sex_county` | 115 | 2 | ⬜ |
+| S0-RAIL-3 | 站級進出站運量 | `rail.ridership_by_station` | 119 | 2 | ⬜ |
+| S0-MAR-2 | 漁業縣市統計 | `maritime.fishery_stats_by_county` | 121 | 2 | ⬜ |
+| S0-MAR-3 | iMarine 港埠運量 | `maritime.port_traffic_yearly` | 122 | 2 | ⬜ |
+| S0-RAIL-2 | 站/線/車次統計（時刻表 derive）| `rail.lines` / `rail.station_daily_trips` | 118 | 3 | ⬜ |
+
+migration 編號以 gis-platform 當下為準（最新 114，上表 115 起示意）。
+
+## 前端（Sprint 0 後）
+
+各主題 Sprint 1+ 見對應 `docs/themes/{theme}.md`。共通：manifest 升 beta + `queries/{theme}.ts` + `hooks/use{Theme}Data.ts` + `ViewA{Theme}`/`ViewB{Theme}` + `App.tsx` 接線。
+⚠️ **架構紅旗**：一次加 3 主題前先評估把 View 三元式重構為 generic（Backlog 既有警告「第 5 主題會炸」）。
+
+## 推薦 First Move（在 taipei-gis-analytics）
+
+```
+> 開始三主題 Sprint 0 批次 1：港口全量上傳(S0-MAR-1) + 軌道逐站 county join(S0-RAIL-1) + 村里屬性上傳(S0-DEMO-2)
+```
+
+依 handoff §2，批次 1 三項皆現成資料/低風險、彼此獨立 → 可平行派 Agent 寫 pipeline、主 agent 跑+fix。

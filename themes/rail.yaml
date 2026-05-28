@@ -1,0 +1,506 @@
+# Mini Taiwan Info · Rail Transit Theme Manifest
+# v0.1 (2026-05-26) — 軌道運輸（站 / 線 / 班次的靜態統計帳）
+# 定位：info repo = 靜態統計策展，即時列車位置/誤點歸 mini-taiwan-pulse
+# 現成資料：mini-taiwan-pulse/public/rail/* + public/geo/station_*.geojson
+#           + data-collectors rail_timetable.py / tra_static.py 歸檔
+# 缺口（Sprint 0 前置 ETL 必補）：站級運量人次 / 逐站 county_id / 捷運大小站分級
+
+theme:
+  id: rail
+  name: 軌道運輸
+  name_en: Rail Transit
+  emoji: 🚆
+  icon: train-front
+  color_accent: "#4F46E5"        # indigo-600
+  color_ramp: blues
+  description: 台鐵、高鐵與六系統捷運輕軌的車站、路線、班次統計 — 站等分級、停靠車次排名、車種與尖峰離峰結構。
+  tagline: 全島軌道：站、線、班次的統計帳
+  priority: 50
+  status: draft
+
+# ─────────────────────────────────────────────────
+# overview：View A 全國概覽
+#   敘事三支柱：(1)車站家底分級 (2)班次密度與結構 (3)運量集中度
+# ─────────────────────────────────────────────────
+overview:
+  default_choropleth_metric: station_count
+
+  color_metrics:
+    - id: station_count
+      label: 車站數
+      unit: 站
+      ramp_direction: default        # 越多越深
+      domain: [0, 90]
+    - id: daily_trips_per_station
+      label: 每站日均停靠車次
+      unit: 次/站
+      ramp_direction: default
+      domain: [0, 250]
+    - id: ridership_per_capita        # ⚠️ Sprint 0 待補（站級運量 join 縣市）
+      label: 人均年運量
+      unit: 人次/人
+      ramp_direction: default
+      domain: [0, 400]
+    - id: rail_length_km
+      label: 營運里程
+      unit: km
+      ramp_direction: default
+      domain: [0, 150]
+
+  kpis:
+    # ───── 支柱 1 車站家底（現成可上線） ─────
+    - id: stations_total
+      label: 總車站數
+      unit: 站
+      source: rail_stations
+      query: rail_stations_count
+      group: structural
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: dimension
+          by: system            # 台鐵/高鐵/捷運/輕軌 分解
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number }]
+        - mode: dimension
+          by: county
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+
+    - id: lines_total
+      label: 總路線數
+      unit: 條
+      source: rail_lines
+      query: rail_lines_count
+      group: structural
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: dimension
+          by: system
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number }]
+
+    - id: rail_length_km
+      label: 營運里程
+      unit: km
+      source: rail_lines
+      query: rail_length_total
+      group: structural
+      format: { precision: 1, compare_to: none, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: dimension
+          by: system
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number }]
+
+    # ───── 支柱 2 班次密度與結構（從時刻表 derive，半靜態月更） ─────
+    - id: daily_trips_total
+      label: 每日總停靠車次
+      unit: 次
+      source: rail_station_daily_trips
+      query: rail_daily_trips_total
+      group: governance
+      format: { precision: 0, compare_to: previous_quarter, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: dimension
+          by: system
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number }]
+        - mode: dimension
+          by: station            # 大站每日停靠車次排名
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+
+    - id: peak_offpeak_ratio
+      label: 尖峰離峰班次比
+      unit: 倍
+      source: rail_station_daily_trips
+      query: rail_peak_offpeak_ratio
+      group: governance
+      format: { precision: 2, compare_to: none, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: time
+          windows: [24h]          # 24 小時逐時班次分布
+          response_shape:
+            series: [{ x: timestamp, y: number }]
+
+    - id: tra_train_type_share
+      label: 台鐵主力車種占比
+      unit: "%"
+      source: tra_static
+      query: rail_tra_train_type_share
+      group: governance
+      format: { precision: 1, compare_to: none, sentiment_when_up: neutral }
+      response_shape:
+        value: number
+        delta: number
+      explode:
+        - mode: dimension
+          by: train_type          # 區間/自強/普悠瑪/莒光… 車種班次占比 donut
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number }]
+
+    # ───── 支柱 3 運量（🔴 Sprint 0 缺口，先 placeholder） ─────
+    - id: ridership_total
+      label: 年度總運量
+      unit: 人次
+      source: rail_ridership_by_station
+      query: rail_ridership_total_placeholder
+      group: structural
+      format: { precision: 0, compare_to: previous_year, sentiment_when_up: positive }
+      response_shape:
+        value: number
+        delta: number
+      coverage_note: "🔴 Sprint 0 待補：站級進出站運量人次（台鐵/各捷運/高鐵 datagov 月更未撈）"
+      explode:
+        - mode: dimension
+          by: station             # 大站運量排名（運量版）
+          default: true
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+        - mode: dimension
+          by: county
+          response_shape:
+            items: [{ id: string, name: string, value: number, county_id: string }]
+
+  point_profile:                   # View A 點位概況面板：491 車站
+    enabled: true
+    title: 全台 491 座軌道車站
+    source: rail_station_points
+    response_shape:
+      items: [{ id: string, name: string, value: number, county_id: string, system: string, station_class: int, lat: number, lng: number }]
+    modes:
+      - id: by_system
+        label: 按系統
+        type: region                # 借 region 模式，groups_from 改成系統
+        groups_from: manifest:rail_systems
+      - id: station_class
+        label: 站等分級
+        type: bucket
+        thresholds:                 # 台鐵/高鐵 class 0=大站 1=次級；捷運待補
+          - { lt: 1,   label: 大站, color: "#4F46E5" }
+          - { gte: 1,  label: 一般站, color: "#A5B4FC" }
+      - id: trips_scatter
+        label: 停靠車次 × 系統
+        type: scatter
+        x_axis: { field: daily_trips, label: 日均停靠車次, unit: 次, scale: linear }
+        y_axis: { field: value,       label: 站等（class）, unit: "", scale: linear }
+    default_mode: by_system
+
+  hook_rules:
+    - id: top_station_concentration
+      condition: "top5_station_trips_share > 0.25"
+      template: "全台前 5 大站包辦 {top5_share}% 停靠車次 — {top_station} 每日 {top_trips} 班居冠。"
+      severity: info
+    - id: ridership_pending
+      condition: "ridership_total == null"
+      template: "站、線、班次帳已備齊；站級運量人次仍待 Sprint 0 ETL 補上。"
+      severity: warn
+    - default: true
+      template: "全島 {stations_total} 站、{lines_total} 線、{rail_length_km} km，每日 {daily_trips_total} 班車次。"
+      severity: info
+
+  ranking:
+    primary_metric: daily_trips_total
+    available_metrics:
+      - station_count
+      - daily_trips_total
+      - rail_length_km
+      - ridership_total          # 待 Sprint 0
+    top_n: 10
+    bottom_n: 5
+
+# ─────────────────────────────────────────────────
+# county_dashboard：View B（5 tabs）
+#   ⭐ 跨縣市系統：北捷跨北北、桃捷跨北桃 → 點選同時呈現兩縣市路網
+#      (靠 Sprint 0 的逐站 county_id 解 line→counties 映射)
+# ─────────────────────────────────────────────────
+county_dashboard:
+  hero:
+    facts:
+      - { source: stations_total, suffix: 站 }
+      - { source: lines_total,    suffix: 線 }
+      - { source: rail_length_km, suffix: km }
+      - { source: daily_trips_total, suffix: 班/日 }
+  default_tab: overview
+  tabs:
+    - id: overview
+      label: 概覽
+      icon: train-front
+      type: charts
+      layers: [rail_tracks, rail_stations_point]
+      kpis: [stations_total, lines_total, rail_length_km, daily_trips_total]
+      charts:
+        - id: county_trips_by_system
+          type: bar
+          query: county_trips_by_system
+          response_shape:
+            series: [{ x: string, y: number }]
+
+    - id: stations
+      label: 車站
+      icon: map-pin
+      type: charts
+      layers: [rail_stations_point, rail_station_polygons]
+      kpis: [stations_total]
+      charts:
+        - id: county_station_trips_rank
+          type: bar
+          query: county_station_daily_trips_rank   # 該縣市各系統車站列表 + 停靠車次
+          response_shape:
+            series: [{ x: string, y: number }]
+      explore_links:
+        - to: "dataset/station/:id"
+          when: click_point_on_map
+
+    - id: lines
+      label: 路線時刻
+      icon: route
+      type: charts
+      layers: [rail_tracks]
+      kpis: [lines_total, peak_offpeak_ratio, tra_train_type_share]
+      charts:
+        - id: county_peak_hour_dist
+          type: bar                  # 尖峰離峰逐時班次分布（可切系統/路線）
+          query: county_peak_hour_distribution
+          response_shape:
+            series: [{ x: string, y: number }]
+        - id: county_train_type_donut
+          type: pie
+          query: county_train_type_share
+          response_shape:
+            series: [{ name: string, color: string, data: [{ x, y }] }]
+
+    - id: ridership
+      label: 運量
+      icon: users
+      type: charts                   # 🔴 Sprint 0 缺口，先 placeholder
+      kpis: [ridership_total]
+      charts:
+        - id: county_ridership_trend
+          type: trend
+          query: county_ridership_monthly_placeholder
+          response_shape:
+            series: [{ x: timestamp, y: number }]
+
+    - id: ranking
+      label: 排名
+      icon: trending-up
+      type: ranking_panel
+      metrics: [station_count, daily_trips_total, rail_length_km, ridership_total]
+
+# ─────────────────────────────────────────────────
+# datasets：View C 資料集詳情頁
+# ─────────────────────────────────────────────────
+datasets:
+  - id: station
+    label: 車站
+    layer: point
+    source_table: rail.stations
+    detail_fields:
+      - { key: name,          label: 站名 }
+      - { key: name_en,       label: 英文站名 }
+      - { key: system,        label: 系統 }
+      - { key: line,          label: 所屬路線 }
+      - { key: station_class, label: 站等 }
+      - { key: county_id,     label: 所在縣市 }
+      - { key: daily_trips,   label: 日均停靠車次, unit: 次 }
+    timeseries:
+      - source: rail.station_daily_trips
+        x: hour
+        y: trips
+        label: 逐時停靠車次
+      - source: rail.ridership_by_station   # 🔴 Sprint 0 待補
+        x: stat_month
+        y: ridership
+        label: 月運量人次
+    download:
+      csv: /api/dataset/station/:id/csv
+      api: /api/dataset/station/:id
+
+  - id: line
+    label: 路線
+    layer: line
+    source_table: rail.lines
+    detail_fields:
+      - { key: name,        label: 路線名 }
+      - { key: system,      label: 系統 }
+      - { key: length_km,   label: 里程, unit: km }
+      - { key: station_n,   label: 站數, unit: 站 }
+      - { key: county_ids,  label: 跨越縣市 }     # 跨縣市系統用
+    download:
+      csv: /api/dataset/line/:id/csv
+      api: /api/dataset/line/:id
+
+# ─────────────────────────────────────────────────
+# compare：View D 跨縣市比較
+# ─────────────────────────────────────────────────
+compare:
+  comparable_metrics:
+    - id: station_count
+      label: 車站數
+      unit: 站
+      source: rail_stations
+      ranking_better: higher
+      coverage_note: ~
+    - id: rail_length_km
+      label: 營運里程
+      unit: km
+      source: rail_lines
+      ranking_better: higher
+      coverage_note: ~
+    - id: daily_trips_per_station
+      label: 每站日均停靠車次
+      unit: 次/站
+      source: rail_station_daily_trips
+      ranking_better: higher
+      coverage_note: ~
+    - id: ridership_per_capita
+      label: 人均年運量
+      unit: 人次/人
+      source: rail_ridership_by_station
+      ranking_better: higher
+      coverage_note: "🔴 Sprint 0 待補（站級運量 join 縣市）"
+
+# ─────────────────────────────────────────────────
+# crosslink：跨主題聯動（選填）
+# ─────────────────────────────────────────────────
+crosslink:
+  - with: demographics
+    metric_pair: [ridership_per_capita, pop_density]
+    trigger: "abs(corr(ridership_per_capita, pop_density)) > 0.3"
+    template: "{county} 人口密度 {density} · 人均年運量 {ridership} 人次 — 軌道可達性 vs 人口。"
+  - with: real_estate
+    metric_pair: [daily_trips_per_station, price_per_ping]
+    trigger: "always"
+    template: "{county} 每站日均 {trips} 班 · 房價 {price}/坪 — 站點密度 vs 房價。"
+
+# ─────────────────────────────────────────────────
+# layers_catalog：地圖圖層
+# ─────────────────────────────────────────────────
+layers_catalog:
+  - id: rail_tracks
+    type: line
+    source: rail_track_geometry
+    style: { mode: by_system, width: 2 }   # 依系統著色（台鐵/高鐵/各捷運/輕軌）
+
+  - id: rail_stations_point
+    type: point
+    source: rail_station_points
+    style: { mode: by_class, radius: 4, label_min_zoom: 8 }   # 大站放大
+
+  - id: rail_station_polygons
+    type: polygon
+    source: rail_station_polygons
+    style: { fill: "rgba(79,70,229,0.15)", stroke: "#4F46E5" }  # 44 大站範圍
+
+# ─────────────────────────────────────────────────
+# data_sources
+# ─────────────────────────────────────────────────
+data_sources:
+  - id: rail_stations
+    title: 各系統車站點位（台鐵/高鐵/六捷運輕軌）
+    license: 政府資料開放授權條款第 1 版
+    url: https://tdx.transportdata.tw/api-service/swagger/basic/2cf2f6f6-19d9-4d8b-9080-fd9e5b6c9c1e
+    updated_field: updated_at
+    refresh_cadence: monthly
+    supabase_tables: [rail.stations]
+    note: "現成於 mini-taiwan-pulse/public/rail/{sys}/stations/*.geojson + public/geo/station_points.geojson（491 點）；TDX Rail/TRA + THSR + Metro 各 NetworkID。Sprint 0 加 county_id"
+
+  - id: rail_lines
+    title: 各系統路線幾何與里程
+    license: 政府資料開放授權條款第 1 版
+    url: https://tdx.transportdata.tw/
+    updated_field: updated_at
+    refresh_cadence: monthly
+    supabase_tables: [rail.lines]
+    note: "現成於 public/rail/{sys}/tracks/*.geojson（台鐵267段/北捷94/高捷4/高鐵2/台中2/高雄輕軌2 LineString）"
+
+  - id: rail_station_daily_trips
+    title: (衍生) 每站每日停靠車次 + 尖峰離峰逐時
+    license: 衍生自 TDX/各系統時刻表
+    url: ""
+    updated_field: derived_at
+    refresh_cadence: monthly
+    supabase_tables: [rail.station_daily_trips]
+    note: "從台鐵 master_schedule.json + 各捷運 schedules JSON + data-collectors rail_timetable.py 歸檔 derive；隨時刻表改版月更（半靜態）"
+
+  - id: tra_static
+    title: 台鐵靜態基礎資料（車種/路線/站序/線型）
+    license: 政府資料開放授權條款第 1 版
+    url: https://tdx.transportdata.tw/api-service/swagger/basic/2cf2f6f6-19d9-4d8b-9080-fd9e5b6c9c1e
+    updated_field: updated_at
+    refresh_cadence: monthly
+    note: "data-collectors tra_static.py 歸檔 TrainType（區間/自強/普悠瑪/莒光…）/ Line / StationOfLine / Shape"
+
+  - id: rail_ridership_by_station
+    title: 站級進出站運量人次（台鐵/各捷運/高鐵）
+    license: 政府資料開放授權條款第 1 版
+    url: https://data.gov.tw/datasets/search?qs=%E9%80%B2%E5%87%BA%E7%AB%99%E4%BA%BA%E6%95%B8
+    updated_field: stat_month
+    refresh_cadence: monthly
+    supabase_tables: [rail.ridership_by_station]
+    note: "🔴 Sprint 0 缺口：catalog 已索引（台鐵每日各站進出站含 gateInComingCnt/gateOutGoingCnt、各捷運各站旅運量入站/出站、高鐵運量）但全部未撈。需新 pipeline 撈 → join 站碼→座標"
+
+# ─────────────────────────────────────────────────
+# rail_systems：point_profile.by_system 的分組來源（manifest 內定義）
+# ─────────────────────────────────────────────────
+rail_systems:
+  - { id: tra,  name: 台鐵 TRA,   color: "#1E3A8A" }
+  - { id: thsr, name: 高鐵 THSR,  color: "#F97316" }
+  - { id: trtc, name: 台北捷運,   color: "#DC2626" }   # 多線各自色，這裡取系統代表色
+  - { id: tymc, name: 桃園捷運,   color: "#7C3AED" }
+  - { id: krtc, name: 高雄捷運,   color: "#EF4444" }
+  - { id: tmrt, name: 台中捷運,   color: "#16A34A" }
+  - { id: klrt, name: 高雄輕軌,   color: "#84CC16" }
+  - { id: dlrt, name: 淡海輕軌,   color: "#0EA5E9" }
+  - { id: aklrt, name: 安坑輕軌,  color: "#06B6D4" }
+
+# ─────────────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────────────
+meta:
+  version: "0.1.0"
+  spec_version: "1.1"
+  last_reviewed: 2026-05-26
+  reviewer: migu + Claude
+  coverage_notes:
+    - metric: ridership_total
+      affected_counties: []
+      mode: pending_geocode
+      ui_treatment: placeholder
+      reason: "🔴 Sprint 0 缺口：站級進出站運量人次 datagov 月更未撈，撈完 join 站碼→座標→縣市後上線"
+    - metric: ridership_per_capita
+      affected_counties: []
+      mode: pending_geocode
+      ui_treatment: placeholder
+      reason: "🔴 依賴 ridership_by_station + 逐站 county_id，Sprint 0 完成後上線"
+    - dataset: rail_station_polygons
+      affected_counties: [A, F, B, D, E, H, J, K, M, N, P, Q, I, O, G, U, V]
+      mode: only_in
+      ui_treatment: warning_badge
+      reason: "大站 polygon 僅台鐵 32 + 高鐵 12（共 44 大站，class 0/1 分級）；捷運/輕軌無 polygon、無大小站分級（Sprint 0 缺口 3 可用運量補算或標 placeholder）"
+    - metric: station_class
+      affected_counties: []
+      mode: partial
+      ui_treatment: placeholder
+      reason: "站等分級僅台鐵 station class 欄 + 高鐵；捷運/輕軌缺 class（缺口 3），UI 對捷運站不顯示分級或用運量補算"
