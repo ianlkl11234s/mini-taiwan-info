@@ -41,7 +41,9 @@ export type SupabaseSchema =
   | "spatial"
   | "opendata"
   | "fire"
-  | "demographics";
+  | "demographics"
+  | "rail"
+  | "maritime";
 
 export function withSchema(schema: SupabaseSchema) {
   return createClient(
