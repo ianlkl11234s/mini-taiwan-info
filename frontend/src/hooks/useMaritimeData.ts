@@ -60,6 +60,8 @@ export function useMaritimeData(opts: { enabled?: boolean } = {}): MaritimeDataS
       setState({ ...EMPTY, loading: false });
       return;
     }
+    // 從 disabled 切到 enabled 時重設 loading=true，避免 view 瞬間看到 loading=false + summary=null
+    setState((prev) => ({ ...prev, loading: true, error: null }));
     let cancelled = false;
     (async () => {
       const results = await Promise.allSettled([

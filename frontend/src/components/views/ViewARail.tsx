@@ -470,7 +470,8 @@ function S3Ridership({ data, selectedCounty }: Props) {
 export function ViewARail({ data, selectedCounty, onCountyClick }: Props) {
   const S = data.summary;
 
-  if (data.loading) {
+  // 防禦：summary 為 null 但無 error 時當 loading（hook race condition fallback）
+  if (data.loading || (!S && !data.error)) {
     return (
       <div className="hero">
         <h1>
@@ -483,18 +484,20 @@ export function ViewARail({ data, selectedCounty, onCountyClick }: Props) {
     );
   }
 
-  if (data.error || !S) {
+  if (data.error) {
     return (
       <div className="hero">
         <h1>
           <span className="accent">軌道資料載入失敗</span>
         </h1>
         <p className="hook" style={{ color: "#B91C1C", lineHeight: 1.7 }}>
-          {data.error?.message ?? "資料尚未就緒"}
+          {data.error.message}
         </p>
       </div>
     );
   }
+
+  if (!S) return null;
 
   return (
     <div>

@@ -68,6 +68,9 @@ export function useDemographicsData(opts: { enabled?: boolean } = {}): Demograph
       setState({ ...EMPTY, loading: false });
       return;
     }
+    // 從 disabled 切到 enabled 時，前一次 setState 是 loading=false；這邊重設 loading=true，
+    // 否則 view 會在 fetch 完成前的瞬間看到 loading=false + summary=null，誤判為「載入失敗」
+    setState((prev) => ({ ...prev, loading: true, error: null }));
     let cancelled = false;
     (async () => {
       const results = await Promise.allSettled([
