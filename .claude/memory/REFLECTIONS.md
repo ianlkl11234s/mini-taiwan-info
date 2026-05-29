@@ -654,3 +654,27 @@ User 一句話 task「依資料盤點結果，把可以換成真實資料的部�
 3. **手機 <900px 版面**（B048/B054，公開後升 P1）
 4. **後端 FastAPI 部署**（B008，解 explode/TGOS 降級）
 5. fire 3 placeholder 對接（B066-B068）/ 水主題 P0（B059-B061）
+
+---
+
+## 2026-05-29 Session 11 — GitHub 部署 404 + UX/SSOT 大量微調
+
+**做了什麼**：road_events 接 pulse（早段，另 repo）→ 然後整段都在 mini-taiwan-info：rail 對齊設計 chat9、rail 32 大站跨 repo 修、SSOT 老化/出生死亡、地圖染色接真實、mock→PendingDataCard、消防/breadcrumb/分頁順序/footer/favicon/版面，最後**改 GitHub 部署觸發整站 404**並修復。
+
+**順利**：
+- 跨 repo 資料根因（rail 大站缺）**派 general-purpose agent 追查**，一次定位到 station_points 刻意排除 class 0/1 + ETL 誤用，省大量手動 trace。
+- 部署除錯靠 **deployment list 的 PLANTYPE/STATUS + build log + service network** 三件組逐步逼近根因（static vs docker plan、port 8080 對齊、build 在哪步 fail）。
+- SSOT 優先：發現 demographics 已有真實 vitalsTrend / 村里 birth/death，直接接掉 ViewAHome / ViewBDemographics 的 mock，比 placeholder 更好。
+
+**卡住 / 教訓（→ 下次怎麼改）**：
+1. **部署 404 繞了一圈才中**：先試 zbpack.json app_dir → 無效，再試 ZBPACK_APP_DIR env → 無效，最後才用 root Dockerfile。**下次 monorepo 子目錄 app 走 GitHub 直接上 root Dockerfile**，別浪費兩輪在 app_dir。已寫進 PRINCIPLES + DEPLOYMENT.md §九。
+2. **build 成功但 deploy FAILED 一度誤判**：以為 Dockerfile 還有錯，其實 image 已成功匯出、只是 promotion 卡住，`service restart` 就上線。「FAILED」狀態要先分辨是 build-stage 還是 deploy/runtime-stage。
+3. **快取造成「資料沒更新」假象**：rail 大站修好 DB 後前端仍顯示舊值，是 sessionStorage 6hr TTL 擋住；refresh 不清 sessionStorage。**改資料 schema/內容後升 cache key 版本號**（rail:stations→v2）讓所有 client 自動失效，比叫 user 手動清快取可靠。
+4. wrap-up 事件分類表仍無「部署」類（S10 已提，這次又遇到）——本次部署知識落 INCIDENTS + PRINCIPLES + DEPLOYMENT.md §九 + PB-18。
+
+### 下一個 session 的合理開頭（S11 更新）
+1. **套用 gis-platform migration 124**（B073，仍未套）
+2. 公開站體驗：**手機 <900px 版面**（B048/B054）
+3. 後端 FastAPI 部署（B008）
+4. fire 3 placeholder 對接（B066-B068）/ 水主題 P0（B059-B061）
+5. road_events pulse 圖層 **push + browser 驗收**（feat/fire-rescue，096c1c5 未 push）
