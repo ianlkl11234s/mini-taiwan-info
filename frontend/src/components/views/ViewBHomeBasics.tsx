@@ -8,7 +8,8 @@
  * 資料來源：
  *   - 全國 baseline → useNationalBasics → Supabase reference.national_basics_latest（LIVE）
  *   - 縣市 SSOT → COUNTIES (id_moi/area/pop_2024_wan/region)
- *   - per-county mock → mock-home.ts（HOME_BY_COUNTY / COUNTY_TOWNSHIPS_MOCK / MUNI_INFO / COASTAL_COUNTIES）
+ *   - 村里數 + 鄉鎮人口排名 → useTownshipData → demographics.township_village_count / township_rank（真實）
+ *   - per-county mock → mock-home.ts（HOME_BY_COUNTY / MUNI_INFO / COASTAL_COUNTIES）
  *   - 派生 → county-stats.ts（deriveHomeStats / rankAmongCounties / vsNationalTag）
  *   - 待 ETL：reference.national_basics_by_county_monthly / _yearly（規劃中）
  */
@@ -21,9 +22,10 @@ import { fmt } from "@/lib/format";
 import { byCode3 } from "@/lib/counties";
 import type { CountyCode3, County } from "@/lib/types";
 import { useNationalBasics } from "@/hooks/useNationalBasics";
+import { useTownshipData } from "@/hooks/useTownshipData";
+import type { TownshipRankRow } from "@/lib/queries/demographics";
 import {
   HOME_BY_COUNTY,
-  COUNTY_TOWNSHIPS_MOCK,
   MUNI_INFO,
   COASTAL_COUNTIES,
   type HomeCountyDemographic,
@@ -57,6 +59,7 @@ export function ViewBHomeBasics({ county, onBack, onAddCompare, onCityClick }: P
   const c = byCode3[county];
   const hd = HOME_BY_COUNTY[county];
   const { data: nat } = useNationalBasics();
+  const township = useTownshipData();
 
   if (!c || !hd) {
     return (
@@ -70,6 +73,14 @@ export function ViewBHomeBasics({ county, onBack, onAddCompare, onCityClick }: P
   const s = deriveHomeStats(c, hd);
   const region = REGION_ZH[c.region] ?? c.region;
   const muni = MUNI_INFO[c.code3];
+
+  // 村里數 / 鄉鎮排名：優先真實（demographics.township_*），無則 fallback 估算
+  const realVillages = township.villageCountByCountyId[c.id_moi];
+  const villagesIsReal = realVillages != null;
+  const villages = villagesIsReal ? realVillages : s.villages;
+  // 鄰數無真實源：以村里數推估（×18.69），real villages 在手時估得更準，仍標「估」
+  const neighborhoods = villagesIsReal ? Math.round(realVillages * 18.69) : s.neighborhoods;
+  const townRanks = township.ranksByCountyId[c.id_moi] ?? [];
 
   // 4 fact tile ranks
   const popRank     = rankAmongCounties(c.code3, (cc) => cc.pop_2024_wan).rank;
@@ -102,7 +113,7 @@ export function ViewBHomeBasics({ county, onBack, onAddCompare, onCityClick }: P
           {muni && <span className="ch-chip muni">直轄市 · {muni.year} 升格</span>}
           {!muni && PROVINCIAL_CITIES.has(c.code3) && <span className="ch-chip">省轄市</span>}
           <span className="ch-chip">{hd.townCount} 鄉鎮市區</span>
-          <span className="ch-chip">{fmt.num(s.villages)} 村里（估）</span>
+          <span className="ch-chip">{fmt.num(villages)} 村里{villagesIsReal ? "" : "（估）"}</span>
         </div>
 
         <CountyFactGrid c={c} hd={hd} s={s} nat={nat}
@@ -110,7 +121,11 @@ export function ViewBHomeBasics({ county, onBack, onAddCompare, onCityClick }: P
           densityRank={densityRank} agingRank={agingRank} />
       </div>
 
-      <H1Admin c={c} hd={hd} s={s} />
+      <H1Admin
+        c={c} hd={hd}
+        villages={villages} villagesIsReal={villagesIsReal} neighborhoods={neighborhoods}
+        townRanks={townRanks} townshipLoading={township.loading}
+      />
       <H2Geography c={c} nat={nat} onCityClick={onCityClick} />
       <H3Population c={c} s={s} nat={nat} popRank={popRank} densityRank={densityRank} />
       <H4Age c={c} hd={hd} s={s} nat={nat} agingRank={agingRank} />
@@ -186,17 +201,28 @@ function CountyFactGrid({
 /* ──────────────────────────────────────────────
    H1 · 行政區結構
 ─────────────────────────────────────────────── */
-function H1Admin({ c, hd, s }: { c: County; hd: HomeCountyDemographic; s: HomeCountyStats }) {
-  // 鄉鎮名稱為真實清單；各鄉鎮人口無真實來源（不再捏造排名）
-  const townsList = COUNTY_TOWNSHIPS_MOCK[c.code3] ?? [];
+function H1Admin({
+  c, hd, villages, villagesIsReal, neighborhoods, townRanks, townshipLoading,
+}: {
+  c: County;
+  hd: HomeCountyDemographic;
+  villages: number;
+  villagesIsReal: boolean;
+  neighborhoods: number;
+  townRanks: TownshipRankRow[];
+  townshipLoading: boolean;
+}) {
+  const RANK_CAP = 16;
+  const shown = townRanks.slice(0, RANK_CAP);
+  const maxPop = townRanks[0]?.population ?? 1;
 
   return (
     <div className="cat-block">
       <CatHeader
         num={1}
         title={<><span className="accent">行政區結構</span> ─ {c.name_zh}如何被劃分</>}
-        tagline={`${hd.townCount} 鄉鎮市區 · ${fmt.num(s.villages)} 村里（估）· ${fmt.num(s.neighborhoods)} 鄰（估）`}
-        badge="靜態 + ETL"
+        tagline={`${hd.townCount} 鄉鎮市區 · ${fmt.num(villages)} 村里${villagesIsReal ? "" : "（估）"} · ${fmt.num(neighborhoods)} 鄰（估）`}
+        badge={villagesIsReal ? "靜態 + 真實" : "靜態 + ETL"}
         badgeTone="static"
       />
       <div className="cs-admin-strip">
@@ -207,47 +233,54 @@ function H1Admin({ c, hd, s }: { c: County; hd: HomeCountyDemographic; s: HomeCo
         </div>
         <div className="cs-admin-cell">
           <div className="lbl">村里</div>
-          <div className="val">{fmt.num(s.villages)}<span className="unit">個（估）</span></div>
-          <div className="meta etl">待 ETL · per-county yearly</div>
+          <div className="val">{fmt.num(villages)}<span className="unit">個{villagesIsReal ? "" : "（估）"}</span></div>
+          <div className={`meta${villagesIsReal ? "" : " etl"}`}>
+            {villagesIsReal ? "真實 · 內政部村里數" : "待 ETL · per-county yearly"}
+          </div>
         </div>
         <div className="cs-admin-cell">
           <div className="lbl">鄰</div>
-          <div className="val">{fmt.num(s.neighborhoods)}<span className="unit">個（估）</span></div>
-          <div className="meta etl">待 ETL · per-county yearly</div>
+          <div className="val">{fmt.num(neighborhoods)}<span className="unit">個（估）</span></div>
+          <div className="meta etl">無真實源 · 由村里數推估</div>
         </div>
       </div>
 
-      {townsList.length > 0 && (
-        <div className="township-card">
-          <div className="township-head">
-            <div className="t">
-              <span className="pre">DRILL</span>
-              鄉鎮市區人口分布
+      <div className="township-card">
+        <div className="township-head">
+          <div className="t">
+            <span className="pre">DRILL</span>
+            鄉鎮市區人口排名（2024-12）
+          </div>
+          {townRanks.length > 0 && <span className="coverage-badge">真實 · 內政部戶政司</span>}
+        </div>
+
+        {townRanks.length > 0 ? (
+          <>
+            <div className="village-ranking">
+              {shown.map((t) => (
+                <div key={t.town_name} className="vr-row">
+                  <span className="vr-rank">{t.county_rank}</span>
+                  <span className="vr-name">{t.town_name}</span>
+                  <div className="vr-bar"><div style={{ width: `${(t.population / maxPop) * 100}%` }}></div></div>
+                  <span className="vr-val">{fmt.num(t.population)}<span className="muted"> 人</span></span>
+                </div>
+              ))}
             </div>
-          </div>
-          {/* 鄉鎮名稱清單（真實） */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-            {townsList.map((name) => (
-              <span
-                key={name}
-                style={{
-                  padding: "3px 9px", borderRadius: 6, fontSize: 12,
-                  background: "var(--surface-2)", border: "1px solid var(--border)",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                {name}
-              </span>
-            ))}
-          </div>
-          {/* 各鄉鎮人口排名：無真實來源，placeholder */}
+            <div className="muted" style={{ fontSize: 11.5, marginTop: 10, paddingLeft: 4 }}>
+              {townRanks.length > RANK_CAP && <>顯示前 {RANK_CAP} / {townRanks.length} 名 · </>}
+              ※ 來源：demographics.township_rank（內政部戶政司 2024-12 月底人口）
+            </div>
+          </>
+        ) : townshipLoading ? (
+          <div className="muted" style={{ fontSize: 12.5, padding: "8px 4px" }}>正在載入鄉鎮市區排名 …</div>
+        ) : (
           <PendingDataCard
             compact
             label="各鄉鎮市區人口排名"
-            note="鄉鎮名稱已列出（上方）；各鄉鎮人口數待戶政司「鄉鎮市區人口統計」月報 ETL 接通後補上。"
+            note="鄉鎮人口排名資料載入失敗；請確認 demographics schema 已 exposed。"
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

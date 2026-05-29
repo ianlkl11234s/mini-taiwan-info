@@ -275,7 +275,7 @@ function S2Pyramid({ data, selectedCounty }: Props) {
           {P.slice().reverse().map((r, i) => {
             const idx = P.length - 1 - i;
             const isPeak = idx === peakIdxM || idx === peakIdxF;
-            const isOld = idx >= 13;     // 65+
+            const isOld = Number(r.age.match(/(\d+)/)?.[1] ?? 0) >= 65;     // 65+（依 age_band 下界，不依固定 index）
             return (
               <div className={`ppy-row ${isPeak ? "peak" : ""} ${isOld ? "elderly" : ""}`} key={r.age}>
                 <div className="ppy-cell male">

@@ -516,7 +516,7 @@ function AgeTab({ data, c, p, N, agingRank }: {
             {py.slice().reverse().map((r, i) => {
               const idx = py.length - 1 - i;
               const isPeak = idx === peakIdxM || idx === peakIdxF;
-              const isOld = idx >= 13;
+              const isOld = Number(r.age.match(/(\d+)/)?.[1] ?? 0) >= 65;
               return (
                 <div className={`ppy-row ${isPeak ? "peak" : ""} ${isOld ? "elderly" : ""}`} key={r.age}>
                   <div className="ppy-cell male">

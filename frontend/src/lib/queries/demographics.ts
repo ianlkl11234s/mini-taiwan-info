@@ -181,6 +181,67 @@ export async function fetchVillageYearly(years: number[]): Promise<VillageDemogr
 }
 
 // ─────────────────────────────────────────────────
+// 1b. 鄉鎮市區層級（村里數 + 人口排名）— demographics schema 固定小表
+// ─────────────────────────────────────────────────
+
+export interface TownshipVillageCountRow {
+  county_id: CountyIdMoi;
+  county_name: string;
+  town_id: string;
+  town_name: string;
+  village_count: number;       // 該鄉鎮市區村里數（不含鄰）
+}
+
+/** demographics.township_village_count VIEW（368 鄉鎮，固定小表，全 SELECT 一次） */
+export async function fetchTownshipVillageCount(): Promise<TownshipVillageCountRow[]> {
+  const { data, error } = await db
+    .from("township_village_count")
+    .select("county_id,county_name,town_id,town_name,village_count");
+  if (error) {
+    console.error("[demographics] township_village_count failed:", error);
+    throw error;
+  }
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    county_id: String(r.county_id) as CountyIdMoi,
+    county_name: String(r.county_name ?? ""),
+    town_id: String(r.town_id ?? ""),
+    town_name: String(r.town_name ?? ""),
+    village_count: Number(r.village_count ?? 0),
+  }));
+}
+
+export interface TownshipRankRow {
+  national_rank: number;       // 全國排名
+  county_rank: number;         // 縣市內排名
+  county_id: CountyIdMoi;
+  county_name: string;
+  town_name: string;
+  population: number;          // 2024-12 月底人口
+  households: number;
+}
+
+/** demographics.township_rank VIEW（368 鄉鎮 2024-12，固定小表，依 national_rank 排序拉一次） */
+export async function fetchTownshipRank(): Promise<TownshipRankRow[]> {
+  const { data, error } = await db
+    .from("township_rank")
+    .select("national_rank,county_rank,county_id,county_name,town_name,population,households")
+    .order("national_rank");
+  if (error) {
+    console.error("[demographics] township_rank failed:", error);
+    throw error;
+  }
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    national_rank: Number(r.national_rank ?? 0),
+    county_rank: Number(r.county_rank ?? 0),
+    county_id: String(r.county_id) as CountyIdMoi,
+    county_name: String(r.county_name ?? ""),
+    town_name: String(r.town_name ?? ""),
+    population: Number(r.population ?? 0),
+    households: Number(r.households ?? 0),
+  }));
+}
+
+// ─────────────────────────────────────────────────
 // 2. Derived 型別
 // ─────────────────────────────────────────────────
 
