@@ -25,26 +25,22 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 ## Pending 同步（未 commit 到對應 repo 或未 push）
 
-**Session 9（2026-05-16 fire 主題 ViewA + ViewB 去 mock 化）pending**：
+**Session 10（2026-05-29 首次部署上線）pending**：
 
-- **mini-taiwan-info**: **44+ commits ahead origin/main**（S6 8 + S7 6 + S8 5 + S8 wrap-up 7+ + S9 10 + S9 wrap-up 7+）— **待 user push**
-- **gis-platform**: **3+ commits ahead origin/main**（migration 109 本 session + migration 110/111/112 其他 session 已 commit 未 push 或已 push 待確認）
-- **taipei-gis-analytics**: 本 session **未動**（其他 session 跑了 Sprint G 急救醫院 + 其他 dirty，不關本 wrap-up；Sprint G `6e10015 / 70b4cf5` 已 commit）
+- **mini-taiwan-info**: ✅ **已全 push origin/main**（本 session 7 commits + 舊 16 累積，origin 同步）。Session 9 那筆「44+ commits ahead 待 push」已清。
+- **gis-platform**: ⚠️ `migrations/124_rpc_hard_limits.sql` **只產生，未 commit、未套用 DB**（fire.list_incidents + get_road_events_current 的 `LIMIT p_limit` → `LEAST(...,10000)` 硬上界，防 p_limit=999999999 放大攻擊）。套用前先 psql `pg_get_functiondef` 確認原簽名。其他 untracked migration（022/046/067/068）非本 session 產，不處理。
+- **taipei-gis-analytics**: 本 session **未動**
 - **data-collectors**: 本 session **未動**
 
-**跨 session 已建但前端未對接（next session 重點）**：
-- ✅ `gis-platform/migrations/110` admin.villages 7975 polygon（B068 接通）
-- ✅ `gis-platform/migrations/111` fire density / service_coverage MV（B067 接通）
-- ✅ `gis-platform/migrations/112` safety.emergency_hospitals（B066 接通）
-- ✅ `taipei-gis-analytics` Sprint G 252 家急救醫院 ETL（同 B066 同步）
+**跨 session 已建但前端未對接（carryover，仍未做）**：
+- `gis-platform/migrations/110` admin.villages 7975 polygon（→ B068）
+- `gis-platform/migrations/111` fire density / service_coverage MV（→ B067）
+- `gis-platform/migrations/112` safety.emergency_hospitals（→ B066）
+- `taipei-gis-analytics` Sprint G 252 家急救醫院 ETL（同 B066）
 
 **A2 pipeline 仍未 run**：taipei-gis 88353ae，~1-2 小時 / 約 30k reading（待 user 拍板）
 
-**TODO-2 batch_003 未上傳**：taipei-gis fire batch_003 在 2026-04-28 已產出但 user 還沒手動上傳 TGOS web（1-3 天回應期）
-
-**Session 9 跨 repo 變動**：
-- gis-platform commit `92ec3fa`：migration 109 — 14 wrapper view（fire/safety/ems）已 apply remote DB + 驗 14/14
-- mini-taiwan-info 10 commits + 7 wrap-up commits
+**TODO-2 batch_003 未上傳**：taipei-gis fire batch_003 已產出但 user 還沒手動上傳 TGOS web
 
 ---
 
@@ -52,6 +48,7 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 | 日期 | Repo | 動作 | Commit |
 |---|---|---|---|
+| 2026-05-29 (S10) | mini-taiwan-info | 首次部署上線 Zeabur — egress 收斂 + cache 層 + 部署 infra + 資料分級 + Dockerfile 修 + 部署紀錄，**全 push origin/main** | 6f57244 / 42cbf84 / e775771 / ef84f8b / 05c98b0 / 2178a60 / 00884c7 |
 | 2026-05-16 (S9) | mini-taiwan-info | feat(fire) ViewA + ViewB + queries + 2 hooks 去 mock 化 — 10 atomic commits | 35970a3 / 453e707 / 00813b3 / b1b3cdb / 9dfab09 / 528d879 / 127fc2b / 0009ca0 / c2d73ca + wrap-up |
 | 2026-05-16 (S9) | gis-platform | feat(migration) 109 fire/safety public wrappers batch（14 view）| 92ec3fa |
 | 2026-05-16 (S8) | mini-taiwan-info | feat(water-ui) ViewAWater 6 章敘事 + App 主題分派 — 5 atomic commits | 53b425d / 27607e0 / 255b359 / 6b621e1 / 410b20c |
