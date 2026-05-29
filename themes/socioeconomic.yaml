@@ -12,7 +12,7 @@ theme:
   description: 縣市所得、住宅、經濟、教育、福利。
   tagline: 縣市的生活與口袋
   priority: 20
-  status: production
+  status: archived
 
 overview:
   default_choropleth_metric: median_disposable_income

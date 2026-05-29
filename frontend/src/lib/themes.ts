@@ -117,6 +117,7 @@ export interface ThemeListItem {
 
 export function getThemeList(manifests: Record<string, ThemeManifest>): ThemeListItem[] {
   return Object.values(manifests)
+    .filter((m) => m.theme.status !== "archived")
     .map((m) => ({
       id: m.theme.id,
       name: m.theme.name,
