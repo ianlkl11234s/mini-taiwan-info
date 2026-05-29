@@ -218,7 +218,7 @@ export async function fetchLatestMonthSupply(): Promise<LatestMonthSupply | null
     .select("year, month, supply_m3")
     .order("year", { ascending: false })
     .order("month", { ascending: false })
-    .limit(500);
+    .limit(100);
   if (error || !data || data.length === 0) {
     // eslint-disable-next-line no-console
     console.warn("[water-overview] twc_supply_system_monthly not available:", error?.message);

@@ -111,7 +111,7 @@ export interface IncidentsByCauseYearRow {
 export async function fetchIncidentsByCauseYear(): Promise<IncidentsByCauseYearRow[]> {
   const { data, error } = await db
     .from("fire_incidents_by_cause_year")
-    .select("*");
+    .select("data_year_minguo,cause_5_id,cause_5_name,cause_22_id,cause_22_name,incident_count,total_deaths,total_injuries");
   if (error) {
     console.error("[fire] incidents_by_cause_year failed:", error);
     throw error;
@@ -142,7 +142,7 @@ export interface IncidentsByHourMonthRow {
 export async function fetchIncidentsByHourMonth(): Promise<IncidentsByHourMonthRow[]> {
   const { data, error } = await db
     .from("fire_incidents_by_hour_month")
-    .select("*");
+    .select("county_id,month,hour,incident_count");
   if (error) {
     console.error("[fire] incidents_by_hour_month failed:", error);
     throw error;
@@ -173,10 +173,20 @@ export interface IncidentsByCountyCauseYearRow {
   total_injuries: number;
 }
 
-export async function fetchIncidentsByCountyCauseYear(): Promise<IncidentsByCountyCauseYearRow[]> {
-  const { data, error } = await db
+export async function fetchIncidentsByCountyCauseYear(
+  yearMinguo?: number
+): Promise<IncidentsByCountyCauseYearRow[]> {
+  let q = db
     .from("fire_incidents_by_county_cause_year")
-    .select("*");
+    .select("county_id,data_year_minguo,cause_5_id,cause_5_name,cause_22_id,cause_22_name,incident_count,total_deaths,total_injuries");
+  // 預設只抓最新年（113），避免一次拉全部歷年 ~8,000 rows；
+  // 若 caller 需要歷年完整資料，明確傳 yearMinguo。
+  if (yearMinguo != null) {
+    q = q.eq("data_year_minguo", yearMinguo);
+  } else {
+    q = q.eq("data_year_minguo", 113);
+  }
+  const { data, error } = await q;
   if (error) {
     console.error("[fire] incidents_by_county_cause_year failed:", error);
     throw error;
@@ -211,7 +221,9 @@ export interface IncidentsByDayOfYearRow {
 export async function fetchIncidentsByDayOfYear(
   yearMinguo?: number
 ): Promise<IncidentsByDayOfYearRow[]> {
-  let q = db.from("fire_incidents_by_day_of_year").select("*");
+  let q = db
+    .from("fire_incidents_by_day_of_year")
+    .select("county_id,data_year_minguo,month,day,incident_count,deaths,injuries");
   if (yearMinguo != null) {
     q = q.eq("data_year_minguo", yearMinguo);
   }
@@ -300,10 +312,11 @@ export async function listIncidents(opts: {
 } = {}): Promise<IncidentRow[]> {
   const { data, error } = await db.rpc("fire_list_incidents", {
     p_county: opts.county ?? null,
-    p_year_min: opts.yearMin ?? null,
-    p_year_max: opts.yearMax ?? null,
+    // 無篩選時只抓最新年（113）個案，避免下載全部 ~17 年
+    p_year_min: opts.yearMin ?? 113,
+    p_year_max: opts.yearMax ?? 113,
     p_cause_5: opts.cause5 ?? null,
-    p_limit: opts.limit ?? 2000,
+    p_limit: opts.limit ?? 1500,
   });
   if (error) {
     console.error("[fire] list_incidents failed:", error);
@@ -779,7 +792,7 @@ export interface FireHydrantCountRow {
 
 export async function fetchFireHydrantCountsByCounty(): Promise<FireHydrantCountRow[]> {
   // PostgREST 沒原生 GROUP BY，前端 fetch all county_id 後 reduce
-  const { data, error } = await db.from("fire_hydrants").select("county_id");
+  const { data, error } = await db.from("fire_hydrants").select("county_id").limit(100000);
   if (error) {
     console.error("[fire] fetchFireHydrantCountsByCounty failed:", error);
     throw error;

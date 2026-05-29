@@ -45,6 +45,12 @@ export const RAIL_SYSTEMS_META: Readonly<Record<RailSystemId, RailSystemMeta>> =
 
 const SYSTEM_IDS = Object.keys(RAIL_SYSTEMS_META) as RailSystemId[];
 
+// ── egress 防護：分頁硬上界（避免上游 row 暴增時無限分頁拉爆 egress）──
+// stations ~503 / station_daily_trips ~528 / ridership_by_station ~6,847
+const STATIONS_MAX_ROWS = 5_000;
+const TRIPS_MAX_ROWS = 5_000;
+const RIDERSHIP_MAX_ROWS = 20_000;
+
 // ─────────────────────────────────────────────────
 // 1. Raw rows
 // ─────────────────────────────────────────────────
@@ -68,11 +74,12 @@ export async function fetchStations(): Promise<StationRow[]> {
   const out: StationRow[] = [];
   const pageSize = 1000;
   let from = 0;
-  while (true) {
+  while (from < STATIONS_MAX_ROWS) {
+    const to = Math.min(from + pageSize, STATIONS_MAX_ROWS) - 1;
     const { data, error } = await db
       .from("stations")
       .select("id,system_id,station_id,name,name_en,line,station_class,county_id,county_name,lng,lat,color")
-      .range(from, from + pageSize - 1);
+      .range(from, to);
     if (error) {
       // eslint-disable-next-line no-console
       console.error("[rail] stations failed:", error);
@@ -151,11 +158,12 @@ export async function fetchStationDailyTrips(): Promise<StationDailyTripsRow[]> 
   const out: StationDailyTripsRow[] = [];
   const pageSize = 1000;
   let from = 0;
-  while (true) {
+  while (from < TRIPS_MAX_ROWS) {
+    const to = Math.min(from + pageSize, TRIPS_MAX_ROWS) - 1;
     const { data, error } = await db
       .from("station_daily_trips")
       .select("system_id,station_id,line_id,daily_stop_count,peak_count,offpeak_count,hourly_distribution,by_train_type")
-      .range(from, from + pageSize - 1);
+      .range(from, to);
     if (error) {
       console.error("[rail] station_daily_trips failed:", error);
       throw error;
@@ -199,12 +207,14 @@ export async function fetchRidership(): Promise<RidershipRow[]> {
   // PostgREST 預設 max-rows = 1000，超過會被截斷 → 用 1000 分頁穩妥
   const pageSize = 1000;
   let from = 0;
-  while (true) {
+  while (from < RIDERSHIP_MAX_ROWS) {
+    const to = Math.min(from + pageSize, RIDERSHIP_MAX_ROWS) - 1;
     const { data, error } = await db
       .from("ridership_by_station")
       .select("system_id,station_id,station_name,county_id,stat_period,period_type,ridership_total")
-      .order("stat_period")
-      .range(from, from + pageSize - 1);
+      // 降冪：RIDERSHIP_MAX_ROWS 硬上界截斷時保留「最新期」，避免 consumer（2026 月度 / 2024 年度）資料被砍
+      .order("stat_period", { ascending: false })
+      .range(from, to);
     if (error) {
       console.error("[rail] ridership_by_station failed:", error);
       throw error;

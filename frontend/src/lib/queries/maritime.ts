@@ -21,6 +21,11 @@ const db = withSchema("maritime");
 const LATEST_YEAR = 2024;
 const BASE_YEAR = 2015;
 
+// ── egress 防護：分頁硬上界（避免上游 row 暴增時無限分頁拉爆 egress）──
+// ports ~277 / fishery_stats_by_county ~632
+const PORTS_MAX_ROWS = 3_000;
+const FISHERY_MAX_ROWS = 5_000;
+
 // ─────────────────────────────────────────────────
 // 1. Raw rows
 // ─────────────────────────────────────────────────
@@ -42,11 +47,12 @@ export async function fetchPorts(): Promise<PortRow[]> {
   const out: PortRow[] = [];
   const pageSize = 1000;
   let from = 0;
-  while (true) {
+  while (from < PORTS_MAX_ROWS) {
+    const to = Math.min(from + pageSize, PORTS_MAX_ROWS) - 1;
     const { data, error } = await db
       .from("ports")
       .select("id,name,name_en,county,county_id,lng,lat,port_class,port_class_group,phone")
-      .range(from, from + pageSize - 1);
+      .range(from, to);
     if (error) {
       // eslint-disable-next-line no-console
       console.error("[maritime] ports failed:", error);
@@ -87,11 +93,12 @@ export async function fetchFisheryStats(): Promise<FisheryStatsRow[]> {
   const out: FisheryStatsRow[] = [];
   const pageSize = 1000;
   let from = 0;
-  while (true) {
+  while (from < FISHERY_MAX_ROWS) {
+    const to = Math.min(from + pageSize, FISHERY_MAX_ROWS) - 1;
     const { data, error } = await db
       .from("fishery_stats_by_county")
       .select("county_id,county_name,stat_year,fishery_production_tonnes,fishery_value_thousand,aquaculture_area_ha,fishing_vessels_count")
-      .range(from, from + pageSize - 1);
+      .range(from, to);
     if (error) {
       console.error("[maritime] fishery_stats failed:", error);
       throw error;

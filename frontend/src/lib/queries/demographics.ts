@@ -38,7 +38,10 @@ export interface PopulationByAgeSexRow {
 }
 
 export async function fetchPopulationByAgeSex(): Promise<PopulationByAgeSexRow[]> {
-  const { data, error } = await db.from("population_by_age_sex_county").select("*");
+  // 836 筆固定小表，精選 6 欄避免 '*' 抓額外欄位／metadata
+  const { data, error } = await db
+    .from("population_by_age_sex_county")
+    .select("county_id,county_name,age_band,sex,population,stat_year");
   if (error) {
     // eslint-disable-next-line no-console
     console.error("[demographics] population_by_age_sex failed:", error);
@@ -67,9 +70,12 @@ export interface NationalTrendRow {
 }
 
 export async function fetchNationalTrend(): Promise<NationalTrendRow[]> {
+  // 10 筆固定表，精選 9 欄
   const { data, error } = await dbSpatial
     .from("national_population_trend")
-    .select("*")
+    .select(
+      "year,village_count,total_population,avg_elderly_ratio,avg_aging_index,avg_median_age,total_births,total_deaths,total_natural_increase",
+    )
     .order("year");
   if (error) {
     console.error("[demographics] national_population_trend failed:", error);
@@ -109,23 +115,37 @@ export interface VillageDemographicsRow {
   natural_increase: number;
 }
 
-/** 拉指定民國年的村里資料（限縮 row 數） */
+/** 每年硬上界：村里總數 ~7,800，留餘裕設 12,000，避免分頁失控無限拉 */
+const VILLAGE_MAX_ROWS_PER_YEAR = 12_000;
+
+/**
+ * 拉指定民國年的村里資料（egress 防護版）
+ *
+ * 只 SELECT consumer 真正用到的 10 欄：deriveCountyAggregates 用 county/year/
+ * household_count/population/birth_total/death_total/natural_increase/median_age/
+ * dependency_ratio；ViewBDemographics 鄉鎮排名另用 town。其餘欄位（village/
+ * male_count/female_count/age_0_14/15_64/65_up/sex_ratio/aging_index）目前無
+ * consumer，省去傳輸。型別欄位保留，未抓者填預設值不破壞 shape。
+ *
+ * 每年加 VILLAGE_MAX_ROWS_PER_YEAR 硬上界，分頁到上界即停。
+ */
 export async function fetchVillageYearly(years: number[]): Promise<VillageDemographicsRow[]> {
   if (years.length === 0) return [];
   const out: VillageDemographicsRow[] = [];
-  // 每年 ~7,800 筆 < Supabase default limit 1000 → 拆 year 多次 fetch 並 range
+  // 每年 ~7,800 筆 > PostgREST 預設 max-rows 1000 → 拆 year 多次 fetch 並 range
   for (const y of years) {
     let from = 0;
     const pageSize = 1000; // PostgREST 預設 max-rows，超過會被截
-    // pagination 直到取完
-    while (true) {
+    // pagination 直到取完或撞硬上界
+    while (from < VILLAGE_MAX_ROWS_PER_YEAR) {
+      const to = Math.min(from + pageSize, VILLAGE_MAX_ROWS_PER_YEAR) - 1;
       const { data, error } = await dbSpatial
         .from("village_demographics_yearly")
         .select(
-          "year,county,town,village,household_count,population,male_count,female_count,age_0_14,age_15_64,age_65_up,sex_ratio,dependency_ratio,aging_index,median_age,birth_total,death_total,natural_increase",
+          "year,county,town,household_count,population,dependency_ratio,median_age,birth_total,death_total,natural_increase",
         )
         .eq("year", y)
-        .range(from, from + pageSize - 1);
+        .range(from, to);
       if (error) {
         console.error(`[demographics] village_yearly year=${y} failed:`, error);
         throw error;
@@ -136,17 +156,17 @@ export async function fetchVillageYearly(years: number[]): Promise<VillageDemogr
           year: Number(r.year),
           county: String(r.county ?? ""),
           town: String(r.town ?? ""),
-          village: String(r.village ?? ""),
+          village: "",
           household_count: r.household_count == null ? null : Number(r.household_count),
           population: Number(r.population ?? 0),
-          male_count: Number(r.male_count ?? 0),
-          female_count: Number(r.female_count ?? 0),
-          age_0_14: Number(r.age_0_14 ?? 0),
-          age_15_64: Number(r.age_15_64 ?? 0),
-          age_65_up: Number(r.age_65_up ?? 0),
-          sex_ratio: Number(r.sex_ratio ?? 0),
+          male_count: 0,
+          female_count: 0,
+          age_0_14: 0,
+          age_15_64: 0,
+          age_65_up: 0,
+          sex_ratio: 0,
           dependency_ratio: Number(r.dependency_ratio ?? 0),
-          aging_index: Number(r.aging_index ?? 0),
+          aging_index: 0,
           median_age: Number(r.median_age ?? 0),
           birth_total: Number(r.birth_total ?? 0),
           death_total: Number(r.death_total ?? 0),
