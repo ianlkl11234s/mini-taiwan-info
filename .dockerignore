@@ -1,0 +1,25 @@
+# Root build context exclusions — 只需 frontend/ + themes/ 來 build，其餘排除以縮小 context
+.git
+.gitignore
+.claude
+.DS_Store
+
+# 非部署用大目錄（build 不需要）
+data
+designs
+docs
+samples
+
+# frontend 內不需進 image 的（依賴在 Docker 內重裝）
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/.vite
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# 注意：themes/ 不可排除 — frontend build 時 glob ../../../themes/*.yaml
