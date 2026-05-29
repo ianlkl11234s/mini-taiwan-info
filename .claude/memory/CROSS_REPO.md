@@ -25,12 +25,13 @@ taipei-gis-analytics（ETL pipelines、data-catalog）
 
 ## Pending 同步（未 commit 到對應 repo 或未 push）
 
-**Session 10（2026-05-29 首次部署上線）pending**：
+**Session 11（2026-05-29 部署修復 + rail 大站 + road_events）pending**：
 
-- **mini-taiwan-info**: ✅ **已全 push origin/main**（本 session 7 commits + 舊 16 累積，origin 同步）。Session 9 那筆「44+ commits ahead 待 push」已清。
-- **gis-platform**: ⚠️ `migrations/124_rpc_hard_limits.sql` **只產生，未 commit、未套用 DB**（fire.list_incidents + get_road_events_current 的 `LIMIT p_limit` → `LEAST(...,10000)` 硬上界，防 p_limit=999999999 放大攻擊）。套用前先 psql `pg_get_functiondef` 確認原簽名。其他 untracked migration（022/046/067/068）非本 session 產，不處理。
-- **taipei-gis-analytics**: 本 session **未動**
-- **data-collectors**: 本 session **未動**
+- **mini-taiwan-info**: ✅ 本 session 13+ commits **已全 push origin/main**（部署修復 / UX / SSOT / mock placeholder）。
+- **gis-platform**: ✅ migration **125（road_events RPC：get_road_events_day + get_road_events_dates）已 apply + commit + push**；migration **116 註解更新（rail 503→535）已 commit + push**。⚠️ 仍遺留 `124_rpc_hard_limits.sql`（S10 起未套用 DB，B073，套前 psql `pg_get_functiondef` 確認簽名）。
+- **taipei-gis-analytics**: ✅ rail ETL `01_stations_county_join.py` 改用完整 TRA 檔（補回 32 大站）**已 commit + push**（13fc411）。Supabase rail.stations 已 upsert（503→535）。
+- **mini-taiwan-pulse**: ✅ road_events 圖層（roadEventsLoader + useRoadEventsLayer + 8 處）**已 commit**（096c1c5，feat/fire-rescue 分支，**未 push** — 無 upstream tracking）。
+- **data-collectors**: 本 session 未動（road_events collector `ROAD_EVENT_LIVE_INTERVAL=10` 已於 Zeabur 設定，無 code 變動）。
 
 **跨 session 已建但前端未對接（carryover，仍未做）**：
 - `gis-platform/migrations/110` admin.villages 7975 polygon（→ B068）
