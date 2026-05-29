@@ -18,14 +18,14 @@
 | B007 | P2 | `scripts/regen-counties.ts` | 待開工 | 從 `data/counties.yaml` 自動生成 `frontend/src/lib/counties.ts`（目前手寫對齊） |
 | B008 | P1 | TGOS MOI 後端 wrapper（FastAPI） | 待開工 | docs/09 §E；apikey 不能裸前端，要先上線後端 |
 | B009 | P2 | `admin.counties` polygon migration | 待開工 | 改進 nearest-centroid 為 ST_Contains；現在用 centroid 推算 reservoir → county 有邊界誤差風險 |
-| B010 | P2 | Mapbox URL-restricted token | 待開工 | 上線前；目前用 prototype dev token |
+| ~~B010~~ | ~~P2~~ | ~~Mapbox URL-restricted token~~ | ✅ 2026-05-29 (S10) | user 上線後自行換新 token + URL restrict 到 mini-tw-info.zeabur.app |
 | B011 | P2 | View B 雨量站圖層 enable | 待開工 | TwoSectionLayers 內目前 disabled；要先處理 1306 站如何在地圖顯示（cluster 否） |
 | B012 | P3 | View C 水庫附近河川 / 集水區 polygon overlay | 待開工 | 加用 `get_reservoir_watershed_rivers` RPC（已存在 migration 053） |
 | B013 | P3 | KHH WWTP 12 座座標 TGOS 反查 | 待開工 | 目前 lat/lng 是 prototype mock；要走 TGOS Zip33 反查 |
 | B014 | P3 | 暗色模式驗證 | 待開工 | CSS 變數已有，沒實際驗證 |
 | B015 | P3 | 手機版（< 1280px） | 待開工 | user 確認 Phase 1 才做 |
 | B016 | P3 | TweaksPanel（density / radius / accent 切換） | 待開工 | prototype 有，目前未移植 |
-| B017 | P3 | Vercel deployment + CI/CD | 待開工 | docs/09 §R |
+| B017 | P2 | ~~Vercel~~ Zeabur deployment + CI/CD | 部分完成 | ✅ 2026-05-29 已上線 Zeabur（dist 靜態 PREBUILT_V2，https://mini-tw-info.zeabur.app）。CI/CD auto-redeploy 待 B074 |
 | B018 | P3 | Sentry / GA / uptime monitor | 待開工 | docs/09 §T |
 | B019 | P2 | `hook_rules` template engine | 待開工 | manifest 內 hook_rules 目前是 hardcoded，要寫 evaluator |
 | B020 | P3 | `crosslink` InsightCard 元件 | 待開工 | water.yaml crosslink 規格已有，沒對應 UI |
@@ -56,13 +56,13 @@
 | ~~B045~~ | ~~P1~~ | ~~fire 地圖層：消防分隊 dot + 火災 heatmap~~ | ✅ 2026-05-16 完成 | 見已完成區 |
 | ~~B046~~ | ~~P1~~ | ~~fire ViewB 縣市儀錶板~~ | ✅ 2026-05-16 完成 | 見已完成區 |
 | ~~B047~~ | ~~P2~~ | ~~fire KPI 爆炸視圖~~ | ✅ 2026-05-16 完成 | 見已完成區 |
-| B048 | P2 | **儀錶板 800×600 stack-to-vertical 缺失** | 待開工 | Agent A 2026-05-16 截圖：< 900 viewport split-view 仍硬切左右 50/50，右 pane ≈ 400 px 內容嚴重溢出右側，無 horizontal scroll 暗示。要加 `@media (max-width: 900px) { .main { grid-template-rows: auto auto; grid-template-columns: 1fr; } }` |
+| B048 | **P1** | **儀錶板 800×600 stack-to-vertical 缺失（公開後升 P1）** | 待開工 | Agent A 2026-05-16 截圖：< 900 viewport split-view 仍硬切左右 50/50，右 pane ≈ 400 px 內容嚴重溢出右側，無 horizontal scroll 暗示。要加 `@media (max-width: 900px) { .main { grid-template-rows: auto auto; grid-template-columns: 1fr; } }` |
 | B049 | P3 | **Donut 圖例溢位（chart-annot 標籤貼邊）** | 待開工 | Agent A 2026-05-16 觀察：fire S1「組成佔比」donut 在所有寬度數值 label 貼卡片邊（如 `10.4% 5,033`）。可能要縮 donut 半徑 / 加 label 推開 / margin 增加。約 30min |
 | B050 | P3 | **fire KPI 卡單位緊貼 sparkline icon** | 待開工 | Agent A 2026-05-16 觀察：1280×800 fire KPI 4 卡的單位（件/人/億/%）緊貼數字，與 sparkline icon 間呼吸不足。加 `gap` 或 sparkline `margin-left` 約 8-12px |
 | B051 | P3 | **24-column stacked totals overlap** | 待開工 | Session 7 B047 hour×county 截圖：24 個柱寬 ~32px 但 totals number ~40px 寬橫向 overlap。修法：rotate 90deg / 隔列 show / hover-only / 移到柱內。約 30min。Reference: FireStackedBar.tsx :32-44 fbr-num |
 | B052 | P2 | **B047 擴展：其他 fire KPI 也支援爆炸** | 待開工 | 目前只「年度火災件數」可爆炸。死傷 / 財損 / 主因 3 KPI 也應套同模式（需各自的 metric 聚合邏輯）。1-2 天 |
 | B053 | P3 | **B047 擴展：drill-down 二級爆炸** | 待開工 | 點柱 → 該年該縣市 by 原因 / 該原因 by 縣市。03-exploded-view-pattern 規格 Phase 3，user 拍板暫不做。0.5-1 天 |
-| B054 | P2 | **ViewAWater @800 響應式破洞** | 待開工 | Stage 4 截圖 2026-05-16：800px 寬章 2 two-up / 章 3 alert-grid 4 燈號 / 章 5 usage-split 雙欄都水平 overflow。修法：加 `@media (max-width: 900px)` 規則把 grid 改成 1 欄。約 30min |
+| B054 | **P1** | **ViewAWater @800 響應式破洞（公開後升 P1）** | 待開工 | Stage 4 截圖 2026-05-16：800px 寬章 2 two-up / 章 3 alert-grid 4 燈號 / 章 5 usage-split 雙欄都水平 overflow。修法：加 `@media (max-width: 900px)` 規則把 grid 改成 1 欄。約 30min |
 | B055 | P2 | **reservoir vs 上月同期 wrapper RPC** | 待開工 | S2Storage `vs 上月對比資料累積中` footnote。realtime.reservoir_status 30 天 snapshot 已有資料但 schema 未 expose；需寫 `public.get_reservoir_storage_by_region_at_time(p_at TIMESTAMP)` wrapper migration。約 1 hr |
 | B056 | P3 | **drought_alert 過去 5 年 timeline** | 待開工 | S3Drought 顯示「資料累積中」占位，等 collector 累積 30+ 筆 history（預計 6 個月）後實作真正 timeline 繪製 |
 | B057 | P2 | **淹水 200/500mm 情境接通** | 待開工 | S6Disaster 切換 200/350/500mm，目前只 350 接 useWaterKpis.flood。要嘛改 hook 並行 fetch 3 個情境，要嘛動態 refetch |
@@ -81,6 +81,9 @@
 | B070 | P2 | **fire.ems_stats_by_county_year 補完 22 縣市** | 待開工 | 目前只 2 縣市。要找替代 dataset 或內政部統計處年度 ETL。約 1 day |
 | B071 | P2 | **fire.disaster_unique_recent RPC（server-side dedup-by-name）** | 待開工 | 取代前端 fetch 2000 + dedup。寫 RPC GROUP BY disaster_name 直接返 N 個 unique event。約 1 hr，sm payload 省 bandwidth |
 | B072 | P3 | **fire.forest_fire_risk_snapshot 補 county_id 欄位** | 待開工 | gis-platform migration 加 county_id（從 region/lat/lng 推算 ST_Contains）。讓 ViewBFire OthersTab 顯示「該縣市山林高風險點 X 處」（目前完全空）。約 2 hr |
+| B073 | **P1** | **套用 gis-platform migration 124（RPC 硬上限）** | 待開工 | `124_rpc_hard_limits.sql` 只產未套未 commit。fire.list_incidents + get_road_events_current 的 `LIMIT p_limit`→`LEAST(...,10000)`。套用前 psql `pg_get_functiondef` 確認簽名。CROSS_REPO pending |
+| B074 | P2 | **debug Zeabur Dockerfile build FAILED → 改 Git deploy** | 待開工 | 目前是 dist 靜態（PREBUILT_V2，cache 用 Zeabur 預設）。修好 Dockerfile build 改 Git deploy + Root Directory=frontend/ → push 自動重部署 + nginx immutable 長快取。詳 INCIDENTS 2026-05-29 + DEPLOYMENT.md |
+| B075 | P2 | **資料分級實際切換 C 級 query → snapshot** | 待開工 | 腳本已建 `frontend/scripts/snapshot-static-data.ts`，但 table 名稱是推定的，首次跑前需對照實際 query 校正；再改 hook 雙層（先讀 snapshot 逾期才 fetch）。見 docs/DATA_TIERING.md |
 
 ---
 
@@ -88,6 +91,7 @@
 
 | 日期 | ID | 摘要 |
 |---|---|---|
+| 2026-05-29 | B010/B017 (S10) | **首次部署上線 Zeabur** https://mini-tw-info.zeabur.app — egress 收斂（5 query 精選欄位+硬上界）+ 前端 cache 層（lib/cache.ts + 11 hooks）+ 部署 infra（Dockerfile/nginx/.dockerignore/DEPLOYMENT.md）+ 資料分級腳本 + rail ridership 降冪修。Mapbox token 已 URL restrict。21 commits 全 push。採 dist 靜態（PREBUILT_V2）|
 | 2026-05-16 | B041/B043/B044 (S9) | **Fire 主題 ViewA + ViewB 去 mock 化** — gis-platform migration 109 14 wrapper view + frontend 10 commits（queries +683 / useFireData rewrite Promise.allSettled / 新 useFireCountyData hook / S1-S4 sections rewrite / ViewBFire merged{} + Response/Others tabs / App.tsx 3 fixes / radar national avg 接真實）。火災財損 / 起火處所 / EMS / 災變 timeline / 避難所 / 分隊密度 / 山林高風險全接通，含 footnote 揭露稀疏資料。仍 placeholder：急救醫院、5min 圈外、圈外村里（其他 session 已建 ETL/MV → B066-B068）|
 | 2026-05-16 | B047 (S7) | **Fire KPI 爆炸視圖** — FireKpiExplode.tsx ~260 行 + FireStackedBar.tsx ~100 行 + S1Incidents wire + globals.css 130 行。fire S1「年度火災件數」KPI 點擊就地展開（grid-column 1/-1），4 scale × 4 dim = 16 組合切換 + 圖型自動 + 6 個缺資料組合 inline reason。Codex 抓 1 blocker + 2 nice-to-have 全修；agent-browser 互動發現 KPICard bubble bug（codex 盲區）。User 拍板收斂：只 1 KPI / 不 drill-down / inline 展開 |
 | 2026-05-16 | B046 (S6) | **Fire ViewB 縣市儀錶板** — gis-platform migration 105 incidents_by_county_cause_year MV + frontend ViewBFire.tsx 1170 行（Hero + Radar 5 軸 + 5 sub-tabs）+ query/hook/mock/App route + 設計稿 fire-* CSS 184 行補齊。Codex 抓 2 critical 全修（norm 方向 / hydrants null）。跨 2 repo 2 commits push |
