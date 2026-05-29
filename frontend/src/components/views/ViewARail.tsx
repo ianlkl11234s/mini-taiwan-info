@@ -215,7 +215,7 @@ function S2Service({ data }: Props) {
           trend={{
             delta: `${fmt.num(Math.round(((data.countyAggregates.find((c) => c.id_moi === "A")?.dailyTrips ?? 0))))} 班/日`,
             direction: "flat",
-            baseline: "獨佔全國半數",
+            baseline: "占已有運量資料系統",
             sentiment: "neutral",
           }}
         />
@@ -365,7 +365,7 @@ function S3Ridership({ data, selectedCounty }: Props) {
       <CatHeader
         num={3}
         title={<><span className="accent">運量</span> ─ 2024 全國 {S.ridership24.toFixed(1)} 億人次</>}
-        tagline="台北捷運獨佔多數 · 月度趨勢 + 各系統運量比"
+        tagline="台北捷運運量居冠（trtc + krtc 有資料）· 月度趨勢 + 各系統運量比"
         badge="年度 · 2024"
         badgeTone="historical"
       />
@@ -514,7 +514,7 @@ export function ViewARail({ data, selectedCounty, onCountyClick }: Props) {
               全國 <b>{S.stations}</b> 站、<b>{S.lines}</b> 條、<b>{fmt.num(S.kmTotal, 0)}</b> km。
               每日 <b className="em">{fmt.num(S.dailyTrips)}</b> 班次 —
               2024 年運量 <b className="em">{S.ridership24.toFixed(1)} 億人次</b>，
-              台北捷運獨佔 <b>{S.trtcShare}%</b>，
+              台北捷運獨佔 <b>{S.trtcShare}%</b>（占已有運量資料系統），
               離島 <b>{S.zeroStationCounties.length}</b> 縣 0 站。
             </p>
           </div>
