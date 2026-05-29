@@ -34,6 +34,9 @@ import { useMaritimeData } from "@/hooks/useMaritimeData";
 import { ViewADemographics } from "@/components/views/ViewADemographics";
 import { ViewARail } from "@/components/views/ViewARail";
 import { ViewAMaritime } from "@/components/views/ViewAMaritime";
+import { ViewBDemographics } from "@/components/views/ViewBDemographics";
+import { ViewBRail } from "@/components/views/ViewBRail";
+import { ViewBMaritime } from "@/components/views/ViewBMaritime";
 import { codeConvert, normalizeCountyName, COUNTIES, byCode3, byIdMoi } from "@/lib/counties";
 import { getNearestCounty } from "@/lib/reverseGeocode";
 import { FIRE_MOCK_BY_COUNTY } from "@/lib/mock-fire";
@@ -584,6 +587,27 @@ export default function App() {
               theme === "fire" ? (
                 <ViewBFire
                   data={fire}
+                  county={county}
+                  onBack={goHome}
+                  onAddCompare={() => { setComparing(true); }}
+                />
+              ) : theme === "demographics" ? (
+                <ViewBDemographics
+                  data={demographics}
+                  county={county}
+                  onBack={goHome}
+                  onAddCompare={() => { setComparing(true); }}
+                />
+              ) : theme === "rail" ? (
+                <ViewBRail
+                  data={rail}
+                  county={county}
+                  onBack={goHome}
+                  onAddCompare={() => { setComparing(true); }}
+                />
+              ) : theme === "maritime" ? (
+                <ViewBMaritime
+                  data={maritime}
                   county={county}
                   onBack={goHome}
                   onAddCompare={() => { setComparing(true); }}
