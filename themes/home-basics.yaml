@@ -97,7 +97,7 @@ overview:
 
     - id: aging_index
       label: 老化指數
-      unit: "%"
+      unit: ""                       # 比值（65+ / 0-14 ×100，可破 100），非百分比
       source: segis_aging
       query: aggregate_national_aging_index
       format: { precision: 1, compare_to: previous_year }
@@ -234,7 +234,7 @@ compare:
       ranking_better: neutral
     - id: aging_index
       label: 老化指數
-      unit: "%"
+      unit: ""                       # 比值，非百分比（與 demographics.yaml 一致）
       ranking_better: lower
     - id: birth_rate
       label: 出生率
@@ -256,7 +256,7 @@ crosslink:
   - with: medical
     metric_pair: [aging_index, hospital_bed_per_capita]
     trigger: "always"
-    text: "高齡 {aging}% · 醫療床位 {beds}/萬人 — 老人 vs 醫療"
+    text: "高齡 {aging} · 醫療床位 {beds}/萬人 — 老人 vs 醫療"
 
   - with: water
     metric_pair: [aging_index, lpcd]

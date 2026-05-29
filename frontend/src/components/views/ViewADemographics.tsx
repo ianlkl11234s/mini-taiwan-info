@@ -62,7 +62,7 @@ function S1Base({ data, selectedCounty }: Props) {
       {/* big-callout：總人口 + 性別比 */}
       <div className="big-callout" style={{ marginBottom: 14 }}>
         <div>
-          <div className="bc-label">2024 年底 全國總人口</div>
+          <div className="bc-label">2024 年底 全國總人口（現住人口）</div>
           <div className="bc-big">
             {fmt.num(S.totalPop)}<span className="unit">人</span>
           </div>
@@ -71,7 +71,7 @@ function S1Base({ data, selectedCounty }: Props) {
             {" "}· 10 年僅減 {fmt.signed(S.growth10y, 1)}%，但 <b style={{ color: "var(--accent-deep)" }}>分布劇烈遷移</b>
           </div>
           <div className="muted" style={{ fontSize: 10.5, marginTop: 4 }}>
-            ※ 此處為年度戶籍統計（2024 底）；基礎統計頁顯示最新月度登記人口
+            ※ 口徑：現住人口 · 2024（年底，性別×年齡加總）。與首頁「戶籍登記」口徑不同，故總數略有差異
           </div>
         </div>
         <div className="bc-meta">
