@@ -416,8 +416,14 @@ export default function App() {
   // 軌道：車站點位給 MapView
   const railStationPointsForMap = useMemo((): RailStationPointFeature[] => {
     if (theme !== "rail" || !rail.stations.length) return [];
+    // View B/C：只顯示該縣市車站（聚焦上下文，比照水庫/港口）；View A 全國
+    const idMoi = county ? codeConvert.code3ToIdMoi(county) : null;
     return rail.stations
       .filter((s) => s.lat != null && s.lng != null)
+      .filter((s) => {
+        if ((view === "B" || view === "C") && idMoi) return s.county_id === idMoi;
+        return true;
+      })
       .map((s) => ({
         id: s.station_id,
         name: s.name,
@@ -426,7 +432,7 @@ export default function App() {
         lat: s.lat,
         lng: s.lng,
       }));
-  }, [theme, rail.stations]);
+  }, [theme, rail.stations, view, county]);
 
   // Breadcrumb
   const breadcrumb: CrumbItem[] = useMemo(() => {
@@ -526,7 +532,7 @@ export default function App() {
               portPoints={portPointsForMap}
               showPorts={theme === "maritime" && view === "A" && pointLayersOnMaritime.ports}
               railStationPoints={railStationPointsForMap}
-              showRailStations={theme === "rail" && view === "A" && pointLayersOnRail.stations}
+              showRailStations={theme === "rail" && (view === "A" ? pointLayersOnRail.stations : view === "B" || view === "C")}
             />
           </ErrorBoundary>
 
