@@ -261,8 +261,8 @@ function S2Service({ data }: Props) {
         </div>
       </div>
 
-      {/* 車種 donut + Top 10 大站 (.two-up) */}
-      <div className="two-up">
+      {/* 車種 donut + Top 10 大站（改上下排列，避免 Top 10 表格被擠太窄） */}
+      <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
         <div className="section" style={{ marginBottom: 0 }}>
           <div className="section-head">
             <div>
