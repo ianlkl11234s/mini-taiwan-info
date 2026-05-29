@@ -1,0 +1,59 @@
+# Spawn Orchestration 實驗日誌（可復用眉角集）
+
+> 跨 repo 資料 onboard 用 cmux+tmux spawn 真實 session 的**踩坑與心法**，每次跑完 append。
+> 配套：`cross-repo-data-onboard-spawn.md`(SOP) / `cmux_tmux_spawn_primer.md`(L1) / `spawn_patterns_catalog.md`(L2)。
+> 首次完整實驗：2026-05-29（人口主題 demographics onboard）。
+
+## 心法（為何這套有效）
+
+1. **Control plane / Execution plane 分離**：主 agent 只規劃+orchestrate+讀 board 摘要，重活全丟 fresh session。主 agent context 是稀缺資源，必須護住。
+2. **Artifacts-based 協作**：session 間透過實體檔交付，不直接對話。board 一人一檔避免 race。
+3. **fresh session per task**：一個 session 只做一件事 → commit → kill。連跑多輪會 context 膨脹拖垮品質（實測 recon_demog 跑兩輪到 94k tokens）。
+4. **驗證 > 信任**：稽核 agent / 文件 / 規劃 doc 都會錯，動手前對 ground truth（migrations / 實際 REST）驗證。
+
+## 踩坑清單（實測）
+
+### A. spawn 機制本身（沿用 primer 5 邊界）
+- trust folder：新 cwd 第一次 spawn 會問，`send "1" Enter` 過掉。
+- 長文 paste-mode：prompt 用 `cat file | tmux_send_prompt.sh`（腳本已拆 send+sleep+Enter）。
+- 完成判定：**file polling**（size 穩定+達 min_size），不要 capture-pane grep marker（會 false-positive）。
+- `stat -f%z`（非 `wc -c`，後者有 leading space）。
+- cmux workspace 無 close cli，要手動 GUI 關。
+
+### B. MCP（spawn 的硬優勢）
+- **project-scoped MCP 隨 cwd 自動載入**：spawn 到 taipei-gis-analytics → `twinkle-hub`(api.twinkleai.tw/mcp) 自動可用。
+- Task agent **吃不到** project MCP。需要 twinkle-hub/特定 MCP 的任務必須 spawn。
+- prompt 可要 session 實測 MCP 可用並記 board。
+
+### C. 稽核/文件不可盡信（本次最大教訓）
+- **Explore 稽核 agent 幻覺**：宣稱 maritime `fishery_rights`/`lighthouse` 表「已存在」→ 實際 migrations 根本沒有。建表類一律 `grep "CREATE TABLE" gis-platform/migrations/` 驗證。
+- **文件 stale**：demographics schema 全部文件（migration 註解/docstring/data-inventory/catalog）記「未 exposed 406」→ anon REST 實測 **200**，早就 exposed。schema 是否 exposed 用實測，別信文件。
+- 連 recon 自己的報告都可能 stale；後續 session 要被允許推翻前面結論。
+
+### D. 跨 repo git（sibling repo 很髒）
+- gis-platform / taipei-gis-analytics 有**大量既有無關未提交變更**（flight_look_up / garbage_collection / road-events…）。
+- **絕不 `git add -A`**。只 `git add <明確路徑>`，commit 前 `git diff --cached --stat` 確認 scope。
+- 修改檔（如 data-inventory.md）先 `git diff <file>` 確認是純本任務 scope 才納入。
+- 預設 commit 到各 repo 既有預設分支（gis-platform=main / analytics=master），不 push，user 最後統一 review。
+
+### E. migration 編號協調
+- 並行/序列 session 寫 gis-platform/migrations 會撞號。
+- 對策：序列跑建表類，或主 agent 在 SESSION_BOARD 預先指派編號區段，寫進各 session prompt。
+- 本次 recon_demog 用 126/127；後續區段 fire=128-129 / maritime=130-133 / water=134-135 / rail=136。
+
+### F. 資料源陷阱（領域知識，session 自己抓到的修正）
+- 戶政司 **ODRP010 = 人口動態**（出生/死亡/結離婚），**無人口數**；人口數在 **ODRP005**。
+- ODRP005 `site_id` 是中文「縣市名+鄉鎮市區名」，非數字代碼。
+- 2026-05 ODRP005 月報 API 對所有月回 OD-0102-S（查無），最新落地是 2024-12。
+
+### G. SSOT 多源
+- 同指標多表：全國人口有 3 個數（戶籍 national_basics_latest 23,262,544 / 現住 age_sex 23,400,220 / counties.yaml 23,332,000）。
+- 對策：選單一 SSOT（戶籍月度）對外，其他標口徑+年份，差異註明非 bug。
+
+## 復用 checklist（下次直接照跑）
+1. 盤點本專案缺口（grep theme manifest 待補/mock/placeholder）
+2. spawn recon session（read-only 盤點）→ 人工 gate
+3. 逐任務 fresh session（驗證→做→自己 commit→寫 board→DONE）→ kill → append WAVE_REPORT
+4. 前端接線 session（同樣 fresh，帶確切 endpoint）
+5. 驗證閘（typecheck/截圖/codex）+ 每波 atomic commit 不 push
+6. 跑完 append 本日誌新踩到的坑
