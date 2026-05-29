@@ -47,6 +47,23 @@ export interface FireStationFeature {
   lng: number;
 }
 
+export interface PortPointFeature {
+  id: number;
+  name: string;
+  port_class_group: string | null;
+  lat: number;
+  lng: number;
+}
+
+export interface RailStationPointFeature {
+  id: string;
+  name: string;
+  system_id: string;
+  color: string;
+  lat: number;
+  lng: number;
+}
+
 interface MapViewProps {
   metric: string;
   rampName: string;
@@ -78,6 +95,12 @@ interface MapViewProps {
   fireStations?: FireStationFeature[];
   /** 「無染色」模式 — 22 縣市 fill 變灰底（想專心看 heatmap / 點位時用） */
   neutralChoropleth?: boolean;
+  /** 航運主題：港口點位 */
+  portPoints?: PortPointFeature[];
+  showPorts?: boolean;
+  /** 軌道主題：車站點位 */
+  railStationPoints?: RailStationPointFeature[];
+  showRailStations?: boolean;
 }
 
 const TW_COUNTIES_URL = "/data/tw-counties.geo.json";
@@ -108,6 +131,10 @@ export function MapView({
   fireIncidentPoints = [],
   fireStations = [],
   neutralChoropleth = false,
+  portPoints = [],
+  showPorts = false,
+  railStationPoints = [],
+  showRailStations = false,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
@@ -391,6 +418,70 @@ export function MapView({
           paint: { "text-color": "#7F1D1D", "text-halo-color": "#FFFFFF", "text-halo-width": 1.4 },
         });
 
+        // 航運主題：港口點位
+        map.addSource("ports", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer({
+          id: "ports-pt",
+          type: "circle",
+          source: "ports",
+          layout: { visibility: "none" },
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2.5, 8, 5, 11, 8],
+            "circle-color": "#0D9488",
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 6, 0.8, 10, 1.5],
+            "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 8, 0.95],
+          },
+        });
+        map.addLayer({
+          id: "ports-label",
+          type: "symbol",
+          source: "ports",
+          minzoom: 9,
+          layout: {
+            visibility: "none",
+            "text-field": ["get", "name"],
+            "text-size": 10,
+            "text-anchor": "top",
+            "text-offset": [0, 0.85],
+            "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+            "text-allow-overlap": false,
+          },
+          paint: { "text-color": "#115E59", "text-halo-color": "#FFFFFF", "text-halo-width": 1.4 },
+        });
+
+        // 軌道主題：車站點位
+        map.addSource("rail-stations", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer({
+          id: "rail-stations-pt",
+          type: "circle",
+          source: "rail-stations",
+          layout: { visibility: "none" },
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 8, 4, 11, 7],
+            "circle-color": ["coalesce", ["get", "color"], "#4F46E5"],
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 6, 0.8, 10, 1.5],
+            "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 8, 0.95],
+          },
+        });
+        map.addLayer({
+          id: "rail-stations-label",
+          type: "symbol",
+          source: "rail-stations",
+          minzoom: 9,
+          layout: {
+            visibility: "none",
+            "text-field": ["get", "name"],
+            "text-size": 10,
+            "text-anchor": "top",
+            "text-offset": [0, 0.85],
+            "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+            "text-allow-overlap": false,
+          },
+          paint: { "text-color": "#312E81", "text-halo-color": "#FFFFFF", "text-halo-width": 1.4 },
+        });
+
         // 消防分隊 hover tooltip（mock 過渡期不顯示數值，標 "Sprint 2 待ETL"）
         map.on("mousemove", "fire-stations-pt", (e) => {
           const f = e.features?.[0];
@@ -449,6 +540,40 @@ export function MapView({
           });
         });
         map.on("mouseleave", "reservoirs-pt", () => {
+          map.getCanvas().style.cursor = "";
+          setTooltip(null);
+        });
+
+        // 港口 hover
+        map.on("mousemove", "ports-pt", (e) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          map.getCanvas().style.cursor = "pointer";
+          const p = f.properties as { name: string; port_class_group: string | null };
+          setTooltip({
+            x: e.point.x, y: e.point.y,
+            name: `${p.name}（${p.port_class_group ?? "其他"}）`,
+            value: null, valueLabel: "", valueUnit: "",
+          });
+        });
+        map.on("mouseleave", "ports-pt", () => {
+          map.getCanvas().style.cursor = "";
+          setTooltip(null);
+        });
+
+        // 車站 hover
+        map.on("mousemove", "rail-stations-pt", (e) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          map.getCanvas().style.cursor = "pointer";
+          const p = f.properties as { name: string; system_id: string };
+          setTooltip({
+            x: e.point.x, y: e.point.y,
+            name: `${p.name}（${p.system_id.toUpperCase()}）`,
+            value: null, valueLabel: "", valueUnit: "",
+          });
+        });
+        map.on("mouseleave", "rail-stations-pt", () => {
           map.getCanvas().style.cursor = "";
           setTooltip(null);
         });
@@ -709,6 +834,60 @@ export function MapView({
       }));
     src.setData({ type: "FeatureCollection", features });
   }, [ready, fireStations]);
+
+  // 港口 visibility toggle
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    const vis = showPorts ? "visible" : "none";
+    for (const id of ["ports-pt", "ports-label"]) {
+      if (map.getLayer(id)) try { map.setLayoutProperty(id, "visibility", vis); } catch (_) { /* ignore */ }
+    }
+  }, [ready, showPorts]);
+
+  // 港口 source data sync
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const src = mapRef.current.getSource("ports") as mapboxgl.GeoJSONSource | undefined;
+    if (!src) return;
+    src.setData({
+      type: "FeatureCollection",
+      features: portPoints
+        .filter((p) => p.lat != null && p.lng != null)
+        .map((p) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
+          properties: { id: p.id, name: p.name, port_class_group: p.port_class_group },
+        })),
+    });
+  }, [ready, portPoints]);
+
+  // 車站 visibility toggle
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    const vis = showRailStations ? "visible" : "none";
+    for (const id of ["rail-stations-pt", "rail-stations-label"]) {
+      if (map.getLayer(id)) try { map.setLayoutProperty(id, "visibility", vis); } catch (_) { /* ignore */ }
+    }
+  }, [ready, showRailStations]);
+
+  // 車站 source data sync
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const src = mapRef.current.getSource("rail-stations") as mapboxgl.GeoJSONSource | undefined;
+    if (!src) return;
+    src.setData({
+      type: "FeatureCollection",
+      features: railStationPoints
+        .filter((p) => p.lat != null && p.lng != null)
+        .map((p) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
+          properties: { id: p.id, name: p.name, system_id: p.system_id, color: p.color },
+        })),
+    });
+  }, [ready, railStationPoints]);
 
   // Zoom on drill
   useEffect(() => {
