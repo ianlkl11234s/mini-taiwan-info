@@ -62,6 +62,26 @@
 - **新主題上線後**：肉眼確認 accent 不是水藍（key typo / ramp 打錯字的徵兆）
 - 詳見 INCIDENTS 2026-05-24「主題 accent key mismatch」
 
+### 2026-05-29: monorepo 子目錄 app 的 GitHub 部署 = repo 根 Dockerfile
+
+- app 在 `frontend/` 子目錄、走 Zeabur GitHub 自動部署時：**在 repo 根放 Dockerfile**（zbpack 偵測到根 Dockerfile 必選 docker plan）。
+- **不要**依賴 `zbpack.json app_dir` / 環境變數 `ZBPACK_APP_DIR` / dashboard Root Directory — 實測都無法把已選 static 的 plan 導回 frontend/。
+- 根 Dockerfile 以 repo 根為 context，須保留 build 必需的跨目錄相對結構（此專案 `themes.ts` glob `../../../themes` → Docker 內維持 `/app/frontend` + `/app/themes` sibling），root `.dockerignore` 保留 `themes/`、排除 data/designs/docs/samples。
+- **build 成功 ≠ 已上線**：deploy promotion 可能卡 FAILED，`npx zeabur@latest service restart --id <svc>` 強制切到新 image。
+- 完整事件 + 操作見 `DEPLOYMENT.md §九`、INCIDENTS 2026-05-29。
+
+### 2026-05-29: tsc build 範圍含 scripts → 必列 @types/node
+
+- `tsconfig.json include:["src","scripts"]` 會讓 `tsc -b` 檢查 dev 腳本；只要腳本用 Node API（process/Buffer/node:*），就要在 devDependencies **明列 `@types/node`**。
+- 本機 `tsc --noEmit` 過不代表 CI/Docker 過 — 本機 node_modules 可能巧合有 @types/node，Docker `--frozen-lockfile` 嚴格按 lockfile 才會暴露缺漏。
+
+### 2026-05-29: Mock 無真實源 → 一律「待後續階段補上」placeholder
+
+- 顯示假數字/估算值且**無真實資料源**的欄位，改用 `components/common/PendingDataCard`（留格子、寫「待後續階段補上」），不留捏造數字。
+- **SSOT 優先於 placeholder**：能接真實資料就接（如 ViewAHome 出生死亡歷年改接 `demographics.vitalsTrend`、ViewBDemographics 出生死亡 KPI 改用村里加總 `p.birth/p.death`），接不到才 placeholder。
+- 已是 🔴 缺口卡（MissingDataCard）或公開靜態事實（如全球密度比較）不動。
+- 延續 2026-05-14「真實資料優先 + LIVE badge」原則。
+
 ## 行為原則（Claude 自律）
 
 ### Atomic Commit
