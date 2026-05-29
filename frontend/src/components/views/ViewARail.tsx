@@ -1,15 +1,20 @@
 /**
  * ViewA Rail — 軌道主題全國概覽
  *
- * 3 章節：S1 軌道家底（9 系統表）/ S2 班次與車種（24hr+ donut + Top10）/ S3 運量
+ * 3 章節：S1 軌道家底（9 系統表）/ S2 班次與車種（24hr + 各系統佔比）/ S3 運量
  * accent: 靛藍 #4F46E5
  *
- * 設計來源：designs Mini Taiwan Info.html · view-a-rail.jsx
+ * 設計來源：designs Mini Taiwan Info.html · view-a-rail.jsx (chat9 更新版)
+ * 主要功能：
+ *   - RailGroupTabs：全部 / 台鐵 / 高鐵 / 捷運+輕軌 全域 segmented control
+ *   - ExpandableCountyRank：可展開全部縣市排名（預設 Top5/Bottom5）
+ *   - S2：各系統停靠車次佔比 bar + group 切換同步縮放
  */
 
+import { useState, useMemo } from "react";
 import {
-  MapPin, Route, Train, AlertTriangle, ArrowLeftRight, BarChart3,
-  Share2, Download, Lightbulb,
+  MapPin, Route, Train, AlertTriangle, ArrowLeftRight,
+  Share2, Download, ChevronDown, ChevronUp, Lightbulb,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { byIdMoi } from "@/lib/counties";
@@ -19,7 +24,13 @@ import { CatHeader } from "@/components/common/CatHeader";
 import { HRankBar, type HRankRow } from "@/components/common/HRankBar";
 import { DataSourceBadge } from "@/components/common/DataSourceBadge";
 import { KPICard } from "@/components/kpi/KPICard";
-import { RAIL_SYSTEMS_META } from "@/lib/queries/rail";
+import {
+  RAIL_SYSTEMS_META,
+  RAIL_GROUPS,
+  railGroupCountyRank,
+  railGroupSysTrips,
+  type RailGroup,
+} from "@/lib/queries/rail";
 
 interface Props {
   data: RailDataState;
@@ -27,20 +38,102 @@ interface Props {
   onCountyClick?: (code: CountyCode3) => void;
 }
 
+interface GroupProps extends Props {
+  group: RailGroup;
+  setGroup: (g: RailGroup) => void;
+}
+
+// ─────────────────────────────────────────────────
+// 共用子元件
+// ─────────────────────────────────────────────────
+
+/** 系統分類 segmented control */
+function RailGroupTabs({ value, onChange }: { value: RailGroup; onChange: (g: RailGroup) => void }) {
+  return (
+    <div className="rail-group-tabs" role="tablist">
+      {RAIL_GROUPS.map((g) => (
+        <button
+          key={g.id}
+          role="tab"
+          aria-selected={value.id === g.id}
+          className={value.id === g.id ? "active" : ""}
+          onClick={() => onChange(g)}
+        >
+          {g.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** 可展開的縣市排名（預設 Top5/Bottom5，展開後全部） */
+function ExpandableCountyRank({
+  rows, color, colorLow, highlightCode, decimals = 0,
+  topLabel = "最多 5 縣市", botLabel = "最少 5 縣市",
+}: {
+  rows: HRankRow[];
+  color: string;
+  colorLow?: string;
+  highlightCode?: CountyCode3 | null;
+  decimals?: number;
+  topLabel?: string;
+  botLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!rows.length) {
+    return <div className="muted" style={{ fontSize: 12, padding: "6px 2px" }}>此分類無對應縣市資料</div>;
+  }
+  const mx = rows[0]?.value ?? 1;
+
+  return (
+    <div>
+      {open ? (
+        <div>
+          <HRankBar rows={rows} max={mx} color={color} highlightCode={highlightCode} decimals={decimals} />
+        </div>
+      ) : (
+        <div className="rank-pair">
+          <div className="col">
+            <h4 className="top">{topLabel}</h4>
+            <HRankBar rows={rows.slice(0, 5)} max={mx} color={color} highlightCode={highlightCode} decimals={decimals} />
+          </div>
+          <div className="col">
+            <h4 className="bot">{botLabel}</h4>
+            <HRankBar rows={rows.slice(-5).reverse()} max={mx} color={colorLow ?? color} highlightCode={highlightCode} decimals={decimals} />
+          </div>
+        </div>
+      )}
+      {rows.length > 6 && (
+        <button className="rank-expand-btn" onClick={() => setOpen((v) => !v)}>
+          {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          {open ? "收合" : `展開看全部 ${rows.length} 縣市排名`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────
 // S1 · 軌道家底
 // ─────────────────────────────────────────────────
-function S1Base({ data, selectedCounty }: Props) {
+function S1Base({ data, selectedCounty, group, setGroup }: GroupProps) {
   const S = data.summary;
   if (!S) return null;
 
   const SYS = data.systems;
   const maxStations = Math.max(1, ...SYS.map((s) => s.stations));
 
-  // 縣市車站數 ranking
-  const cntyRank: HRankRow[] = data.countyAggregates
-    .map((c) => ({ code: c.code3, name: c.name, value: c.stations }))
-    .sort((a, b) => b.value - a.value);
+  // 依分類的縣市車站數排名
+  const cntyRank = useMemo(
+    () => railGroupCountyRank(group.systems, data.stations, data.countyAggregates),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [group.id, data.stations, data.countyAggregates],
+  );
+
+  const rankSub = cntyRank.length >= 2
+    ? `${cntyRank[0].name} ${cntyRank[0].value} 站、${cntyRank[1].name} ${cntyRank[1].value} 站 ─ 共 ${cntyRank.length} 縣市有站`
+    : cntyRank.length === 1 ? `僅 ${cntyRank[0].name} ${cntyRank[0].value} 站` : "此分類無對應縣市";
 
   const zeroCountyNames = S.zeroStationCounties
     .map((id) => byIdMoi[id]?.name_zh ?? id)
@@ -73,7 +166,9 @@ function S1Base({ data, selectedCounty }: Props) {
           <div className="stat-tile-ico"><Train size={13} /></div>
           <div className="stat-tile-num">{fmt.num(S.kmTotal, 0)}<span className="unit">km</span></div>
           <div className="stat-tile-label">營運里程</div>
-          <div className="stat-tile-ds">臺鐵獨佔 {Math.round(((SYS.find((s) => s.id === "tra")?.km ?? 0) / Math.max(1, S.kmTotal)) * 100)}%</div>
+          <div className="stat-tile-ds">
+            臺鐵獨佔 {Math.round(((SYS.find((s) => s.id === "tra")?.km ?? 0) / Math.max(1, S.kmTotal)) * 100)}%
+          </div>
         </div>
         <div className="stat-tile">
           <div className="stat-tile-ico"><AlertTriangle size={13} /></div>
@@ -127,7 +222,7 @@ function S1Base({ data, selectedCounty }: Props) {
         </div>
       </div>
 
-      {/* 縣市車站數 ranking */}
+      {/* 縣市車站數排名：tabs + 可展開全部 */}
       <div className="section" style={{ marginBottom: 0 }}>
         <div className="section-head">
           <div>
@@ -135,24 +230,16 @@ function S1Base({ data, selectedCounty }: Props) {
               <span className="pre">RANK</span>
               縣市車站數 · 都會 vs 離島
             </div>
-            <div className="section-subtitle">
-              {cntyRank[0]?.name} {cntyRank[0]?.value} 站、{cntyRank[1]?.name} {cntyRank[1]?.value} 站 — 雙北獨佔 {Math.round(((cntyRank[0]?.value ?? 0) + (cntyRank[1]?.value ?? 0)) / Math.max(1, S.stations) * 100)}%
-            </div>
+            <div className="section-subtitle">{rankSub}</div>
           </div>
-          {S.zeroStationCounties.length > 0 && (
-            <span className="coverage-badge">⚠ 離島 {S.zeroStationCounties.length} 縣 0 站</span>
-          )}
+          <RailGroupTabs value={group} onChange={setGroup} />
         </div>
-        <div className="rank-pair">
-          <div className="col">
-            <h4 className="top">最多 5 縣市</h4>
-            <HRankBar rows={cntyRank.slice(0, 5)} max={cntyRank[0]?.value ?? 1} color="var(--accent)" highlightCode={selectedCounty} decimals={0} />
-          </div>
-          <div className="col">
-            <h4 className="bot">最少 5 縣市</h4>
-            <HRankBar rows={cntyRank.slice(-5).reverse()} max={cntyRank[0]?.value ?? 1} color="var(--accent-ramp-3)" highlightCode={selectedCounty} decimals={0} />
-          </div>
-        </div>
+        <ExpandableCountyRank
+          rows={cntyRank}
+          color="var(--accent)"
+          colorLow="var(--accent-ramp-3)"
+          highlightCode={selectedCounty}
+        />
       </div>
     </div>
   );
@@ -161,7 +248,7 @@ function S1Base({ data, selectedCounty }: Props) {
 // ─────────────────────────────────────────────────
 // S2 · 班次與車種
 // ─────────────────────────────────────────────────
-function S2Service({ data }: Props) {
+function S2Service({ data, group, setGroup }: GroupProps) {
   const S = data.summary;
   if (!S) return null;
 
@@ -169,7 +256,20 @@ function S2Service({ data }: Props) {
   const TRA = data.traBreakdown;
   const TOP = data.topStations;
 
-  const maxHour = Math.max(1, ...H.map((h) => h.value));
+  const hasTra = !group.systems || group.systems.includes("tra");
+
+  // 各系統車次（依分類）
+  const sysTrips = useMemo(
+    () => railGroupSysTrips(group.systems, data.trips, data.systems),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [group.id, data.trips, data.systems],
+  );
+  const grpTrips = sysTrips.reduce((a, s) => a + s.trips, 0) || 1;
+  const scale = S.dailyTrips > 0 ? grpTrips / S.dailyTrips : 1;
+
+  // hourly 依分類佔比縮放
+  const Hscaled = H.map((h) => ({ ...h, value: Math.max(0, Math.round(h.value * scale)) }));
+  const maxHour = Math.max(1, ...Hscaled.map((h) => h.value));
   const peakHours = new Set([7, 8, 17, 18]);
 
   return (
@@ -177,21 +277,27 @@ function S2Service({ data }: Props) {
       <CatHeader
         num={2}
         title={<><span className="accent">班次與車種</span> ─ 每天 {fmt.num(Math.round(S.dailyTrips / 1000))}K 車次</>}
-        tagline="尖峰 / 離峰、24 hr 雙峰分布、臺鐵車種佔比"
+        tagline="尖峰 / 離峰、24 hr 雙峰分布、各系統與臺鐵車種佔比"
         badge="日均"
         badgeTone="sampled"
       />
 
-      <div className="kpi-grid cols-3" style={{ marginBottom: 14 }}>
+      <div className="rail-group-bar">
+        <span className="rgb-lbl">系統分類</span>
+        <RailGroupTabs value={group} onChange={setGroup} />
+      </div>
+
+      {/* 2 KPI（設計移除台北捷運佔比） */}
+      <div className="kpi-grid cols-2" style={{ marginBottom: 14 }}>
         <KPICard
           icon={<Train size={13} />}
           label="每日總停靠車次"
-          value={fmt.num(S.dailyTrips)}
+          value={fmt.num(grpTrips)}
           unit="次/日"
           trend={{
-            delta: `尖峰 ${fmt.num(S.peakTrips)} + 離峰 ${fmt.num(S.offpeakTrips)}`,
+            delta: `尖峰 ${fmt.num(Math.round(S.peakTrips * scale))} + 離峰 ${fmt.num(Math.round(S.offpeakTrips * scale))}`,
             direction: "flat",
-            baseline: "9 系統合計",
+            baseline: group.id === "all" ? `${data.systems.length} 系統合計` : group.label,
             sentiment: "neutral",
           }}
         />
@@ -207,18 +313,45 @@ function S2Service({ data }: Props) {
             sentiment: "neutral",
           }}
         />
-        <KPICard
-          icon={<BarChart3 size={13} />}
-          label="台北捷運佔比"
-          value={S.trtcShare}
-          unit="%"
-          trend={{
-            delta: `${fmt.num(Math.round(((data.countyAggregates.find((c) => c.id_moi === "A")?.dailyTrips ?? 0))))} 班/日`,
-            direction: "flat",
-            baseline: "占已有運量資料系統",
-            sentiment: "neutral",
-          }}
-        />
+      </div>
+
+      {/* 各系統停靠車次佔比（在 24hr 上方） */}
+      <div className="section">
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">SYSTEMS</span>
+              各系統停靠車次佔比
+            </div>
+            <div className="section-subtitle">
+              {group.id === "all" && sysTrips[0]
+                ? <>主力 <b style={{ color: sysTrips[0].color }}>{sysTrips[0].label}</b> 約 {Math.round(sysTrips[0].trips / grpTrips * 100)}% — 獨佔全國近半</>
+                : <>{group.label} · 合計 {fmt.num(grpTrips)} 次/日（佔全國 {(scale * 100).toFixed(1)}%）</>}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", height: 22, borderRadius: 4, overflow: "hidden", background: "var(--surface-2)" }}>
+            {sysTrips.map((s) => (
+              <div
+                key={s.id}
+                style={{ flex: s.trips, background: s.color }}
+                title={`${s.label} ${(s.trips / grpTrips * 100).toFixed(1)}%`}
+              />
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 14px" }}>
+            {sysTrips.map((s) => (
+              <div key={s.id} className="row gap-8" style={{ fontSize: 11.5 }}>
+                <i style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: s.color, flexShrink: 0 }}></i>
+                <span style={{ color: "var(--text)" }}>{s.label}</span>
+                <span className="muted" style={{ marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
+                  {(s.trips / grpTrips * 100).toFixed(1)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* 24hr 逐時 */}
@@ -229,7 +362,9 @@ function S2Service({ data }: Props) {
               <span className="pre">HOURLY</span>
               24 小時班次分布
             </div>
-            <div className="section-subtitle">雙峰：早 7-9 上學上班 + 晚 17-19 下班</div>
+            <div className="section-subtitle">
+              {group.id === "all" ? "全系統" : group.label} · 雙峰：早 7-9 上學上班 + 晚 17-19 下班 — 全日合計 {fmt.num(grpTrips)} 班
+            </div>
           </div>
           <div className="row gap-8">
             <span className="row gap-4" style={{ fontSize: 11, color: "var(--text-secondary)" }}>
@@ -241,7 +376,7 @@ function S2Service({ data }: Props) {
           </div>
         </div>
         <div className="rail-hour-bars">
-          {H.map((h) => (
+          {Hscaled.map((h) => (
             <div
               key={h.x}
               className={`rhb ${peakHours.has(h.x) ? "peak" : ""}`}
@@ -250,49 +385,55 @@ function S2Service({ data }: Props) {
             />
           ))}
           <div className="rhb-labels">
-            {H.map((h) => <span key={h.x}>{h.label}</span>)}
+            {Hscaled.map((h) => <span key={h.x}>{h.label}</span>)}
           </div>
         </div>
         <div className="rail-hour-foot">
-          <span>單日總計 <b style={{ color: "var(--text)" }}>{fmt.num(S.dailyTrips)}</b> 班次</span>
-          <span className="pill">
-            尖峰時段最大值約 {fmt.num(Math.max(...Array.from(peakHours).map((h) => H[h]?.value ?? 0)))} 班/時
-          </span>
+          <span>單日總計 <b style={{ color: "var(--text)" }}>{fmt.num(grpTrips)}</b> 班次</span>
+          <span className="pill">尖峰時段最大值約 {fmt.num(Math.max(...Array.from(peakHours).map((h) => Hscaled[h]?.value ?? 0)))} 班/時</span>
         </div>
       </div>
 
-      {/* 車種 donut + Top 10 大站（改上下排列，避免 Top 10 表格被擠太窄） */}
-      <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
+      {/* 臺鐵車種佔比（僅 TRA 相關分類顯示）+ Top 10 大站 */}
+      <div style={{ display: "grid", gap: 12 }}>
         <div className="section" style={{ marginBottom: 0 }}>
           <div className="section-head">
             <div>
               <div className="section-title">
-                <span className="pre">TRA</span>
-                臺鐵車種佔比
+                <span className="pre">{hasTra ? "TRA" : (group.short ?? group.label)}</span>
+                {hasTra ? "臺鐵車種佔比" : "車種組成"}
               </div>
               <div className="section-subtitle">
-                {TRA[0] ? `${TRA[0].label} 獨佔 ${TRA[0].pct.toFixed(1)}% — 通勤本位` : "—"}
+                {hasTra
+                  ? (TRA[0] ? `${TRA[0].label} 獨佔 ${TRA[0].pct.toFixed(1)}% — 通勤本位` : "—")
+                  : `${group.label} 為捷運／高鐵自有車組，無臺鐵車種分類`}
               </div>
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ display: "flex", height: 22, borderRadius: 4, overflow: "hidden" }}>
-              {TRA.map((t) => (
-                <div key={t.id} style={{ flex: t.trips, background: t.color }} title={`${t.label} ${t.pct.toFixed(1)}%`}></div>
-              ))}
+          {hasTra ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", height: 22, borderRadius: 4, overflow: "hidden" }}>
+                {TRA.map((t) => (
+                  <div key={t.id} style={{ flex: t.trips, background: t.color }} title={`${t.label} ${t.pct.toFixed(1)}%`}></div>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 14px", marginTop: 4 }}>
+                {TRA.map((t) => (
+                  <div key={t.id} className="row gap-8" style={{ fontSize: 11.5 }}>
+                    <i style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: t.color }}></i>
+                    <span style={{ color: "var(--text)" }}>{t.label}</span>
+                    <span className="muted" style={{ marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
+                      {t.pct.toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 14px", marginTop: 4 }}>
-              {TRA.map((t) => (
-                <div key={t.id} className="row gap-8" style={{ fontSize: 11.5 }}>
-                  <i style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: t.color }}></i>
-                  <span style={{ color: "var(--text)" }}>{t.label}</span>
-                  <span className="muted" style={{ marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
-                    {t.pct.toFixed(1)}%
-                  </span>
-                </div>
-              ))}
+          ) : (
+            <div className="muted" style={{ fontSize: 12, padding: "8px 0" }}>
+              ※ 車種佔比僅適用於臺鐵路段，請切換至「全部」或「台鐵」檢視。
             </div>
-          </div>
+          )}
         </div>
 
         <div className="section" style={{ marginBottom: 0, padding: 0 }}>
@@ -354,7 +495,7 @@ function S3Ridership({ data, selectedCounty }: Props) {
   const sysMaxR = Math.max(0.01, ...SYS.map((s) => s.ridership24 ?? 0));
   const M = data.traMonthly;
 
-  // 縣市運量 ranking
+  // 縣市運量 ranking（可展開）
   const ridRank: HRankRow[] = data.countyAggregates
     .map((c) => ({ code: c.code3, name: c.name, value: c.ridership24 }))
     .filter((r) => r.value > 0)
@@ -401,7 +542,7 @@ function S3Ridership({ data, selectedCounty }: Props) {
         </div>
       </div>
 
-      {/* 臺鐵月度（如有資料） */}
+      {/* 臺鐵月度 */}
       {M.length > 0 && (
         <div className="section">
           <div className="section-head">
@@ -428,7 +569,7 @@ function S3Ridership({ data, selectedCounty }: Props) {
         </div>
       )}
 
-      {/* 縣市運量 ranking */}
+      {/* 縣市運量 ranking（可展開，無 CSV/資料說明） */}
       <div className="section" style={{ marginBottom: 0 }}>
         <div className="section-head">
           <div>
@@ -436,20 +577,19 @@ function S3Ridership({ data, selectedCounty }: Props) {
               <span className="pre">RANK</span>
               縣市運量 · 2024
             </div>
-            <div className="section-subtitle">軌道運量高度集中於雙北、雙北 + 高雄占多數</div>
+            <div className="section-subtitle">雙北佔多數 — 軌道運量高度集中</div>
           </div>
           <div className="muted" style={{ fontSize: 11.5 }}>單位：億人次</div>
         </div>
-        <div className="rank-pair">
-          <div className="col">
-            <h4 className="top">最高 5 縣市</h4>
-            <HRankBar rows={ridRank.slice(0, 5)} max={ridRank[0]?.value ?? 1} color="var(--accent)" highlightCode={selectedCounty} decimals={2} />
-          </div>
-          <div className="col">
-            <h4 className="bot">最低 5 縣市（有軌道者）</h4>
-            <HRankBar rows={ridRank.slice(-5).reverse()} max={ridRank[0]?.value ?? 1} color="var(--accent-ramp-3)" highlightCode={selectedCounty} decimals={2} />
-          </div>
-        </div>
+        <ExpandableCountyRank
+          rows={ridRank}
+          color="var(--accent)"
+          colorLow="var(--accent-ramp-3)"
+          highlightCode={selectedCounty}
+          decimals={2}
+          topLabel="最高 5 縣市"
+          botLabel="最低 5 縣市（有軌道者）"
+        />
         {S.zeroStationCounties.length > 0 && (
           <div className="rank-footer">
             <Lightbulb size={14} />
@@ -469,8 +609,8 @@ function S3Ridership({ data, selectedCounty }: Props) {
 // ─────────────────────────────────────────────────
 export function ViewARail({ data, selectedCounty, onCountyClick }: Props) {
   const S = data.summary;
+  const [railGroup, setRailGroup] = useState<RailGroup>(RAIL_GROUPS[0]);
 
-  // 防禦：summary 為 null 但無 error 時當 loading（hook race condition fallback）
   if (data.loading || (!S && !data.error)) {
     return (
       <div className="hero">
@@ -487,12 +627,8 @@ export function ViewARail({ data, selectedCounty, onCountyClick }: Props) {
   if (data.error) {
     return (
       <div className="hero">
-        <h1>
-          <span className="accent">軌道資料載入失敗</span>
-        </h1>
-        <p className="hook" style={{ color: "#B91C1C", lineHeight: 1.7 }}>
-          {data.error.message}
-        </p>
+        <h1><span className="accent">軌道資料載入失敗</span></h1>
+        <p className="hook" style={{ color: "#B91C1C", lineHeight: 1.7 }}>{data.error.message}</p>
       </div>
     );
   }
@@ -514,7 +650,6 @@ export function ViewARail({ data, selectedCounty, onCountyClick }: Props) {
               全國 <b>{S.stations}</b> 站、<b>{S.lines}</b> 條、<b>{fmt.num(S.kmTotal, 0)}</b> km。
               每日 <b className="em">{fmt.num(S.dailyTrips)}</b> 班次 —
               2024 年運量 <b className="em">{S.ridership24.toFixed(1)} 億人次</b>，
-              台北捷運獨佔 <b>{S.trtcShare}%</b>（占已有運量資料系統），
               離島 <b>{S.zeroStationCounties.length}</b> 縣 0 站。
             </p>
           </div>
@@ -525,8 +660,10 @@ export function ViewARail({ data, selectedCounty, onCountyClick }: Props) {
         </div>
       </div>
 
-      <S1Base data={data} selectedCounty={selectedCounty} onCountyClick={onCountyClick} />
-      <S2Service data={data} selectedCounty={selectedCounty} onCountyClick={onCountyClick} />
+      <S1Base data={data} selectedCounty={selectedCounty} onCountyClick={onCountyClick}
+        group={railGroup} setGroup={setRailGroup} />
+      <S2Service data={data} selectedCounty={selectedCounty} onCountyClick={onCountyClick}
+        group={railGroup} setGroup={setRailGroup} />
       <S3Ridership data={data} selectedCounty={selectedCounty} onCountyClick={onCountyClick} />
 
       <DataSourceBadge

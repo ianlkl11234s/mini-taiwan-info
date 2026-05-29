@@ -71,11 +71,10 @@ export function useRailData(opts: { enabled?: boolean } = {}): RailDataState {
 
   useEffect(() => {
     if (!enabled) {
-      setState({ ...EMPTY, loading: false });
+      setState((prev) => prev.loading ? { ...EMPTY, loading: false } : prev);
       return;
     }
-    // 從 disabled 切到 enabled 時重設 loading=true，避免 view 瞬間看到 loading=false + summary=null
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    setState((prev) => prev.summary !== null ? prev : { ...prev, loading: true, error: null });
     let cancelled = false;
     (async () => {
       const results = await Promise.allSettled([

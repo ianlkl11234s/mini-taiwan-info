@@ -542,3 +542,73 @@ export function deriveCountyAggregates(
     };
   });
 }
+
+// ─────────────────────────────────────────────────
+// 系統分類（tab 切換用）
+// ─────────────────────────────────────────────────
+
+export interface RailGroup {
+  id: "all" | "tra" | "thsr" | "metro";
+  label: string;
+  short: string;
+  systems: RailSystemId[] | null; // null = 全部
+}
+
+export const RAIL_GROUPS: RailGroup[] = [
+  { id: "all",   label: "全部",      short: "全部",  systems: null },
+  { id: "tra",   label: "台鐵",      short: "TRA",   systems: ["tra"] },
+  { id: "thsr",  label: "高鐵",      short: "THSR",  systems: ["thsr"] },
+  { id: "metro", label: "捷運+輕軌", short: "捷運",  systems: ["trtc", "krtc", "tymc", "tmrt", "klrt", "dlrt", "aklrt"] },
+];
+
+/** 依系統分類，回傳各縣市車站數排名（value>0，由多到少） */
+export function railGroupCountyRank(
+  systems: RailSystemId[] | null,
+  stations: StationRow[],
+  countyAggregates: CountyRailAggregate[],
+): Array<{ code: string; name: string; value: number }> {
+  if (!systems) {
+    return countyAggregates
+      .map((c) => ({ code: c.code3, name: c.name, value: c.stations }))
+      .filter((r) => r.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }
+  const sysSet = new Set(systems);
+  // 計算每縣市在指定系統的車站數
+  const byCounty = new Map<CountyIdMoi, number>();
+  for (const s of stations) {
+    if (!s.county_id || !sysSet.has(s.system_id as RailSystemId)) continue;
+    byCounty.set(s.county_id, (byCounty.get(s.county_id) ?? 0) + 1);
+  }
+  return countyAggregates
+    .map((c) => ({ code: c.code3, name: c.name, value: byCounty.get(c.id_moi) ?? 0 }))
+    .filter((r) => r.value > 0)
+    .sort((a, b) => b.value - a.value);
+}
+
+/** 依系統分類，回傳各系統每日停靠車次（含色票，由多到少） */
+export function railGroupSysTrips(
+  systems: RailSystemId[] | null,
+  trips: StationDailyTripsRow[],
+  systemsMeta: RailSystemDerived[],
+): Array<{ id: string; label: string; short: string; color: string; trips: number }> {
+  const sysSet = systems ? new Set(systems) : null;
+  const bySystem = new Map<string, number>();
+  for (const t of trips) {
+    if (sysSet && !sysSet.has(t.system_id as RailSystemId)) continue;
+    bySystem.set(t.system_id, (bySystem.get(t.system_id) ?? 0) + t.daily_stop_count);
+  }
+  return Array.from(bySystem.entries())
+    .map(([id, tripCount]) => {
+      const meta = systemsMeta.find((s) => s.id === id);
+      return {
+        id,
+        label: meta?.label ?? id,
+        short: meta?.short ?? id,
+        color: meta?.color ?? "#4F46E5",
+        trips: tripCount,
+      };
+    })
+    .filter((s) => s.trips > 0)
+    .sort((a, b) => b.trips - a.trips);
+}
