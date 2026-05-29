@@ -25,7 +25,7 @@
 | B014 | P3 | 暗色模式驗證 | 待開工 | CSS 變數已有，沒實際驗證 |
 | B015 | P3 | 手機版（< 1280px） | 待開工 | user 確認 Phase 1 才做 |
 | B016 | P3 | TweaksPanel（density / radius / accent 切換） | 待開工 | prototype 有，目前未移植 |
-| B017 | P2 | ~~Vercel~~ Zeabur deployment + CI/CD | 部分完成 | ✅ 2026-05-29 已上線 Zeabur（dist 靜態 PREBUILT_V2，https://mini-tw-info.zeabur.app）。CI/CD auto-redeploy 待 B074 |
+| ~~B017~~ | ~~P2~~ | ~~Zeabur deployment + CI/CD~~ | ✅ **done 2026-05-29 (S11)** | 已改 GitHub auto-deploy（root Dockerfile + nginx，push 自動重部署）。自訂網域 `mini-tw-info.itsmigu.com`。見 B074 / DEPLOYMENT.md §九 |
 | B018 | P3 | Sentry / GA / uptime monitor | 待開工 | docs/09 §T |
 | B019 | P2 | `hook_rules` template engine | 待開工 | manifest 內 hook_rules 目前是 hardcoded，要寫 evaluator |
 | B020 | P3 | `crosslink` InsightCard 元件 | 待開工 | water.yaml crosslink 規格已有，沒對應 UI |
@@ -66,7 +66,7 @@
 | B055 | P2 | **reservoir vs 上月同期 wrapper RPC** | 待開工 | S2Storage `vs 上月對比資料累積中` footnote。realtime.reservoir_status 30 天 snapshot 已有資料但 schema 未 expose；需寫 `public.get_reservoir_storage_by_region_at_time(p_at TIMESTAMP)` wrapper migration。約 1 hr |
 | B056 | P3 | **drought_alert 過去 5 年 timeline** | 待開工 | S3Drought 顯示「資料累積中」占位，等 collector 累積 30+ 筆 history（預計 6 個月）後實作真正 timeline 繪製 |
 | B057 | P2 | **淹水 200/500mm 情境接通** | 待開工 | S6Disaster 切換 200/350/500mm，目前只 350 接 useWaterKpis.flood。要嘛改 hook 並行 fetch 3 個情境，要嘛動態 refetch |
-| B058 | P3 | **用水結構 sector 拆解資料** | 待開工 | S5Usage「用水結構」目前 mock + badge「結構估算」。datagov 可能有民生/工業/農業細分，未確認；現用 DB 無 sector 欄位 |
+| B058 | P3 | **用水結構 sector 拆解資料** | 待開工 | S5Usage「用水結構」2026-05-29 (S11) **已改 PendingDataCard「待後續階段補上」**（移除假比例）。接通需 datagov 民生/工業/農業細分（現 DB 無 sector 欄位），有源即填 |
 | B059 | **P0** | **ViewB 阻塞: 縣市→供水區/水情區/台水分區 3 mapping table** | 待開工 | gis-platform migration ~1.5 day 手抄。`reference.county_supply_region` / `county_drought_region` / `county_twc_region`。不建 ViewB 章 2/3/4 都做不出來。詳 designs/v04/coverage-audit.md Part 2 P0 |
 | B060 | **P0** | **drought_alert collector 補 4 區（北水/桃竹/南水/高屏）** | 待開工 | data-collectors 0.5 day。目前只跑台中/新竹 2/6 區。drought_alert_current 全表 2 列 → 章 3 燈號全國視覺空 |
 | B061 | **P0** | **water_quality_stations county 欄位 normalize** | 待開工 | gis-platform migration 0.5 day。雙寫（南投/南投縣 / 台北/臺北市）+ 加 county_id 欄位用 county_aliases LEFT JOIN。章 1 水質站數 normalize 前不能信 |
@@ -82,7 +82,7 @@
 | B071 | P2 | **fire.disaster_unique_recent RPC（server-side dedup-by-name）** | 待開工 | 取代前端 fetch 2000 + dedup。寫 RPC GROUP BY disaster_name 直接返 N 個 unique event。約 1 hr，sm payload 省 bandwidth |
 | B072 | P3 | **fire.forest_fire_risk_snapshot 補 county_id 欄位** | 待開工 | gis-platform migration 加 county_id（從 region/lat/lng 推算 ST_Contains）。讓 ViewBFire OthersTab 顯示「該縣市山林高風險點 X 處」（目前完全空）。約 2 hr |
 | B073 | **P1** | **套用 gis-platform migration 124（RPC 硬上限）** | 待開工 | `124_rpc_hard_limits.sql` 只產未套未 commit。fire.list_incidents + get_road_events_current 的 `LIMIT p_limit`→`LEAST(...,10000)`。套用前 psql `pg_get_functiondef` 確認簽名。CROSS_REPO pending |
-| B074 | P2 | **debug Zeabur Dockerfile build FAILED → 改 Git deploy** | 待開工 | 目前是 dist 靜態（PREBUILT_V2，cache 用 Zeabur 預設）。修好 Dockerfile build 改 Git deploy + Root Directory=frontend/ → push 自動重部署 + nginx immutable 長快取。詳 INCIDENTS 2026-05-29 + DEPLOYMENT.md |
+| ~~B074~~ | ~~P2~~ | ~~debug Zeabur Dockerfile build FAILED → 改 Git deploy~~ | ✅ **done 2026-05-29 (S11)** | 根因 = 缺 @types/node（build fail）+ zbpack 從根誤判 static。修法：@types/node + **repo 根 Dockerfile**（強制 docker plan）+ service restart。已改 GitHub auto-deploy（push 自動重部署 + nginx 長快取）。詳 DEPLOYMENT.md §九 |
 | B075 | P2 | **資料分級實際切換 C 級 query → snapshot** | 待開工 | 腳本已建 `frontend/scripts/snapshot-static-data.ts`，但 table 名稱是推定的，首次跑前需對照實際 query 校正；再改 hook 雙層（先讀 snapshot 逾期才 fetch）。見 docs/DATA_TIERING.md |
 
 ---
@@ -91,6 +91,7 @@
 
 | 日期 | ID | 摘要 |
 |---|---|---|
+| 2026-05-29 | B074/B017 (S11) | **GitHub 部署 404 修復 + 大量 UX/SSOT 微調** — 部署：@types/node + repo 根 Dockerfile 強制 docker plan + service restart 上線（DEPLOYMENT.md §九）。rail：對齊設計 chat9（系統 tabs/可展開排名/各系統車次 bar）+ 補回 32 台鐵大站（跨 repo ETL，503→535）+ 縣市點入保留地圖車站 + stat-tile 對齊 + cache key v2。SSOT：老化指數/出生死亡接 demographics 真實、地圖染色接真實。mock→PendingDataCard（rail 車次/漁業類別/航線/鄉鎮人口/用水結構/縣市出生死亡趨勢）。其他：消防預設只開火災熱點、breadcrumb 去 emoji、分頁順序、footer 連結、favicon、長條圖去字。13+ commits push |
 | 2026-05-29 | B010/B017 (S10) | **首次部署上線 Zeabur** https://mini-tw-info.zeabur.app — egress 收斂（5 query 精選欄位+硬上界）+ 前端 cache 層（lib/cache.ts + 11 hooks）+ 部署 infra（Dockerfile/nginx/.dockerignore/DEPLOYMENT.md）+ 資料分級腳本 + rail ridership 降冪修。Mapbox token 已 URL restrict。21 commits 全 push。採 dist 靜態（PREBUILT_V2）|
 | 2026-05-16 | B041/B043/B044 (S9) | **Fire 主題 ViewA + ViewB 去 mock 化** — gis-platform migration 109 14 wrapper view + frontend 10 commits（queries +683 / useFireData rewrite Promise.allSettled / 新 useFireCountyData hook / S1-S4 sections rewrite / ViewBFire merged{} + Response/Others tabs / App.tsx 3 fixes / radar national avg 接真實）。火災財損 / 起火處所 / EMS / 災變 timeline / 避難所 / 分隊密度 / 山林高風險全接通，含 footnote 揭露稀疏資料。仍 placeholder：急救醫院、5min 圈外、圈外村里（其他 session 已建 ETL/MV → B066-B068）|
 | 2026-05-16 | B047 (S7) | **Fire KPI 爆炸視圖** — FireKpiExplode.tsx ~260 行 + FireStackedBar.tsx ~100 行 + S1Incidents wire + globals.css 130 行。fire S1「年度火災件數」KPI 點擊就地展開（grid-column 1/-1），4 scale × 4 dim = 16 組合切換 + 圖型自動 + 6 個缺資料組合 inline reason。Codex 抓 1 blocker + 2 nice-to-have 全修；agent-browser 互動發現 KPICard bubble bug（codex 盲區）。User 拍板收斂：只 1 KPI / 不 drill-down / inline 展開 |
