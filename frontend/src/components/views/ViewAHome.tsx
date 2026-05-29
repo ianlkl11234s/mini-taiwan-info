@@ -99,7 +99,6 @@ function H1Admin({ N }: { N: ViewModel }) {
     { ix: "L4", name: "鄰",       value: N.neighborhoods_total, unit: "個", sub: "戶政最小單元" },
   ];
 
-  const labels = ["縣市", "÷ 鄉鎮市區", "÷ 村里", "÷ 鄰"];
 
   return (
     <div className="cat-block">
@@ -117,9 +116,8 @@ function H1Admin({ N }: { N: ViewModel }) {
               <span className="ix">{L.ix}</span>
               <span>{L.name}</span>
             </div>
-            <div className="admin-tree-bar" style={{ width: `${widthOf(L.value)}%` }}>
-              {labels[i]}
-            </div>
+            <div className="admin-tree-bar" style={{ width: `${widthOf(L.value)}%` }} />
+
             <div className="num">
               {fmt.num(L.value)}<span className="unit">{L.unit}</span>
               <span className="sub" style={{ display: "block", width: "100%", marginTop: 1 }}>{L.sub}</span>
