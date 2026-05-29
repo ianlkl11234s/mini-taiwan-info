@@ -5010,3 +5010,374 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   }
   .section-head > div:first-child { width: 100%; }
 }
+
+/* ============================================================
+   ViewB demographics / rail / maritime
+   verbatim 移植自 design styles.css 5440-5972
+   ============================================================ */
+
+/* ---------- Population : age radar 對比 rows ---------- */
+.age-cmp-rows { display: grid; gap: 6px; }
+.age-cmp-row {
+  display: grid;
+  grid-template-columns: 1fr 64px 84px 64px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+.age-cmp-row .lbl { font-weight: 600; color: var(--text); }
+.age-cmp-row .cv  { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent-deep); }
+.age-cmp-row .nv  { font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.age-cmp-row .diff {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.age-cmp-row .diff.pos { color: #B91C1C; }
+.age-cmp-row .diff.neg { color: #047857; }
+
+/* ---------- Population : 自然 vs 社會 增減長條 ---------- */
+.pop-flow-bars { display: grid; gap: 10px; }
+.pfb-row {
+  display: grid;
+  grid-template-columns: 92px 1fr 96px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+}
+.pfb-row .pfb-lbl { font-weight: 600; color: var(--text); }
+.pfb-axis {
+  position: relative;
+  height: 22px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pfb-axis .pfb-center {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border-strong);
+}
+.pfb-bar {
+  position: absolute;
+  top: 2px; bottom: 2px;
+  border-radius: 3px;
+  transition: width 0.4s var(--ease-out);
+}
+.pfb-bar.pos { border-radius: 0 3px 3px 0; }
+.pfb-bar.neg { border-radius: 3px 0 0 3px; }
+.pfb-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.pfb-val.pos { color: #047857; }
+.pfb-val.neg { color: #B91C1C; }
+
+/* ---------- Population : 鄉鎮人口密度 ranking ---------- */
+.village-ranking { display: grid; gap: 5px; }
+.vr-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 1.4fr 110px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+.vr-row:hover { background: var(--surface-2); }
+.vr-rank {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: center;
+}
+.vr-name {
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vr-bar { height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.vr-bar > div { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s var(--ease-out); }
+.vr-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
+
+/* ---------- County fact tile · 警示變體 ---------- */
+.county-fact-tile.is-alarm {
+  border-color: color-mix(in srgb, #B91C1C 35%, var(--border));
+}
+.county-fact-tile.is-alarm::before {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.07) 0%, transparent 70%);
+}
+
+/* ---------- Rail : 系統徽章 strip ---------- */
+.rail-sys-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 12px;
+}
+.rail-sys-badges .rsb-lbl {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+.rail-sys-badges .rsb {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  color: white;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+.rail-sys-badges .rsb-name {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 11.5px;
+  letter-spacing: 0;
+  opacity: 0.92;
+}
+.rail-sys-badges .rsb-empty { color: var(--text-tertiary); font-size: 12px; padding: 4px 8px; }
+.rail-sys-badges .rsb-cross {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-weight: 500;
+}
+
+/* ---------- Rail : 各系統車次橫條（縣市別）---------- */
+.rail-cnty-sys { display: grid; gap: 6px; }
+.rcs-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 1.6fr 110px;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+.rcs-sw {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  color: white;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.rcs-lbl { font-weight: 500; color: var(--text); }
+.rcs-bar { height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.rcs-bar > div { height: 100%; border-radius: 4px; transition: width 0.4s var(--ease-out); }
+.rcs-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
+
+/* ---------- Rail : alt mode grid（離島 fallback）---------- */
+.alt-mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.alt-mode {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+.alt-mode .am-ico {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.alt-mode .am-t { font-weight: 600; font-size: 13px; color: var(--text); }
+.alt-mode .am-d { font-size: 11.5px; color: var(--text-secondary); margin-top: 1px; }
+
+/* ---------- Maritime : 圖層 grid ---------- */
+.mar-layer-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.mar-layer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.mar-layer.disabled { opacity: 0.55; }
+.mar-layer .ml-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.mar-layer .ml-body { flex: 1; min-width: 0; }
+.mar-layer .ml-t { font-size: 13px; font-weight: 600; color: var(--text); }
+.mar-layer .ml-d { font-size: 11.5px; color: var(--text-secondary); }
+.mar-layer .ml-state {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+.mar-layer .ml-state.on   { background: var(--positive-soft); color: #047857; }
+.mar-layer .ml-state.off  { background: var(--surface-3); color: var(--text-tertiary); }
+.mar-layer .ml-state.miss { background: var(--warning-soft); color: #B45309; }
+
+/* ---------- Maritime : 港口分類條 ---------- */
+.mar-class-bars { display: grid; gap: 6px; }
+.mcb-row {
+  display: grid;
+  grid-template-columns: 12px 1fr 1.6fr 60px 44px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.mcb-sw { width: 12px; height: 12px; border-radius: 3px; }
+.mcb-lbl { font-weight: 500; color: var(--text); }
+.mcb-bar { height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.mcb-bar > div { height: 100%; border-radius: 4px; transition: width 0.4s var(--ease-out); }
+.mcb-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.mcb-pct { text-align: right; font-variant-numeric: tabular-nums; font-size: 11px; }
+
+/* ---------- Maritime : 港口點位 group ---------- */
+.mar-port-groups { display: grid; gap: 12px; }
+.mpg { border-top: 1px dashed var(--border); padding-top: 10px; }
+.mpg:first-child { border-top: none; padding-top: 0; }
+.mpg-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.mpg-sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.mpg-dots { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.mpg-dot {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+.mpg-more {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+
+/* ---------- Maritime : 航線 list ---------- */
+.mar-route-list {
+  display: grid;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.mrl-row {
+  display: grid;
+  grid-template-columns: 1.4fr 24px 1.4fr 1.2fr 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.mrl-row:last-child { border-bottom: none; }
+.mrl-row.head {
+  background: var(--surface-2);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.mrl-from, .mrl-to {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mrl-arrow { color: var(--accent); font-size: 16px; text-align: center; }
+.mrl-freq { font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.mrl-sea {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-align: center;
+  width: fit-content;
+}
+.mrl-sea.year     { background: var(--positive-soft); color: #047857; }
+.mrl-sea.seasonal { background: var(--warning-soft); color: #B45309; }
+
+/* ---------- Shared : 排名 4-cards grid ---------- */
+.rank-multi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.rmg-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+}
+.rmg-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+.rmg-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.rmg-rank {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  background: var(--accent-soft);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+}
+.rmg-rank-num { font-size: 14px; font-weight: 700; color: var(--accent-deep); font-variant-numeric: tabular-nums; }
+.rmg-rank-tot { font-size: 10.5px; color: var(--accent-deep); opacity: 0.7; }
+.rmg-val { display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px; }
+.rmg-val .num {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1.1;
+}
+.rmg-val .unit { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.rmg-foot {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px;
+}
+
+/* ---------- ViewB shared : Responsive ---------- */
+@media (max-width: 720px) {
+  .rank-multi-grid { grid-template-columns: 1fr; }
+  .mar-layer-grid  { grid-template-columns: 1fr; }
+  .alt-mode-grid   { grid-template-columns: 1fr; }
+  .age-cmp-row { grid-template-columns: 1fr 56px 60px; }
+  .age-cmp-row .nv { display: none; }
+}
