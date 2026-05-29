@@ -336,3 +336,19 @@ Reference: Session 9 fire 主題去 mock 化 — A 類缺資料處置（user 拍
 **同時人數 ≠ 配額軸**：app 純 REST（走連線池）、**無 realtime websocket**，100/1000 人同時不會因配額壞；配額一律整月累計。
 
 Reference: 2026-05-26 上線前盤點，實測 `curl --compressed`；坑見 INCIDENTS 2026-05-26「未壓縮估 egress」。
+
+### 2026-05-29: 公開部署 egress 防護三層 + Zeabur 部署選型
+
+**egress 防護三層**（公開儀錶板上線前必備，未來新主題沿用）：
+1. **前端 cache 層**：`lib/cache.ts` sessionStorage TTL 分級（LIVE 短 / 年度月度長）+ in-flight dedupe，切 tab 不重打 API。hooks 一律 `cachedFetch(key, ttl, fetcher)` 包裝，帶參數的 query 把影響結果的參數放進 key。
+2. **query 收斂**：SELECT 精選欄位（不 `select('*')`）+ 分頁硬上界（`while(from < MAX)`）+ 預設只抓最新年。**加上界時排序方向要對齊 consumer 需求**（要最新就 `ascending:false`，否則上界會截掉最新資料 — rail ridership 踩過）。
+3. **資料分級**：A 真 LIVE 才 runtime 打 API、B 半靜態長 cache、C 純靜態可 build 時固化 JSON snapshot（見 `docs/DATA_TIERING.md` + `frontend/scripts/snapshot-static-data.ts`）。
+
+> 真正會被打爆的是「無 cache + 無上限 + 全部 runtime」三者疊加。正常流量本來就在額度內（見上條費用量級），防的是流量暴增與爬蟲。
+
+**Zeabur 部署選型**（mini-taiwan-info 拍板，2026-05-29 實測）：
+- **direct deploy**（`zeabur deploy`）= 上傳預建 dist 當靜態站（PREBUILT_V2），cache 用 Zeabur 預設（gzip + ETag 重驗證）。**不會 build Dockerfile**。本 app query-string 路由（`/?view=...`）不需 path fallback，**靜態站夠用**，目前上線即此法。
+- **Git deploy + Dockerfile + Root Directory=frontend/** = 用 nginx 完整掌控 cache（assets immutable 長快取）+ push 自動重部署。Dockerfile 給 Vite 用必須 `ARG → ENV` 提升才讀得到 build 變數。屬日後優化（B074）。
+- redeploy SOP + 實際 project/service ID 見 `DEPLOYMENT.md`。
+
+Reference: Session 10 部署上線；坑見 INCIDENTS 2026-05-29「Zeabur direct deploy 不 build Dockerfile」。已同步全域 memory。

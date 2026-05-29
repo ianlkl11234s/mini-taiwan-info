@@ -620,3 +620,37 @@ User 一句話 task「依資料盤點結果，把可以換成真實資料的部�
 2. **B054 ViewAWater @800 響應式修補**（30min 純前端）
 3. **B042 後段補完**：fire.hydrants 其他 3 都欄位 mapping bug（taipei-gis pipeline 修）
 4. **開新主題 demographics**（design bundle handoff 第 3 次跑 PB-13）
+
+---
+
+## 2026-05-29 — Session 10：首次部署上線 + harness IO 不穩的應對
+
+本 session 從「資料迭代」轉「**部署上線**」。用 Workflow tool（15 agents）跑上線前強化（egress 收斂 + cache 層 + 部署 infra + 資料分級），再用 zeabur:* skills 一條龍部署。成果：https://mini-tw-info.zeabur.app 上線。
+
+### harness IO 不穩時用「寫檔+Read / git show / grep -c」取代直讀 stdout
+本 session harness 多次吞輸出 / 印重複行，數次被假輸出誤導：一度以為 `tsconfig.json` 被改壞、Dockerfile 有巢狀路徑 bug；最嚴重是 wrap-up Stage 5 有 4 個 memory Edit 靜默失敗但 commit script 照印 ✓（差點漏寫）。
+
+**教訓**：
+1. Edit 前用 **Read 工具**讀（非 Bash cat），否則 Edit 報 "File has not been read yet" 失敗。
+2. git 真相用 `git show HEAD:<file>` / `git check-ignore` / `grep -c`，別信被截斷的 status/cat 輸出。
+3. 關鍵輸出寫檔再 Read（`cmd > /tmp/x 2>&1; Read`）。
+4. **memory commit 後務必 grep -c 驗內容真的寫進去**，不信 script 的 ✓（本 session 真的踩到空 commit）。
+5. 並行 Bash 一個 exit≠0 cascade-cancel 整批 → 探測指令 `|| true`、別跟 Edit 混批。
+詳見 INCIDENTS 2026-05-29 兩條。
+
+### 部署型 session 的 wrap-up
+- 部署知識落在 INCIDENTS（Zeabur 坑）+ PRINCIPLES（egress 三層 + 部署選型）+ DEPLOYMENT.md（操作 SOP）+ 全域 memory（zeabur-deploy-gotcha）。運作 OK，但 wrap-up 事件分類表無「部署」類，可考慮補。
+- 首次觸發全域 memory 同步（Zeabur direct deploy 不 build Dockerfile，跨 GIS 應用層通用）。
+- **並行 session 警示**：本 session 進行中，另一終端在同 repo commit 了 6 個 feat/fix（maritime/rail 圖層、demographics 戶量等）。wrap-up 時 git log 混入非本 session commit 屬正常，不誤判為自己做的。
+
+### Harness 健康度（Session 10）
+- 重度新工具：**Workflow tool**（15 agents pre-launch）+ **zeabur:* skills**（auth/deploy/project-create/variables/domain/logs）。
+- PostToolUse typecheck hook：多次跑無誤。
+- BACKLOG ~118 行接近上限，下次務必清 P3。
+
+### 下一個 session 的合理開頭
+1. **套用 gis-platform migration 124**（RPC 硬上限，CROSS_REPO pending / B073）
+2. **debug Zeabur Dockerfile build → 改 Git deploy**（B074，auto-redeploy + nginx 長快取）
+3. **手機 <900px 版面**（B048/B054，公開後升 P1）
+4. **後端 FastAPI 部署**（B008，解 explode/TGOS 降級）
+5. fire 3 placeholder 對接（B066-B068）/ 水主題 P0（B059-B061）

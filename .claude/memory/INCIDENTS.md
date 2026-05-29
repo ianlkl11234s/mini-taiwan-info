@@ -569,6 +569,47 @@ Reference: Session 9 wrap-up Stage 1 跨 repo audit；taipei-gis-analytics commi
 
 ---
 
+## 2026-05-29 — Zeabur direct deploy 不會 build Dockerfile（部署選型踩坑）
+
+**現象**：從 `frontend/`（含 Dockerfile）跑 `npx zeabur deploy`，部署 plantype=docker **連兩次 FAILED**（`deployment list` 2 筆 FAILED docker）。一度以為 Dockerfile 有 bug。
+
+**根因**：
+1. `zeabur deploy`（direct deploy）= 上傳本機目錄當 **PREBUILT_V2 靜態 serve，根本不跑 Dockerfile**。Dockerfile build 只在 Git deploy（或被偵測成 docker plantype）走，而 docker build 在小台 agent_test(LINODE) server 上 FAILED。
+2. 另一真 bug：workflow agent 寫的 Dockerfile 只 `ARG VITE_*` 沒 `ENV VITE_x=$VITE_x` 提升 → 即使有 build，Vite 也讀不到變數，baked 成空字串 → 白頁/連不到 Supabase（已修 ARG→ENV）。
+
+**對策 / 修法**：本機 `pnpm build` 出 dist/（用 `.env.local` baked 真實值）→ 從 `frontend/dist/` 跑 `zeabur deploy --service-id` 當靜態站 → 一次成功上線。本 app 是 query-string 路由（`/?view=...`）不需 path fallback，靜態站完全夠用。
+
+**教訓**：
+1. 部署前先確認平台 build 機制：要用 Dockerfile 就走 **Git deploy + 設 Root Directory=frontend/**；direct deploy 只 serve 預建檔。
+2. Dockerfile 給 Vite 用：`ARG` 一定要轉 `ENV` 才會進 build 環境。
+3. rework：2 次 FAILED build + 改部署方式 + 重寫 Dockerfile。詳見 `DEPLOYMENT.md`「實際部署紀錄」+ B074。
+
+Reference: Session 10；Zeabur project `6a1946657e81687840b6d363` / service `6a194b4718463d8ee2669f6e`。已同步全域 memory（跨 GIS 應用層專案通用）。
+
+---
+
+## 2026-05-29 — harness IO 不穩吐假輸出，假 commit ✓ 差點漏寫 4 個 memory 檔
+
+**現象**：本 session（部署 + wrap-up）harness 多次吞輸出 / 印重複行 / 假成功。具體三次：
+1. 讀 `tsconfig.json` 看到垃圾 reference，以為被改壞（`git show HEAD` 證實原檔無損）。
+2. 讀 Dockerfile 看到巢狀路徑 + 重複區塊，以為有 bug（實為讀取雜訊；但 ARG→ENV 是真 bug）。
+3. wrap-up Stage 5：4 個 memory 檔（STATUS/INCIDENTS/REFLECTIONS/PRINCIPLES）的 Edit 報 "File has not been read yet" **失敗**，但同批 Bash commit script 照印 `✓` → 產生空 commit，內容根本沒寫進去。靠 `grep -c` 內容驗證才抓到。
+
+**根因**：harness IO 間歇不穩 + 我「只用 Bash cat/sed 讀檔」未滿足 Edit 工具的「Read 工具讀過」前置 → Edit 靜默失敗；commit script 仍因檔案有其他既存變更而 commit 出不含預期內容的 diff。
+
+**對策**：
+1. Edit 前一定用 **Read 工具**（非 Bash cat）讀目標檔，否則 Edit 失敗。
+2. git 狀態用權威指令驗：`git show HEAD:<file>` / `git check-ignore` / `grep -c <新內容> <file>`，別信被截斷的 status/cat。
+3. 關鍵輸出**寫檔再 Read**（`cmd > /tmp/x 2>&1; Read`）。
+4. **commit 後務必 `grep -c` 驗每個 memory 檔真的含新內容**，別信 script 的 ✓。
+5. 並行 Bash block 一個 exit≠0 會 cascade-cancel 整批 → 探測指令加 `|| true`，別跟 Edit 混批。
+
+**教訓**：assistant 自己也會被假輸出騙——這正是同 session 寫進 REFLECTIONS 的教訓的活教材。「看起來成功」≠ 成功，狀態改動要第二來源確認。
+
+Reference: Session 10 wrap-up；本條目是重做後才補上。
+
+---
+
 ## (template, 之後用)
 
 ## YYYY-MM-DD 標題

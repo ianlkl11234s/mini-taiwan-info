@@ -20,6 +20,28 @@ theme:
 overview:
   default_choropleth_metric: aging_index
 
+  color_metrics:
+    - id: aging_index
+      label: 老化指數
+      unit: ""
+      ramp_direction: default
+      domain: [40, 300]
+    - id: area_km2
+      label: 面積
+      unit: km²
+      ramp_direction: default
+      domain: [30, 4700]
+    - id: population
+      label: 總人口
+      unit: 人
+      ramp_direction: default
+      domain: [13000, 4030000]
+    - id: population_density
+      label: 人口密度
+      unit: 人/km²
+      ramp_direction: default
+      domain: [20, 10000]
+
   kpis:
     - id: national_population
       label: 全國人口

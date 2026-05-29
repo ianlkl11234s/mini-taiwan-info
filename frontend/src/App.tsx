@@ -154,7 +154,8 @@ export default function App() {
   const useFireRealData = theme === "fire";
 
   // 三新主題 Supabase 資料（依 theme enable，省往返）
-  const demographics = useDemographicsData({ enabled: theme === "demographics" });
+  // home-basics 也需要 demographics 資料（SSOT：aging history + 地圖染色）
+  const demographics = useDemographicsData({ enabled: theme === "demographics" || theme === "home-basics" });
   const rail = useRailData({ enabled: theme === "rail" });
   const maritime = useMaritimeData({ enabled: theme === "maritime" });
 
@@ -182,6 +183,15 @@ export default function App() {
 
   // 無染色模式：metric === METRIC_NONE → 不算 metricValues、MapView 渲染灰底
   const neutralChoropleth = metric === METRIC_NONE;
+
+  // demographics / home-basics 縣市聚合 Map（O(1) 查詢用）
+  const demoAggByCode3 = useMemo(() => {
+    const m = new Map<CountyCode3, (typeof demographics.countyAggregates)[0]>();
+    for (const a of demographics.countyAggregates) m.set(a.code3 as CountyCode3, a);
+    return m;
+  }, [demographics.countyAggregates]);
+  const useDemoRealData =
+    (theme === "demographics" || theme === "home-basics") && demoAggByCode3.size > 0;
 
   // 計算 22 縣市 metric values — 真實資料優先，缺則 mock
   const metricValues = useMemo(() => {
@@ -253,22 +263,32 @@ export default function App() {
         if (metric === "fire_density_per_wan") {
           value = fireDensityByCode3.get(code) ?? null;
         } else if (metric === "station_density_per_wan") {
-          // 真實 from fire.stations groupBy county_id
           value = stationsPerWanByCode3.get(code) ?? null;
         } else if (metric === "out_of_5min_pct") {
-          // 仍 mock — 需 Sprint 3 PostGIS ST_Buffer × demographics
           value = mock?.outOf5MinPct ?? null;
         } else if (metric === "hydrant_density_per_km2") {
-          // 真實 — 目前只高雄有資料；其他縣市保持 null（地圖 gray）
           value = hydrantsByCode3.get(code) ?? null;
         }
+      } else if (useDemoRealData) {
+        // demographics / home-basics — 真實縣市聚合資料
+        const agg = demoAggByCode3.get(code);
+        if (agg) {
+          if (metric === "aging_index")        value = agg.agingIndex;
+          else if (metric === "population")    value = agg.pop;
+          else if (metric === "population_density") value = agg.density;
+          else if (metric === "growth_10y_pct") value = agg.growth10y;
+          else if (metric === "area_km2") {
+            const c = byCode3[code];
+            value = c?.area_km2 ?? null;
+          }
+        }
       }
-      // fallback to mock (water mock; fire 主題若 metric 無資料則保持 null)
-      if (value == null && !useFireRealData) value = getMockMetricValue(metric, code);
+      // fallback to mock (water mock; fire / demographics 無資料則保持 null)
+      if (value == null && !useFireRealData && !useDemoRealData) value = getMockMetricValue(metric, code);
       out[code] = value;
     }
     return out;
-  }, [metric, neutralChoropleth, useRealData, useFireRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates]);
+  }, [metric, neutralChoropleth, useRealData, useFireRealData, useDemoRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates, demoAggByCode3]);
 
   // Phase 0b+ A-2: 點位圖層 toggle state（目前只 reservoir 有資料，其他 placeholder）
   const [pointLayersOn, setPointLayersOn] = useState<Record<string, boolean>>({
@@ -590,6 +610,7 @@ export default function App() {
                 <ViewAHome
                   selectedCounty={county}
                   onCountyClick={goCity}
+                  demographics={demographics}
                 />
               ) : theme === "demographics" ? (
                 <ViewADemographics

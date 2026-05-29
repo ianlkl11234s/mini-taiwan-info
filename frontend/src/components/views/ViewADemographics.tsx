@@ -70,6 +70,9 @@ function S1Base({ data, selectedCounty }: Props) {
             較民國 112 約 <b style={{ color: "#B91C1C" }}>{fmt.signed(S.totalPopDelta, 0)}</b>
             {" "}· 10 年僅減 {fmt.signed(S.growth10y, 1)}%，但 <b style={{ color: "var(--accent-deep)" }}>分布劇烈遷移</b>
           </div>
+          <div className="muted" style={{ fontSize: 10.5, marginTop: 4 }}>
+            ※ 此處為年度戶籍統計（2024 底）；基礎統計頁顯示最新月度登記人口
+          </div>
         </div>
         <div className="bc-meta">
           <div className="row gap-8" style={{ marginBottom: 6 }}>
@@ -174,7 +177,7 @@ function S1Base({ data, selectedCounty }: Props) {
           <div>
             <div className="section-title">
               <span className="pre">DENSITY</span>
-              人口密度 · 都市 vs 偏鄉
+              人口密度 · 都市 vs 鄉村
             </div>
             <div className="section-subtitle">
               {denseRank[0]?.name} <b>{fmt.num(denseRank[0]?.value ?? 0)}</b> 人/km² 是

@@ -18,20 +18,21 @@ import { useNationalBasics } from "@/hooks/useNationalBasics";
 import { WaterCatHeader as CatHeader } from "@/components/water/WaterCatHeader";
 import { TrendChart } from "@/components/charts/TrendChart";
 import {
-  HOME_BY_COUNTY,
-  AGING_HISTORY,
   BIRTH_DEATH_HISTORY,
   DENSITY_COMPARE,
 } from "@/lib/mock-home";
+import type { DemographicsDataState } from "@/hooks/useDemographicsData";
 
 type ViewModel = ReturnType<typeof useNationalBasics>["data"];
 
 interface Props {
   selectedCounty?: CountyCode3 | null;
   onCountyClick?: (code: CountyCode3) => void;
+  /** 從 App.tsx 傳入的真實人口資料（SSOT：老化指數歷年 + 22 縣市 ranking） */
+  demographics?: DemographicsDataState;
 }
 
-export function ViewAHome({ selectedCounty }: Props) {
+export function ViewAHome({ selectedCounty, demographics }: Props) {
   const { data, loading, error } = useNationalBasics();
 
   // 全 hook hardcode INITIAL 就有資料，loading/error 都不阻擋畫面，只是 badge 提示
@@ -41,7 +42,7 @@ export function ViewAHome({ selectedCounty }: Props) {
       <H1Admin N={data} />
       <H2Geography N={data} />
       <H3Population N={data} />
-      <H4Age N={data} selectedCounty={selectedCounty ?? null} />
+      <H4Age N={data} selectedCounty={selectedCounty ?? null} demographics={demographics} />
       <H5Dynamics N={data} />
 
       <DataSourceBadge
@@ -162,7 +163,7 @@ function H2Geography({ N }: { N: ViewModel }) {
         <div className="territory-visual">
           <div
             className="territory-block main"
-            style={{ minHeight: 100, padding: "14px 16px" }}
+            style={{ flex: "1 1 auto", minHeight: 120, padding: "14px 16px" }}
           >
             <div className="tb-label">本島</div>
             <div className="tb-val">{fmt.num(N.main_island_km2)}<span className="unit">km²</span></div>
@@ -170,7 +171,7 @@ function H2Geography({ N }: { N: ViewModel }) {
           </div>
           <div
             className="territory-block out"
-            style={{ minHeight: 60, padding: "12px 16px" }}
+            style={{ flex: "0 0 auto", padding: "12px 16px" }}
           >
             <div className="tb-label">離島</div>
             <div className="tb-val">{fmt.num(N.offshore_islands_km2, 1)}<span className="unit">km²</span></div>
@@ -279,19 +280,28 @@ function H3Population({ N }: { N: ViewModel }) {
 /* ──────────────────────────────────────────────
    H4 · 年齡結構（金字塔 + 老化指數 trend + 22 縣市 ranking）
 ─────────────────────────────────────────────── */
-function H4Age({ N, selectedCounty }: { N: ViewModel; selectedCounty: CountyCode3 | null }) {
+function H4Age({ N, selectedCounty, demographics }: {
+  N: ViewModel;
+  selectedCounty: CountyCode3 | null;
+  demographics?: DemographicsDataState;
+}) {
   const max = Math.max(N.pct_0_14, N.pct_15_64, N.pct_65_plus);
 
-  // 22 縣市老化指數 ranking（mock）
-  const agingAll = COUNTIES.map((c) => ({
-    code: c.code3,
-    name: c.name_zh,
-    value: HOME_BY_COUNTY[c.code3]?.agingIndex ?? 0,
-  })).sort((a, b) => b.value - a.value);
+  // 22 縣市老化指數 ranking：優先用真實 demographics.countyAggregates，fallback mock
+  const agingAll = (
+    demographics && demographics.countyAggregates.length > 0
+      ? demographics.countyAggregates.map((c) => ({
+          code: c.code3,
+          name: c.name,
+          value: c.agingIndex,
+        }))
+      : COUNTIES.map((c) => ({ code: c.code3, name: c.name_zh, value: 0 }))
+  ).sort((a, b) => b.value - a.value);
 
-  const ah = AGING_HISTORY;
-  // crossIdx reserved for future use
-  // const crossIdx = ah.findIndex((d) => d.year === 2017);
+  // 老化指數歷年：優先用真實 demographics.agingHistory（SSOT），fallback mock
+  const ah = demographics && demographics.agingHistory.length > 0
+    ? demographics.agingHistory
+    : [];
   const topVal = agingAll[0]?.value ?? 1;
   const bottomVal = agingAll[agingAll.length - 1]?.value ?? 1;
   const ratio = (topVal / bottomVal).toFixed(1);
@@ -387,26 +397,34 @@ function H4Age({ N, selectedCounty }: { N: ViewModel; selectedCounty: CountyCode
       </div>
 
       {/* 老化指數歷年趨勢 */}
-      <div className="section" style={{ marginTop: 14 }}>
-        <div className="section-head">
-          <div>
-            <div className="section-title">
-              <span className="pre">TREND</span>
-              老化指數歷年（1994–2024）
+      {ah.length > 0 && (() => {
+        const yMin = Math.floor(Math.min(...ah.map((d) => d.value)) / 10) * 10 - 5;
+        const yMax = Math.ceil(Math.max(...ah.map((d) => d.value)) / 10) * 10 + 5;
+        const firstYear = ah[0]?.year;
+        const lastYear = ah.at(-1)?.year;
+        return (
+          <div className="section" style={{ marginTop: 14 }}>
+            <div className="section-head">
+              <div>
+                <div className="section-title">
+                  <span className="pre">TREND</span>
+                  老化指數歷年（{firstYear}–{lastYear}）
+                </div>
+                <div className="section-subtitle">{firstYear}–{lastYear} 老化指數持續攀升</div>
+              </div>
             </div>
-            <div className="section-subtitle">1994–2024 老化指數持續攀升</div>
+            <TrendChart
+              series={[{ name: "老化指數", color: "var(--accent)", data: ah.map((d) => ({ x: d.year, y: d.value })) }]}
+              xLabels={ah.map((d) => d.year.toString())}
+              yMin={yMin}
+              yMax={yMax}
+              height={180}
+              showLegend={false}
+              annotations={[]}
+            />
           </div>
-        </div>
-        <TrendChart
-          series={[{ name: "老化指數", color: "var(--accent)", data: ah.map((d) => ({ x: d.year, y: d.value })) }]}
-          xLabels={ah.map((d) => d.year.toString())}
-          yMin={50}
-          yMax={185}
-          height={180}
-          showLegend={false}
-          annotations={[]}
-        />
-      </div>
+        );
+      })()}
 
       {/* 22 縣市老化指數 ranking */}
       <div className="section" style={{ marginTop: 14, marginBottom: 0 }}>
