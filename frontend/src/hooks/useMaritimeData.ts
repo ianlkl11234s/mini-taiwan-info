@@ -24,6 +24,7 @@ import {
   type TopCommPortRow,
   type CountyMaritimeAggregate,
 } from "@/lib/queries/maritime";
+import { cachedFetch, TTL_LONG } from "@/lib/cache";
 
 export interface MaritimeDataState {
   loading: boolean;
@@ -65,9 +66,9 @@ export function useMaritimeData(opts: { enabled?: boolean } = {}): MaritimeDataS
     let cancelled = false;
     (async () => {
       const results = await Promise.allSettled([
-        fetchPorts(),
-        fetchFisheryStats(),
-        fetchPortTraffic(),
+        cachedFetch("maritime:ports", TTL_LONG, fetchPorts),
+        cachedFetch("maritime:fishery_stats", TTL_LONG, fetchFisheryStats),
+        cachedFetch("maritime:port_traffic", TTL_LONG, fetchPortTraffic),
       ]);
       if (cancelled) return;
 

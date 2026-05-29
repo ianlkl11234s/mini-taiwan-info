@@ -10,6 +10,7 @@ import {
   type ReservoirStatusRow,
   type ReservoirTimeseriesRow,
 } from "@/lib/queries/water";
+import { cachedFetch, TTL_LIVE } from "@/lib/cache";
 
 export interface ReservoirDetail {
   loading: boolean;
@@ -46,7 +47,11 @@ export function useReservoirDetail(
     setState((s) => ({ ...s, loading: true, current }));
     (async () => {
       try {
-        const timeseries = await fetchReservoirTimeseries(reservoirId, from, to);
+        const timeseries = await cachedFetch(
+          `reservoir:timeseries:${reservoirId}`,
+          TTL_LIVE,
+          () => fetchReservoirTimeseries(reservoirId, from, to),
+        );
         if (cancelled) return;
         setState({ loading: false, error: null, current, timeseries });
       } catch (e) {

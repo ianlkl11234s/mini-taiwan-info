@@ -13,6 +13,7 @@ import {
   type WaterStationType,
   type WaterParam,
 } from "@/lib/queries/water";
+import { cachedFetch, TTL_SHORT } from "@/lib/cache";
 
 export interface WaterQualityState {
   loading: boolean;
@@ -41,10 +42,19 @@ export function useWaterQuality(
     (async () => {
       try {
         const type = stationType === "all" ? undefined : stationType;
+        const typeKey = type ?? "all";
         const [summary, stations] = await Promise.all([
-          fetchWaterQualityByCounty(param, 365, type),
+          cachedFetch(
+            `water_quality:by_county:${param}:${typeKey}`,
+            TTL_SHORT,
+            () => fetchWaterQualityByCounty(param, 365, type),
+          ),
           countyIdMoi
-            ? fetchWaterQualityStations(type, countyIdMoi)
+            ? cachedFetch(
+                `water_quality:stations:${typeKey}:${countyIdMoi}`,
+                TTL_SHORT,
+                () => fetchWaterQualityStations(type, countyIdMoi),
+              )
             : Promise.resolve([] as WaterQualityStation[]),
         ]);
         if (cancelled) return;

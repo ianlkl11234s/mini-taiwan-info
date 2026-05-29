@@ -54,6 +54,7 @@ import {
   type DetentionSummary,
   type SubsidenceCountyRow,
 } from "@/lib/queries/water-overview";
+import { cachedFetch, TTL_LIVE, TTL_SHORT, TTL_LONG } from "@/lib/cache";
 
 export interface WaterKpisState {
   loading: boolean;
@@ -119,23 +120,23 @@ export function useWaterKpis(): WaterKpisState {
         // fetchReservoirStatusLatest / fetchRainGaugeLatest 內部仍會 throw（向下相容
         // ViewA / ViewB 的舊行為），這層獨立 fallback。
         const results = await Promise.allSettled([
-          fetchReservoirStatusLatest(),          // 0
-          fetchRainGaugeLatest(),                // 1
-          fetchGovernanceSummary(),              // 2
-          fetchFloodPctByCounty(350, 24),        // 3
-          fetchWaterFacts(),                     // 4
-          fetchDroughtAlertCurrent(),            // 5
-          fetchDroughtAlertHistory(200),         // 6
-          fetchPipelineHistory(),                // 7
-          fetchCustomerHistory(),                // 8
-          fetchTreatmentPlantsLarge(),           // 9
-          fetchSewagePlantsCount(),              // 10
-          fetchLatestMonthSupply(),              // 11
-          fetchWaterLossRate(),                  // 12
-          fetchSewageNationalHistory(),          // 13
-          fetchDetentionSummary(),               // 14
-          fetchSubsidenceTopCounties(5),         // 15
-          fetchGroundwaterLatest(),              // 16
+          cachedFetch("water:reservoir", TTL_LIVE, fetchReservoirStatusLatest),                          // 0
+          cachedFetch("water:rain_gauge", TTL_LIVE, fetchRainGaugeLatest),                               // 1
+          cachedFetch("water:governance", TTL_LONG, fetchGovernanceSummary),                             // 2
+          cachedFetch("water:flood_pct:350:24", TTL_LONG, () => fetchFloodPctByCounty(350, 24)),         // 3
+          cachedFetch("water:facts", TTL_LONG, fetchWaterFacts),                                         // 4
+          cachedFetch("water:drought_alert_current", TTL_SHORT, fetchDroughtAlertCurrent),              // 5
+          cachedFetch("water:drought_alert_history:200", TTL_LONG, () => fetchDroughtAlertHistory(200)), // 6
+          cachedFetch("water:pipeline_history", TTL_LONG, fetchPipelineHistory),                         // 7
+          cachedFetch("water:customer_history", TTL_LONG, fetchCustomerHistory),                         // 8
+          cachedFetch("water:treatment_plants_large", TTL_LONG, fetchTreatmentPlantsLarge),             // 9
+          cachedFetch("water:sewage_plants_count", TTL_LONG, fetchSewagePlantsCount),                    // 10
+          cachedFetch("water:latest_month_supply", TTL_LONG, fetchLatestMonthSupply),                    // 11
+          cachedFetch("water:water_loss", TTL_SHORT, fetchWaterLossRate),                                // 12
+          cachedFetch("water:sewage_national_history", TTL_SHORT, fetchSewageNationalHistory),           // 13
+          cachedFetch("water:detention_summary", TTL_LONG, fetchDetentionSummary),                       // 14
+          cachedFetch("water:subsidence_top_counties:5", TTL_LONG, () => fetchSubsidenceTopCounties(5)), // 15
+          cachedFetch("water:groundwater", TTL_LIVE, fetchGroundwaterLatest),                            // 16
         ]);
         if (cancelled) return;
 

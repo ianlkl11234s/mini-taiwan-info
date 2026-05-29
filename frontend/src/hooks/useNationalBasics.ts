@@ -20,6 +20,7 @@ import {
   ADMINISTRATIVE,
   TERRITORY,
 } from "@/lib/national-basics";
+import { cachedFetch, TTL_LONG } from "@/lib/cache";
 
 type State = {
   data: NationalBasicsViewModel;
@@ -72,7 +73,7 @@ export function useNationalBasics(): State {
 
   useEffect(() => {
     let cancelled = false;
-    fetchNationalBasicsLatest()
+    cachedFetch("national_basics:latest", TTL_LONG, fetchNationalBasicsLatest)
       .then((data) => {
         if (cancelled) return;
         setState({ data, loading: false, error: null });

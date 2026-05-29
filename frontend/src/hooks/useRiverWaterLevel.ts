@@ -24,6 +24,7 @@ import {
 } from "@/lib/queries/river";
 import { normalizeCountyName, codeConvert } from "@/lib/counties";
 import type { CountyCode3 } from "@/lib/types";
+import { cachedFetch, TTL_LIVE } from "@/lib/cache";
 
 /**
  * 合併過的單站 — RPC latest reading + 站表警戒水位
@@ -90,8 +91,8 @@ export function useRiverWaterLevel(): RiverWaterLevelState {
     (async () => {
       try {
         const [latest, stations] = await Promise.all([
-          fetchRiverWaterLevelLatest(),
-          fetchRiverFlowStations(),
+          cachedFetch("river_water_level:latest", TTL_LIVE, fetchRiverWaterLevelLatest),
+          cachedFetch("river_water_level:flow_stations", TTL_LIVE, fetchRiverFlowStations),
         ]);
         if (cancelled) return;
 

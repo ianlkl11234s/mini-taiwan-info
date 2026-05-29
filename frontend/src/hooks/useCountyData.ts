@@ -15,6 +15,7 @@ import {
 import { getNearestCounty } from "@/lib/reverseGeocode";
 import type { CountyCode3 } from "@/lib/types";
 import { codeConvert } from "@/lib/counties";
+import { cachedFetch, TTL_LONG } from "@/lib/cache";
 
 export interface CountyData {
   loading: boolean;
@@ -70,8 +71,8 @@ export function useCountyData(
     (async () => {
       try {
         const [lpcdHistory, sewageHistory] = await Promise.all([
-          fetchLpcdHistory(idMoi),
-          fetchSewageHistory(idMoi),
+          cachedFetch(`county:lpcd_history:${idMoi}`, TTL_LONG, () => fetchLpcdHistory(idMoi)),
+          cachedFetch(`county:sewage_history:${idMoi}`, TTL_LONG, () => fetchSewageHistory(idMoi)),
         ]);
         if (cancelled) return;
         setState({

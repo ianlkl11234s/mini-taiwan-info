@@ -29,6 +29,7 @@ import {
   type MonthlyRow,
   type CountyRailAggregate,
 } from "@/lib/queries/rail";
+import { cachedFetch, TTL_LONG, TTL_SHORT } from "@/lib/cache";
 
 export interface RailDataState {
   loading: boolean;
@@ -78,10 +79,10 @@ export function useRailData(opts: { enabled?: boolean } = {}): RailDataState {
     let cancelled = false;
     (async () => {
       const results = await Promise.allSettled([
-        fetchStations(),
-        fetchLines(),
-        fetchStationDailyTrips(),
-        fetchRidership(),
+        cachedFetch("rail:stations", TTL_LONG, fetchStations),
+        cachedFetch("rail:lines", TTL_LONG, fetchLines),
+        cachedFetch("rail:station_daily_trips", TTL_SHORT, fetchStationDailyTrips),
+        cachedFetch("rail:ridership", TTL_LONG, fetchRidership),
       ]);
       if (cancelled) return;
 

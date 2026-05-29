@@ -30,6 +30,7 @@ import {
   type AgingHistoryRow,
   type CountyDemographics,
 } from "@/lib/queries/demographics";
+import { cachedFetch, TTL_LONG } from "@/lib/cache";
 
 export interface DemographicsDataState {
   loading: boolean;
@@ -74,9 +75,13 @@ export function useDemographicsData(opts: { enabled?: boolean } = {}): Demograph
     let cancelled = false;
     (async () => {
       const results = await Promise.allSettled([
-        fetchPopulationByAgeSex(),
-        fetchNationalTrend(),
-        fetchVillageYearly([BASE_YEAR_MINGUO, LATEST_YEAR_MINGUO]),
+        cachedFetch("demographics:population_by_age", TTL_LONG, fetchPopulationByAgeSex),
+        cachedFetch("demographics:national_trend", TTL_LONG, fetchNationalTrend),
+        cachedFetch(
+          `demographics:village_yearly:${BASE_YEAR_MINGUO}-${LATEST_YEAR_MINGUO}`,
+          TTL_LONG,
+          () => fetchVillageYearly([BASE_YEAR_MINGUO, LATEST_YEAR_MINGUO]),
+        ),
       ]);
       if (cancelled) return;
 

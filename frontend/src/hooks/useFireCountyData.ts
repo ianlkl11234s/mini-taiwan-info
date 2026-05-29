@@ -22,6 +22,7 @@ import {
   type EmergencyShelterRow,
   type DisasterIncidentRow,
 } from "@/lib/queries/fire";
+import { cachedFetch, TTL_LONG, TTL_SHORT } from "@/lib/cache";
 
 export interface FireCountyDataState {
   loading: boolean;
@@ -75,10 +76,10 @@ export function useFireCountyData(
 
     (async () => {
       const results = await Promise.allSettled([
-        fetchFireStations({ county: countyId }),                              // 0
-        fetchEmergencyShelters({ county: countyId, limit: 500 }),             // 1
-        fetchCountyHydrantCount(countyId),                                     // 2
-        fetchDisasterIncidents({ county: countyId, limit: disasterLimit, orderDesc: true }), // 3
+        cachedFetch(`fire:stations:${countyId}`, TTL_LONG, () => fetchFireStations({ county: countyId })),                              // 0
+        cachedFetch(`fire:shelters:${countyId}`, TTL_LONG, () => fetchEmergencyShelters({ county: countyId, limit: 500 })),             // 1
+        cachedFetch(`fire:hydrant_count:${countyId}`, TTL_LONG, () => fetchCountyHydrantCount(countyId)),                                // 2
+        cachedFetch(`fire:disasters:${countyId}:${disasterLimit}`, TTL_SHORT, () => fetchDisasterIncidents({ county: countyId, limit: disasterLimit, orderDesc: true })), // 3
       ]);
       if (cancelled) return;
 

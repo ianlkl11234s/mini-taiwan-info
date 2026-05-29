@@ -73,6 +73,7 @@ import {
   type IncidentsByDayOfYearRow,
   type IncidentRow,
 } from "@/lib/queries/fire";
+import { cachedFetch, TTL_LIVE, TTL_SHORT, TTL_LONG } from "@/lib/cache";
 
 export interface FireDataState {
   loading: boolean;
@@ -184,28 +185,28 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
     (async () => {
       // Promise.allSettled — 任一 query 失敗不拖垮其他（PB-13 / Session 8 教訓）
       const results = await Promise.allSettled([
-        fetchCauseTaxonomy(),                                 // 0
-        fetchIncidentsByCountyYear(),                         // 1
-        fetchIncidentsByCauseYear(),                          // 2
-        fetchIncidentsByCountyCauseYear(),                    // 3
-        fetchIncidentsByHourMonth(),                          // 4
-        fetchIncidentsByDayOfYear(113),                       // 5
-        listIncidents({ yearMin: 113, yearMax: 113, limit: 50000 }), // 6
+        cachedFetch("fire:cause_taxonomy", TTL_LONG, fetchCauseTaxonomy),                                 // 0
+        cachedFetch("fire:incidents_by_county_year", TTL_LONG, fetchIncidentsByCountyYear),               // 1
+        cachedFetch("fire:incidents_by_cause_year", TTL_LONG, fetchIncidentsByCauseYear),                 // 2
+        cachedFetch("fire:incidents_by_county_cause_year", TTL_LONG, fetchIncidentsByCountyCauseYear),    // 3
+        cachedFetch("fire:incidents_by_hour_month", TTL_LONG, fetchIncidentsByHourMonth),                 // 4
+        cachedFetch("fire:incidents_by_day_of_year:113", TTL_LIVE, () => fetchIncidentsByDayOfYear(113)), // 5
+        cachedFetch("fire:list_incidents:113", TTL_SHORT, () => listIncidents({ yearMin: 113, yearMax: 113, limit: 50000 })), // 6
         // ─── 新 ETL ───
-        fetchFireStations(),                                  // 7
-        fetchFireHydrantNationalCount(),                      // 8
-        fetchShelterNationalCount(),                          // 9
+        cachedFetch("fire:fire_stations", TTL_LONG, fetchFireStations),                                   // 7
+        cachedFetch("fire:hydrant_count", TTL_LONG, fetchFireHydrantNationalCount),                       // 8
+        cachedFetch("fire:shelter_count", TTL_LONG, fetchShelterNationalCount),                           // 9
         // 55k 筆 county-level，~15 unique disaster_name。多拉樣本確保 ViewA timeline dedupe 後仍能拿 6+ 種
-        fetchDisasterIncidents({ limit: 2000, orderDesc: true }), // 10
-        fetchForestFireRiskSummary(),                         // 11
-        fetchIncidentsBySeverity(),                           // 12
-        fetchIncidentsByLocationType(),                       // 13
-        fetchCasualtyProperty(),                              // 14
-        fetchPersonnelVehicles(),                             // 15
-        fetchEmsByCountyYear(),                               // 16
-        fetchEmergencyHospitals(),                            // 17 B066
-        fetchServiceCoverageByCounty(),                       // 18 B067
-        fetchUncoveredVillagesTop(),                          // 19 B068
+        cachedFetch("fire:disaster_incidents:2000", TTL_SHORT, () => fetchDisasterIncidents({ limit: 2000, orderDesc: true })), // 10
+        cachedFetch("fire:forest_risk_summary", TTL_LONG, fetchForestFireRiskSummary),                    // 11
+        cachedFetch("fire:incidents_by_severity", TTL_LONG, fetchIncidentsBySeverity),                    // 12
+        cachedFetch("fire:incidents_by_location_type", TTL_LONG, fetchIncidentsByLocationType),           // 13
+        cachedFetch("fire:casualty_property", TTL_LONG, fetchCasualtyProperty),                           // 14
+        cachedFetch("fire:personnel_vehicles", TTL_LONG, fetchPersonnelVehicles),                         // 15
+        cachedFetch("fire:ems_by_county_year", TTL_SHORT, fetchEmsByCountyYear),                          // 16
+        cachedFetch("fire:emergency_hospitals", TTL_LONG, fetchEmergencyHospitals),                       // 17 B066
+        cachedFetch("fire:service_coverage_by_county", TTL_LONG, fetchServiceCoverageByCounty),           // 18 B067
+        cachedFetch("fire:uncovered_villages_top", TTL_LONG, fetchUncoveredVillagesTop),                  // 19 B068
       ]);
       if (cancelled) return;
 
