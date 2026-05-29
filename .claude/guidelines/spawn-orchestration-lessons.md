@@ -50,6 +50,13 @@
 - 同指標多表：全國人口有 3 個數（戶籍 national_basics_latest 23,262,544 / 現住 age_sex 23,400,220 / counties.yaml 23,332,000）。
 - 對策：選單一 SSOT（戶籍月度）對外，其他標口徑+年份，差異註明非 bug。
 
+### H. cmux 命名觀景窗（實測限制，2026-05-30）
+- ❌ `cmux send --surface <id> "..."` 在本機 cmux 版本**一律報 `Surface is not a terminal`**（不論該 surface 有無 tty）→ 不可用。
+- ❌ `cmux new-surface`（空 terminal）建的 surface **lazy boot 無 tty**，無法事後 attach。
+- ✅ **可靠做法**：`cmux_view_tabs.sh "<NN-任務描述>" tabs <session>` → 用 `new-workspace --layout`（內嵌 `command: tmux attach`）一次建好。**workspace 名 = 任務描述** = user 要的「命名觀景窗」。
+- ⚠️ 代價：每 session 一個 workspace 會累積，cmux **無 close workspace cli** → 早上手動 GUI 關（Ctrl+⌘+] 切換，⌘W 關）。
+- `cmux_named_tab.sh`（動態加 tab）因上述限制**不可用**，保留檔案但勿用；改用 cmux_view_tabs.sh per session。
+
 ## 復用 checklist（下次直接照跑）
 1. 盤點本專案缺口（grep theme manifest 待補/mock/placeholder）
 2. spawn recon session（read-only 盤點）→ 人工 gate

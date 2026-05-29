@@ -27,11 +27,19 @@
 - recon_demog 已用到 **126**(township_village_count)+**127**(township_monthly)。
 - 後續 session 開工前主 agent 指派區段：fire=128-129 / maritime=130-133(含漁權/燈塔建表) / water=134-135 / rail=136。
 
-## 各 session 即時狀態（主 agent 從 board/*.md 彙整）
+## 各 session 狀態（全部完成，詳見 WAVE_REPORT.md）
 
-| session | 任務 | 狀態 | board 檔 |
-|---|---|---|---|
-| recon_demog | demographics expose + 村里數 + 鄉鎮排名 | 🟡 進行中(寫 mig127 + pipeline) | (本輪用 onboard_done.md，下輪改 board 制) |
+| session | 任務 | 狀態 |
+|---|---|---|
+| recon_demog | demographics 鄉鎮/村里 + 排名 | ✅ 295a546/cfc5730 |
+| front_demographics | 接金字塔/村里/鄉鎮排名 | ✅ 17ffd76 |
+| front_rail | 接縣市別車次 | ✅ bf4b73b |
+| front_ssot | 口徑標註+老化unit | ✅ 45f9198 |
+| etl_fire | 財損+起火處所(修2bug) | ✅ 7980ea3/068655a |
+| etl_maritime | 燈塔+漁權+港埠 | ✅ 7d7d4a9/27b7270 |
+| etl_water | LPCD+接管率 RPC | ✅ c8aeb41/45f5c88 |
+
+**整夜 7/7 完成 0 卡關。早上看 `.claude/WAVE_REPORT.md` 總結 + 待辦 + 待 push。**
 
 ## 執行決策（user 2026-05-29 拍板）
 
