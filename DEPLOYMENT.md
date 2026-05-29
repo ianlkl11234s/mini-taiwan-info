@@ -312,3 +312,66 @@ npx zeabur@latest deploy --project-id 6a1946657e81687840b6d363 \
 - [ ] **Mapbox token 設 URL restriction** → 限 `mini-tw-info.zeabur.app`（token 已 baked，restrict 後免重建）
 - [ ] 套用 `gis-platform/migrations/124_rpc_hard_limits.sql`（DB 層 RPC 硬上限）
 - [ ] 後端 FastAPI 未部署 → explode/TGOS 功能降級（`VITE_API_BASE_URL` 預設空字串，不影響 Supabase KPI）
+
+---
+
+## 九、改走 GitHub 部署的 404 事件報告（2026-05-29）
+
+> 背景：從「direct deploy 預建 dist（PREBUILT_V2 static）」改成「GitHub repo 自動部署」（需求：push 自動重新部署）。
+> 改完線上 `https://mini-tw-info.itsmigu.com/` 回 **HTTP 404**。以下為完整根因鏈與修法，供日後重現時對照。
+
+### 症狀
+- 整站 404（含首頁），Zeabur build 顯示「成功」但 serve 不到 app。
+
+### 根因鏈（三層疊加，缺一不可）
+
+**① zbpack 從 repo 根誤判為靜態站**
+GitHub 部署時 Zeabur（zbpack）掃描 **repo 根目錄**，但 app 在 `frontend/` 子目錄、根目錄無 `package.json`/`Dockerfile` → zbpack 選了 `zeabur/caddy-static` plan，直接把 repo 根當靜態檔目錄 serve。根目錄沒 `index.html` → **404**。
+（對照：原本 direct deploy 是從 `frontend/dist` 上傳，Zeabur 知道內容在哪；改 GitHub 後從根掃描就跑錯。）
+
+**② Dockerfile build 早先就失敗過（缺 @types/node）**
+更早嘗試的 docker plan（`frontend/Dockerfile`）build 時 `pnpm build`（`tsc -b`）報錯：
+```
+scripts/snapshot-static-data.ts: error TS2580 Cannot find name 'process'/'Buffer'
+                                  error TS2307 Cannot find module 'node:url'/'node:zlib'/'node:path'
+```
+原因：`tsconfig.json` 的 `include: ["src","scripts"]` 把 dev 腳本納入 build，但 **`@types/node` 沒列入 devDependencies**。本機 `tsc --noEmit` 會過是因為本機 `node_modules` 剛好有 @types/node（其他套件帶進來），Docker `pnpm install --frozen-lockfile` 則嚴格按 lockfile → 沒裝 → build fail。docker build 失敗後 Zeabur fallback 回 static plan（接 ①）。
+
+**③ 試過但無效的修法（記錄避免再走）**
+- ❌ root `zbpack.json` `{"app_dir":"frontend"}` — static builder 不理會，仍 serve repo 根。
+- ❌ 服務環境變數 `ZBPACK_APP_DIR=frontend` — 同樣未改變 plan type（仍 static）。
+  → 結論：**zbpack 的 app_dir 機制無法把已選 static 的 plan 導回 frontend/**。
+
+### 最終修法（已生效）
+
+1. **加 `@types/node` 到 `frontend/package.json` devDependencies**（commit `1edbb90`）
+   - `pnpm add -D @types/node`，lockfileVersion 仍 9.0（相容 Docker 內 pnpm@9.15.0）。
+   - 本機 `pnpm build` 驗證綠（dist 正常產出）。
+
+2. **在 repo 根放 `Dockerfile`**（commit `1fd13e5`）— 關鍵
+   - zbpack 偵測到**根 Dockerfile** → **必選 docker plan**，不再 fallback static。
+   - 該 Dockerfile 以 repo 根為 build context，保留 `/app/frontend` + `/app/themes` 的 **sibling 結構**
+     （前端 build 時 `themes.ts` 會 `import.meta.glob("../../../themes/*.yaml")` 讀 repo 根 themes/），
+     從 `/app/frontend` 跑 `pnpm build`，產物 → nginx serve。
+   - 配 root `.dockerignore`：保留 `themes/`（**不可排除**，build 必需），排除 `data/designs/docs/samples` 縮小 context。
+   - 移除無效的 `zbpack.json`。
+
+3. **首次 docker build 成功但 deploy 卡 FAILED → `service restart` 推上線**
+   - build image 完整匯出成功，但部署 promotion 卡住（舊 static 仍 RUNNING）。
+   - `npx zeabur@latest service restart --id <web-svc>` 後，docker deployment 轉 RUNNING、舊 static REMOVED、URL 回 **200**。
+
+### 驗證（修復後）
+| 檢查 | 結果 |
+|---|---|
+| 首頁 HTTP | 200 ✅ |
+| `<title>` / `<div id="root">` / vite assets | 正常 ✅ |
+| SPA fallback（任意路徑 → index.html） | 200 ✅ |
+| Deployment | docker plan · RUNNING（static 已 REMOVED）✅ |
+| 自動部署 | `git push origin main` 觸發 → docker build ✅ |
+
+### 經驗教訓
+- **monorepo 子目錄 app 走 GitHub 部署**：最可靠是 **repo 根放 Dockerfile**（zbpack 必認），而非依賴 `zbpack.json app_dir` / `ZBPACK_APP_DIR` / dashboard Root Directory。
+- **build 必跑的跨目錄依賴**（此處 `themes/`）：root Dockerfile 的 build context 與 `.dockerignore` 要保留它，且維持原相對結構。
+- **`@types/node`**：只要 `tsc` build 範圍含用到 Node API 的腳本（scripts/），就要明列 devDependency，別靠本機 node_modules 巧合。
+- **docker build 成功 ≠ 已上線**：deploy promotion 可能卡住，`service restart` 可強制切換到新 image。
+- 注意網域：紀錄上線網址為 `mini-tw-info.zeabur.app`，但實際自訂網域是 `mini-tw-info.itsmigu.com`。
