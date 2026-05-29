@@ -305,7 +305,7 @@ export default function App() {
   // B045：fire 主題點位圖層 toggle state（hotspots / stations 預設 on，其他待 Sprint 2-4 ETL）
   const [pointLayersOnFire, setPointLayersOnFire] = useState<Record<string, boolean>>({
     hotspots: true,
-    stations: true,
+    stations: false,
     hydrants: false,
     forestRisk: false,
     emsHospital: false,
@@ -438,7 +438,7 @@ export default function App() {
   const breadcrumb: CrumbItem[] = useMemo(() => {
     const items: CrumbItem[] = [
       { label: "首頁", action: () => goHome() },
-      { label: `${manifest?.theme.emoji ?? ""} ${manifest?.theme.name ?? theme}` },
+      { label: `${manifest?.theme.name ?? theme}` },
     ];
     if (comparing) items.push({ label: "比較模式" });
     if (county && (view === "B" || view === "C")) {

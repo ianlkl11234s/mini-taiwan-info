@@ -31,6 +31,7 @@ import { KPICard } from "@/components/kpi/KPICard";
 import { TrendChart } from "@/components/charts/TrendChart";
 import { HRankBar, type HRankRow } from "@/components/common/HRankBar";
 import { DataSourceBadge } from "@/components/common/DataSourceBadge";
+import { PendingDataCard } from "@/components/common/PendingDataCard";
 import type { MaritimeDataState } from "@/hooks/useMaritimeData";
 import type {
   CountyMaritimeAggregate,
@@ -574,14 +575,6 @@ function FisheryTab({ county, cname, cAgg, N, fishery }: {
   const first = trend[0];
   const last = trend.at(-1);
 
-  // 漁業類別組成（mock 全國比例）
-  const fishCategory = [
-    { label: "沿近海",     pct: 38, color: "#0D9488" },
-    { label: "養殖",       pct: 32, color: "#06B6D4" },
-    { label: "遠洋",       pct: 22, color: "#0369A1" },
-    { label: "內陸／其他", pct:  8, color: "#94A3B8" },
-  ];
-
   return (
     <>
       <div className="kpi-grid cols-3">
@@ -649,26 +642,16 @@ function FisheryTab({ county, cname, cAgg, N, fishery }: {
           <div>
             <div className="section-title">
               <span className="pre">CATEGORY</span>
-              漁業類別組成（全國比例 mock）
+              漁業類別組成
             </div>
-            <div className="section-subtitle">縣市別分項待農業部漁業署資料下放</div>
+            <div className="section-subtitle">沿近海 / 養殖 / 遠洋分項，縣市別待農業部漁業署資料下放</div>
           </div>
-          <span className="coverage-badge">⚠ mock</span>
         </div>
-        <div style={{ display: "flex", height: 22, borderRadius: 4, overflow: "hidden", marginBottom: 10 }}>
-          {fishCategory.map((cat) => (
-            <div key={cat.label} style={{ flex: cat.pct, background: cat.color }} title={`${cat.label} ${cat.pct}%`}></div>
-          ))}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px" }}>
-          {fishCategory.map((cat) => (
-            <div key={cat.label} className="row gap-8" style={{ fontSize: 12 }}>
-              <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: cat.color }}></i>
-              <span>{cat.label}</span>
-              <span className="muted" style={{ marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>{cat.pct}%</span>
-            </div>
-          ))}
-        </div>
+        <PendingDataCard
+          compact
+          label="縣市別漁業類別組成"
+          note="目前無縣市別沿近海／養殖／遠洋拆分；待漁業署資料下放後補上。"
+        />
       </div>
     </>
   );
@@ -679,30 +662,11 @@ function FisheryTab({ county, cname, cAgg, N, fishery }: {
 // ─────────────────────────────────────────────────
 function RoutesTab({ county, cname }: { county: CountyCode3; cname: string; }) {
   const isIslandTown = (["PEH", "KMN", "LCC"] as CountyCode3[]).includes(county);
-  const mockRoutes = (() => {
-    if (county === "KHH") return [
-      { from: "高雄港", to: "馬公港",      freq: "每日 1 班", season: "全年" },
-      { from: "高雄港", to: "綠島 / 蘭嶼", freq: "每週 3 班", season: "夏季" },
-    ];
-    if (county === "TNN") return [{ from: "安平港", to: "澎湖", freq: "每週 2 班", season: "旺季" }];
-    if (county === "PEH") return [
-      { from: "馬公", to: "高雄港",     freq: "每日 1 班", season: "全年" },
-      { from: "馬公", to: "嘉義布袋",   freq: "每日 2 班", season: "全年" },
-      { from: "馬公", to: "臺南安平",   freq: "每週 2 班", season: "旺季" },
-    ];
-    if (county === "KMN") return [{ from: "水頭港", to: "廈門五通", freq: "每日 8 班", season: "全年" }];
-    if (county === "LCC") return [
-      { from: "南竿福澳", to: "基隆港", freq: "每日 1 班", season: "全年" },
-      { from: "南竿福澳", to: "東引",   freq: "每日 1 班", season: "全年" },
-    ];
-    if (county === "CYH") return [{ from: "布袋港", to: "澎湖", freq: "每日 1 班", season: "全年" }];
-    if (county === "KLC") return [{ from: "基隆港", to: "馬祖南竿", freq: "每日 1 班", season: "全年" }];
-    if (county === "TTT") return [
-      { from: "富岡港", to: "綠島", freq: "每日 4 班", season: "全年" },
-      { from: "富岡港", to: "蘭嶼", freq: "每日 2 班", season: "全年" },
-    ];
-    return [] as Array<{ from: string; to: string; freq: string; season: string }>;
-  })();
+  // 已知有對外離島／對岸客船需求的縣市（用於決定顯示 placeholder 或「無航線」空狀態）；
+  // 實際航線時刻無真實來源，不再列假班次。
+  const ISLAND_ROUTE_COUNTIES: CountyCode3[] =
+    ["KHH", "TNN", "PEH", "KMN", "LCC", "CYH", "KLC", "TTT"] as CountyCode3[];
+  const hasIslandRoutes = ISLAND_ROUTE_COUNTIES.includes(county);
 
   return (
     <>
@@ -717,34 +681,24 @@ function RoutesTab({ county, cname }: { county: CountyCode3; cname: string; }) {
         </div>
       </div>
 
-      {mockRoutes.length > 0 ? (
+      {hasIslandRoutes ? (
         <div className="section">
           <div className="section-head">
             <div>
               <div className="section-title">
-                <span className="pre">ROUTES · MOCK</span>
-                {cname} 出發 · 離島定期客船（參考）
+                <span className="pre">ROUTES</span>
+                {cname} 出發 · 離島定期客船
               </div>
               <div className="section-subtitle">
                 {isIslandTown ? "離島縣市對本島為主要航線" : "本島港口對離島航線"}
               </div>
             </div>
-            <span className="coverage-badge">⚠ MOCK · 待表建立</span>
           </div>
-          <div className="mar-route-list">
-            <div className="mrl-row head">
-              <span>起點</span><span></span><span>終點</span><span>頻次</span><span>季節性</span>
-            </div>
-            {mockRoutes.map((rt, i) => (
-              <div key={i} className="mrl-row">
-                <span className="mrl-from">{rt.from}</span>
-                <span className="mrl-arrow">→</span>
-                <span className="mrl-to">{rt.to}</span>
-                <span className="mrl-freq">{rt.freq}</span>
-                <span className={`mrl-sea ${rt.season === "全年" ? "year" : "seasonal"}`}>{rt.season}</span>
-              </div>
-            ))}
-          </div>
+          <PendingDataCard
+            compact
+            label="離島定期客船航線時刻"
+            note="此縣市有對外離島／對岸客船需求，但航線時刻表（起訖／頻次／季節）尚無真實資料來源；待交通部航港局資料下放後補上。"
+          />
         </div>
       ) : (
         <div className="section" style={{ textAlign: "center", padding: 36 }}>

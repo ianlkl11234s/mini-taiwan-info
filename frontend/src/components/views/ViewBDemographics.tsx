@@ -32,6 +32,7 @@ import type { CountyCode3 } from "@/lib/types";
 import { KPICard } from "@/components/kpi/KPICard";
 import { TrendChart } from "@/components/charts/TrendChart";
 import { DataSourceBadge } from "@/components/common/DataSourceBadge";
+import { PendingDataCard } from "@/components/common/PendingDataCard";
 import type { DemographicsDataState } from "@/hooks/useDemographicsData";
 import type { CountyDemographics, AgeRow } from "@/lib/queries/demographics";
 
@@ -187,7 +188,7 @@ export function ViewBDemographics({ data, county, onBack, onAddCompare }: ViewBD
         <AgeTab data={data} c={c} p={cAgg} N={N} agingRank={agingRank} />
       )}
       {tab === "dynamics" && (
-        <DynamicsTab data={data} c={c} p={cAgg} N={N} socialRank={socialRank} />
+        <DynamicsTab c={c} p={cAgg} socialRank={socialRank} />
       )}
       {tab === "urban" && (
         <UrbanTab data={data} c={c} p={cAgg} N={N} densityRank={densityRank} />
@@ -644,25 +645,11 @@ function PopAgeRadar({ cityName, city, nat }: {
 // Tab 3 · 人口動態
 // ─────────────────────────────────────────────────
 
-function DynamicsTab({ data, c, p, N, socialRank }: {
-  data: DemographicsDataState;
+function DynamicsTab({ c, p, socialRank }: {
   c: CountyMeta;
   p: CountyDemographics;
-  N: NonNullable<DemographicsDataState["summary"]>;
   socialRank: number;
 }) {
-  // 10 年 birth/death trend：以全國 trend × (縣市 pop / 全國 pop) scale，老化反映死亡端
-  const scale = p.pop / N.totalPop;
-  const ageScale = N.agingIndex > 0 ? p.agingIndex / N.agingIndex : 1;
-  const V = useMemo(
-    () => data.vitalsTrend.map((d) => ({
-      year: d.year,
-      birth: Math.max(0, Math.round(d.birth * scale * (2 - ageScale))),
-      death: Math.round(d.death * scale * ageScale),
-    })),
-    [data.vitalsTrend, scale, ageScale],
-  );
-  const last = V.at(-1);
   const naturalPos = p.natural > 0;
 
   const flowBars = [
@@ -678,17 +665,17 @@ function DynamicsTab({ data, c, p, N, socialRank }: {
       <div className="kpi-grid cols-3">
         <KPICard
           icon={<Baby size={13} />}
-          label="2024 出生（估）"
-          value={last ? fmt.num(last.birth) : "—"}
+          label="2024 出生"
+          value={p.birth > 0 ? fmt.num(p.birth) : "—"}
           unit="人"
-          trend={{ delta: `vs 全國比例 ${(scale * 100).toFixed(2)}%`, direction: "down", baseline: "10 年腰斬", sentiment: "negative" }}
+          trend={{ delta: "村里加總（實）", direction: "down", baseline: "戶政司年度", sentiment: "negative" }}
         />
         <KPICard
           icon={<AlertTriangle size={13} />}
-          label="2024 死亡（估）"
-          value={last ? fmt.num(last.death) : "—"}
+          label="2024 死亡"
+          value={p.death > 0 ? fmt.num(p.death) : "—"}
           unit="人"
-          trend={{ delta: `老化×${ageScale.toFixed(2)}`, direction: "up", baseline: "高齡化推升", sentiment: "negative" }}
+          trend={{ delta: "村里加總（實）", direction: "up", baseline: "戶政司年度", sentiment: "negative" }}
         />
         <KPICard
           icon={<ArrowLeftRight size={13} />}
@@ -704,38 +691,27 @@ function DynamicsTab({ data, c, p, N, socialRank }: {
         />
       </div>
 
-      {/* 雙線 birth/death */}
-      {V.length > 0 && (
-        <div className="section">
-          <div className="section-head">
-            <div>
-              <div className="section-title">
-                <span className="pre">VITALS</span>
-                {c.name_zh} · 出生 vs 死亡 10 年趨勢
-              </div>
-              <div className="section-subtitle">
-                {naturalPos
-                  ? <>2024 自然增加 <b style={{ color: "#047857" }}>+{fmt.num(p.natural)}</b></>
-                  : <>2024 自然增加 <b style={{ color: "#B91C1C" }}>{fmt.signed(p.natural, 0)}</b></>}
-                <span className="muted" style={{ marginLeft: 6, fontSize: 11 }}>(全國 trend × 縣市 pop scale)</span>
-              </div>
+      {/* 出生/死亡 10 年趨勢：縣市別逐年無真實來源（村里僅 104/113 兩年快照）→ placeholder */}
+      <div className="section">
+        <div className="section-head">
+          <div>
+            <div className="section-title">
+              <span className="pre">VITALS</span>
+              {c.name_zh} · 出生 vs 死亡 10 年趨勢
             </div>
-            <div className="row gap-8" style={{ fontSize: 11.5 }}>
-              <span className="row gap-4"><i style={{ display: "inline-block", width: 10, height: 10, background: "#10B981", borderRadius: 2 }}></i>出生</span>
-              <span className="row gap-4"><i style={{ display: "inline-block", width: 10, height: 10, background: "#B91C1C", borderRadius: 2 }}></i>死亡</span>
+            <div className="section-subtitle">
+              {naturalPos
+                ? <>2024 自然增加 <b style={{ color: "#047857" }}>+{fmt.num(p.natural)}</b>（實）</>
+                : <>2024 自然增加 <b style={{ color: "#B91C1C" }}>{fmt.signed(p.natural, 0)}</b>（實）</>}
             </div>
           </div>
-          <TrendChart
-            series={[
-              { name: "出生", color: "#10B981", data: V.map((d) => ({ x: d.year, y: d.birth })) },
-              { name: "死亡", color: "#B91C1C", data: V.map((d) => ({ x: d.year, y: d.death })) },
-            ]}
-            xLabels={V.map((d) => d.year.toString())}
-            height={200}
-            showLegend={false}
-          />
         </div>
-      )}
+        <PendingDataCard
+          compact
+          label="縣市別出生／死亡逐年趨勢"
+          note="目前縣市別僅有 2015 / 2024 兩年村里加總；完整逐年序列待戶政司縣市別出生死亡月報 ETL 接通後補上。"
+        />
+      </div>
 
       <div className="section" style={{ marginBottom: 0 }}>
         <div className="section-head">

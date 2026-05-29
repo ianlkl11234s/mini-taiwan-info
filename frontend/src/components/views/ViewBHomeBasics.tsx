@@ -15,7 +15,7 @@
 
 import {
   Share2, Download, Plus, ChevronLeft,
-  Users, Layers, Locate, Info,
+  Users, Layers, Locate,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { byCode3 } from "@/lib/counties";
@@ -23,8 +23,6 @@ import type { CountyCode3, County } from "@/lib/types";
 import { useNationalBasics } from "@/hooks/useNationalBasics";
 import {
   HOME_BY_COUNTY,
-  AGING_HISTORY,
-  BIRTH_DEATH_HISTORY,
   COUNTY_TOWNSHIPS_MOCK,
   MUNI_INFO,
   COASTAL_COUNTIES,
@@ -38,7 +36,7 @@ import {
   type HomeCountyStats,
 } from "@/lib/county-stats";
 import { WaterCatHeader as CatHeader } from "@/components/water/WaterCatHeader";
-import { TrendChart } from "@/components/charts/TrendChart";
+import { PendingDataCard } from "@/components/common/PendingDataCard";
 
 type ViewModel = ReturnType<typeof useNationalBasics>["data"];
 
@@ -189,16 +187,8 @@ function CountyFactGrid({
    H1 · 行政區結構
 ─────────────────────────────────────────────── */
 function H1Admin({ c, hd, s }: { c: County; hd: HomeCountyDemographic; s: HomeCountyStats }) {
-  const townsMock = COUNTY_TOWNSHIPS_MOCK[c.code3] ?? [];
-  const totalPop = s.popTotal;
-  // 為了視覺，給每個鄉鎮 mock 人口（第一名 ~20%, 第 8 名 ~5%，加點 deterministic 噪音）
-  const rank = townsMock.slice(0, 8).map((name, i) => ({
-    name,
-    value: Math.round(totalPop * (0.20 - i * 0.018) * (1 + (name.charCodeAt(0) % 5 - 2) * 0.03)),
-  }));
-  const topRank = rank.slice(0, Math.min(5, rank.length));
-  const bottomRank = [...rank].reverse().slice(0, Math.min(5, rank.length));
-  const maxVal = rank[0]?.value || 1;
+  // 鄉鎮名稱為真實清單；各鄉鎮人口無真實來源（不再捏造排名）
+  const townsList = COUNTY_TOWNSHIPS_MOCK[c.code3] ?? [];
 
   return (
     <div className="cat-block">
@@ -227,43 +217,35 @@ function H1Admin({ c, hd, s }: { c: County; hd: HomeCountyDemographic; s: HomeCo
         </div>
       </div>
 
-      {townsMock.length > 0 && (
+      {townsList.length > 0 && (
         <div className="township-card">
           <div className="township-head">
             <div className="t">
               <span className="pre">DRILL</span>
               鄉鎮市區人口分布
             </div>
-            <span className="etl-badge"><span className="dot"></span>MOCK · 待 ETL</span>
           </div>
-          <div className="township-grid">
-            <div className="township-col">
-              <h4>人口 TOP {topRank.length}</h4>
-              {topRank.map((t, i) => (
-                <div key={i} className="township-row">
-                  <span className="rk">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="nm">{t.name}</span>
-                  <div className="b"><div style={{ width: `${(t.value / maxVal) * 100}%` }} /></div>
-                  <span className="v">{fmt.num(Math.round(t.value / 1000))} k</span>
-                </div>
-              ))}
-            </div>
-            <div className="township-col">
-              <h4>人口 BOTTOM {bottomRank.length}</h4>
-              {bottomRank.map((t, i) => (
-                <div key={i} className="township-row">
-                  <span className="rk">{String(townsMock.length - i).padStart(2, "0")}</span>
-                  <span className="nm">{t.name}</span>
-                  <div className="b"><div style={{ width: `${(t.value / maxVal) * 100}%`, background: "var(--accent-ramp-3)" }} /></div>
-                  <span className="v">{fmt.num(Math.round(t.value / 1000))} k</span>
-                </div>
-              ))}
-            </div>
+          {/* 鄉鎮名稱清單（真實） */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+            {townsList.map((name) => (
+              <span
+                key={name}
+                style={{
+                  padding: "3px 9px", borderRadius: 6, fontSize: 12,
+                  background: "var(--surface-2)", border: "1px solid var(--border)",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                {name}
+              </span>
+            ))}
           </div>
-          <div className="township-foot">
-            <Info size={11} />
-            鄉鎮人口為示意分配，實際資料待戶政司「鄉鎮市區人口統計」月報 ETL 接通
-          </div>
+          {/* 各鄉鎮人口排名：無真實來源，placeholder */}
+          <PendingDataCard
+            compact
+            label="各鄉鎮市區人口排名"
+            note="鄉鎮名稱已列出（上方）；各鄉鎮人口數待戶政司「鄉鎮市區人口統計」月報 ETL 接通後補上。"
+          />
         </div>
       )}
     </div>
@@ -454,16 +436,6 @@ function H4Age({
   const max = Math.max(s.pct014, s.pct1564, s.pct65, nat.pct_15_64);
   const aboveThreshold = s.pct65 >= 20;
 
-  // 老化指數歷年（縣市 = 全國 + 偏移；早期偏移小，越近期越偏離）
-  const ah = AGING_HISTORY;
-  const offset = hd.agingIndex - nat.aging_index;
-  const natSeries = ah.map((d) => ({ x: d.year, y: d.value }));
-  const countySeries = ah.map((d, i) => {
-    const ratio = i / (ah.length - 1);
-    const adj = offset * (0.3 + 0.7 * ratio);
-    return { x: d.year, y: +(d.value + adj).toFixed(1) };
-  });
-
   return (
     <div className="cat-block">
       <CatHeader
@@ -524,25 +496,15 @@ function H4Age({
           <div>
             <div className="section-title">
               <span className="pre">TREND</span>
-              老化指數歷年（1994–2024）
+              老化指數歷年
             </div>
-            <div className="section-subtitle">{c.name_zh} vs 全國雙線比較</div>
+            <div className="section-subtitle">{c.name_zh} vs 全國比較</div>
           </div>
         </div>
-        <div className="dual-trend-legend">
-          <span><i style={{ background: "var(--accent)" }}></i>{c.name_zh}</span>
-          <span><i className="dashed"></i>全國平均</span>
-        </div>
-        <TrendChart
-          series={[
-            { name: c.name_zh,  color: "var(--accent)",      data: countySeries },
-            { name: "全國平均", color: "var(--text-tertiary)", dashed: true, data: natSeries },
-          ]}
-          xLabels={ah.map((d) => d.year.toString())}
-          yMin={Math.min(...countySeries.map((d) => d.y), ...natSeries.map((d) => d.y), 50) - 10}
-          yMax={Math.max(...countySeries.map((d) => d.y), ...natSeries.map((d) => d.y), 200) + 10}
-          height={180}
-          showLegend={false}
+        <PendingDataCard
+          compact
+          label={`${c.name_zh} 老化指數逐年趨勢`}
+          note="縣市別逐年老化指數序列待戶政司 ETL 接通；全國歷年見「人口」主題。"
         />
       </div>
     </div>
@@ -588,19 +550,6 @@ function H5Dynamics({
   const birthDelta = hd.birthRate - nat.birth_rate;
   const deathDelta = hd.deathRate - nat.death_rate;
   const naturalVsNat = hd.natural - nat.natural_increase_rate;
-
-  // 縣市歷年雙線：由全國時序 +/- offset
-  const bd = BIRTH_DEATH_HISTORY;
-  const bOff = hd.birthRate - bd[bd.length - 1].birth;
-  const dOff = hd.deathRate - bd[bd.length - 1].death;
-  const countyBirth = bd.map((d, i) => {
-    const ratio = i / (bd.length - 1);
-    return { x: d.year, y: +(d.birth + bOff * (0.3 + 0.7 * ratio)).toFixed(2) };
-  });
-  const countyDeath = bd.map((d, i) => {
-    const ratio = i / (bd.length - 1);
-    return { x: d.year, y: +(d.death + dOff * (0.3 + 0.7 * ratio)).toFixed(2) };
-  });
 
   return (
     <div className="cat-block">
@@ -680,25 +629,15 @@ function H5Dynamics({
           <div>
             <div className="section-title">
               <span className="pre">TREND</span>
-              {c.name_zh} · 出生 vs 死亡（2000–2026）
+              {c.name_zh} · 出生 vs 死亡歷年
             </div>
             <div className="section-subtitle">該縣市出生與死亡率雙線軌跡</div>
           </div>
         </div>
-        <div className="dual-trend-legend">
-          <span><i style={{ background: "#059669" }}></i>出生率</span>
-          <span><i style={{ background: "#DC2626" }}></i>死亡率</span>
-        </div>
-        <TrendChart
-          series={[
-            { name: "出生率", color: "#059669", data: countyBirth },
-            { name: "死亡率", color: "#DC2626", data: countyDeath },
-          ]}
-          xLabels={bd.map((d) => d.year.toString())}
-          yMin={Math.min(...countyBirth.map((d) => d.y), ...countyDeath.map((d) => d.y), 3) - 1}
-          yMax={Math.max(...countyBirth.map((d) => d.y), ...countyDeath.map((d) => d.y), 14) + 1}
-          height={170}
-          showLegend={false}
+        <PendingDataCard
+          compact
+          label={`${c.name_zh} 出生／死亡逐年趨勢`}
+          note="縣市別逐年出生死亡序列待戶政司 ETL 接通；上方為最新月度粗率。"
         />
       </div>
     </div>

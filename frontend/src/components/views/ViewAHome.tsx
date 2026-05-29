@@ -17,11 +17,9 @@ import type { CountyCode3 } from "@/lib/types";
 import { useNationalBasics } from "@/hooks/useNationalBasics";
 import { WaterCatHeader as CatHeader } from "@/components/water/WaterCatHeader";
 import { TrendChart } from "@/components/charts/TrendChart";
-import {
-  BIRTH_DEATH_HISTORY,
-  DENSITY_COMPARE,
-} from "@/lib/mock-home";
+import { DENSITY_COMPARE } from "@/lib/mock-home";
 import type { DemographicsDataState } from "@/hooks/useDemographicsData";
+import { PendingDataCard } from "@/components/common/PendingDataCard";
 
 type ViewModel = ReturnType<typeof useNationalBasics>["data"];
 
@@ -43,7 +41,7 @@ export function ViewAHome({ selectedCounty, demographics }: Props) {
       <H2Geography N={data} />
       <H3Population N={data} />
       <H4Age N={data} selectedCounty={selectedCounty ?? null} demographics={demographics} />
-      <H5Dynamics N={data} />
+      <H5Dynamics N={data} demographics={demographics} />
 
       <DataSourceBadge
         sources={["內政部戶政司", "內政部統計處", "國土測繪中心", "SEGIS"]}
@@ -484,10 +482,11 @@ function RankBars({
 /* ──────────────────────────────────────────────
    H5 · 人口動態（出生死亡對立 + 自然增加 + trend）
 ─────────────────────────────────────────────── */
-function H5Dynamics({ N }: { N: ViewModel }) {
-  const bd = BIRTH_DEATH_HISTORY;
+function H5Dynamics({ N, demographics }: { N: ViewModel; demographics?: DemographicsDataState }) {
   const maxRate = 10;
-  const crossIdx = bd.findIndex((d) => d.year === 2020);
+  // 出生/死亡歷年：用 demographics 真實人數 trend（SSOT，2015-2024），無則 placeholder
+  const vitals = demographics?.vitalsTrend ?? [];
+  const hasRealTrend = vitals.length > 0;
 
   return (
     <div className="cat-block">
@@ -539,24 +538,34 @@ function H5Dynamics({ N }: { N: ViewModel }) {
 
         <div className="bd-trend">
           <div className="bd-trend-head">
-            <div className="t">2000–2026 · 出生 vs 死亡雙線</div>
+            <div className="t">
+              {hasRealTrend
+                ? `${vitals[0].year}–${vitals.at(-1)?.year} · 出生 vs 死亡人數`
+                : "出生 vs 死亡歷年"}
+            </div>
             <div className="legend">
-              <span><i style={{ background: "#059669" }}></i>出生率</span>
-              <span><i style={{ background: "#DC2626" }}></i>死亡率</span>
+              <span><i style={{ background: "#059669" }}></i>出生</span>
+              <span><i style={{ background: "#DC2626" }}></i>死亡</span>
             </div>
           </div>
-          <TrendChart
-            series={[
-              { name: "出生率", color: "#059669", data: bd.map((d) => ({ x: d.year, y: d.birth })) },
-              { name: "死亡率", color: "#DC2626", data: bd.map((d) => ({ x: d.year, y: d.death })) },
-            ]}
-            xLabels={bd.map((d) => d.year.toString())}
-            yMin={3}
-            yMax={14}
-            height={170}
-            showLegend={false}
-            annotations={crossIdx >= 0 ? [{ atIndex: crossIdx, label: "2020 死亡 > 出生", severity: "danger" }] : []}
-          />
+          {hasRealTrend ? (
+            <TrendChart
+              series={[
+                { name: "出生", color: "#059669", data: vitals.map((d) => ({ x: d.year, y: d.birth })) },
+                { name: "死亡", color: "#DC2626", data: vitals.map((d) => ({ x: d.year, y: d.death })) },
+              ]}
+              xLabels={vitals.map((d) => d.year.toString())}
+              height={170}
+              showLegend={false}
+              annotations={[]}
+            />
+          ) : (
+            <PendingDataCard
+              compact
+              label="出生 / 死亡歷年趨勢"
+              note="長期歷年出生死亡序列待 collector 接通；目前僅有最新月度粗率（上方）。"
+            />
+          )}
         </div>
       </div>
     </div>

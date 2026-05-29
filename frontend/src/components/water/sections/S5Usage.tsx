@@ -17,6 +17,7 @@ import { COUNTIES, codeConvert } from "@/lib/counties";
 import type { GovernanceSummary } from "@/lib/queries/water";
 import { fetchLpcdNationalHistory } from "@/lib/queries/water";
 import type { WaterLossSummary } from "@/lib/queries/water-overview";
+import { PendingDataCard } from "@/components/common/PendingDataCard";
 
 interface Props {
   governance: GovernanceSummary | null;
@@ -24,14 +25,6 @@ interface Props {
   selectedCounty?: CountyCode3 | null;
   onCountyClick?: (code: CountyCode3) => void;
 }
-
-// 用水結構 mock — DB 無 sector 細拆，標 badge「結構估算」
-const USAGE_STRUCTURE_MOCK = [
-  { label: "農業", pct: 67.3, color: "#84CC16" },
-  { label: "民生", pct: 21.5, color: "var(--accent)" },
-  { label: "工業", pct: 9.4,  color: "#0EA5E9" },
-  { label: "其他", pct: 1.8,  color: "#94A3B8" },
-];
 
 export function S5Usage({ governance, waterLoss, selectedCounty, onCountyClick }: Props) {
   // LPCD 全國歷年（lazy load）
@@ -126,23 +119,12 @@ export function S5Usage({ governance, waterLoss, selectedCounty, onCountyClick }
 
         <div style={{ display: "grid", gap: 10 }}>
           <div className="side-stat">
-            <div className="lbl">
-              用水結構
-              <span className="cat-badge tone-static" style={{ marginLeft: 6, fontSize: 9, padding: "1px 5px" }}>結構估算</span>
-            </div>
-            <div className="usage-stack">
-              {USAGE_STRUCTURE_MOCK.map((s, i) => (
-                <div key={i} style={{ width: `${s.pct}%`, background: s.color }} title={`${s.label} ${s.pct}%`} />
-              ))}
-            </div>
-            <div className="usage-stack-legend">
-              {USAGE_STRUCTURE_MOCK.map((s, i) => (
-                <span key={i}>
-                  <i style={{ background: s.color }} />
-                  {s.label} <b>{s.pct}%</b>
-                </span>
-              ))}
-            </div>
+            <div className="lbl">用水結構</div>
+            <PendingDataCard
+              compact
+              label="農業／民生／工業用水拆分"
+              note="DB 尚無各部門用水量拆解；待水利署用水統計接通後補上。"
+            />
           </div>
           <div className="side-stat">
             <div className="lbl">漏水率（全國）</div>

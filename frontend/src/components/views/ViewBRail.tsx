@@ -31,6 +31,7 @@ import { KPICard } from "@/components/kpi/KPICard";
 import { TrendChart } from "@/components/charts/TrendChart";
 import { HRankBar, type HRankRow } from "@/components/common/HRankBar";
 import { DataSourceBadge } from "@/components/common/DataSourceBadge";
+import { PendingDataCard } from "@/components/common/PendingDataCard";
 import type { RailDataState } from "@/hooks/useRailData";
 import {
   RAIL_SYSTEMS_META,
@@ -295,16 +296,15 @@ function OverviewTab({ cname, cAgg, N, crossNote }: {
   N: NonNullable<RailDataState["summary"]>;
   crossNote: { sys: string; txt: string } | null;
 }) {
-  // 各系統車次：mock 依縣市 / 系統 比例分配（無更精細資料）
-  const sysBreakdown = useMemo(() => {
-    return cAgg.systems.map((sid) => {
+  // 此縣市運行的系統清單（真實 from countyAggregates.systems）；
+  // 各系統「車次」無縣市別真實來源 → 不再顯示假估算數字（見下方 placeholder）。
+  const sysList = useMemo(
+    () => cAgg.systems.map((sid) => {
       const s = RAIL_SYSTEMS_META[sid];
-      // 該系統佔該縣市的 trips 估算 = dailyTrips × (1 / systems.length)（粗估）
-      const estTrips = Math.round(cAgg.dailyTrips * (1 / Math.max(1, cAgg.systems.length)));
-      return { id: sid, label: s.label, short: s.short, color: s.color, trips: estTrips };
-    }).sort((a, b) => b.trips - a.trips);
-  }, [cAgg.systems, cAgg.dailyTrips]);
-  const maxSysTrips = Math.max(...sysBreakdown.map((s) => s.trips), 1);
+      return { id: sid, label: s.label, short: s.short, color: s.color };
+    }),
+    [cAgg.systems],
+  );
 
   return (
     <>
@@ -344,28 +344,37 @@ function OverviewTab({ cname, cAgg, N, crossNote }: {
           <div>
             <div className="section-title">
               <span className="pre">SYSTEMS</span>
-              {cname} · 各系統車次估算
+              {cname} · 運行系統
             </div>
             <div className="section-subtitle">
-              {sysBreakdown.length} 系統運行於此縣市
-              {sysBreakdown.length > 0 && <> ─ 主力系統為 <b style={{ color: sysBreakdown[0].color }}>{sysBreakdown[0].label}</b></>}
+              {sysList.length} 系統運行於此縣市
+              {sysList.length > 0 && <> ─ 主力系統為 <b style={{ color: sysList[0].color }}>{sysList[0].label}</b></>}
             </div>
           </div>
-          <span className="coverage-badge">⚠ mock · 等分配</span>
         </div>
-        <div className="rail-cnty-sys">
-          {sysBreakdown.map((s) => (
-            <div key={s.id} className="rcs-row">
-              <span className="rcs-sw" style={{ background: s.color }}>{s.short}</span>
-              <span className="rcs-lbl">{s.label}</span>
-              <div className="rcs-bar"><div style={{ width: `${(s.trips / maxSysTrips) * 100}%`, background: s.color }}></div></div>
-              <span className="rcs-val">{fmt.num(s.trips)}<span className="muted"> 次</span></span>
-            </div>
+        {/* 系統清單（真實） */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+          {sysList.map((s) => (
+            <span
+              key={s.id}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "4px 10px", borderRadius: 20,
+                background: "var(--surface-2)", border: "1px solid var(--border)",
+                fontSize: 12,
+              }}
+            >
+              <i style={{ width: 9, height: 9, borderRadius: 2, background: s.color, display: "inline-block" }} />
+              {s.label}
+            </span>
           ))}
         </div>
-        <div className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
-          ※ 系統車次依該縣市系統數量均分（mock，待 collector 接通各系統縣市別）
-        </div>
+        {/* 各系統縣市別車次：無真實來源，placeholder */}
+        <PendingDataCard
+          compact
+          label="各系統縣市別車次"
+          note="目前僅有全縣合計車次；各系統在此縣市的車次拆分待 collector 接通後補上。"
+        />
       </div>
 
       {crossNote && (
