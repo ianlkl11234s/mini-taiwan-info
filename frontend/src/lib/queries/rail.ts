@@ -543,6 +543,47 @@ export function deriveCountyAggregates(
   });
 }
 
+export interface CountySystemTripsRow {
+  id: RailSystemId;
+  label: string;
+  short: string;
+  color: string;
+  stations: number;
+  trips: number;          // 日均停靠車次（daily_stop_count 加總）
+}
+
+/**
+ * 指定縣市 × 各系統的車站數 + 日均停靠車次（real）
+ * stations(county_id) join station_daily_trips(system_id|station_id)，按 system 聚合。
+ * 各系統 trips 加總 = deriveCountyAggregates 的 dailyTrips（同一 tripMap join，內部一致）。
+ */
+export function deriveCountySystemTrips(
+  countyIdMoi: CountyIdMoi,
+  stations: StationRow[],
+  trips: StationDailyTripsRow[],
+): CountySystemTripsRow[] {
+  const tripMap = new Map<string, number>();
+  for (const t of trips) tripMap.set(`${t.system_id}|${t.station_id}`, t.daily_stop_count);
+
+  const bySystem = new Map<RailSystemId, { stations: number; trips: number }>();
+  for (const s of stations) {
+    if (s.county_id !== countyIdMoi) continue;
+    const sid = s.system_id as RailSystemId;
+    if (!RAIL_SYSTEMS_META[sid]) continue;
+    const cur = bySystem.get(sid) ?? { stations: 0, trips: 0 };
+    cur.stations += 1;
+    cur.trips += tripMap.get(`${sid}|${s.station_id}`) ?? 0;
+    bySystem.set(sid, cur);
+  }
+
+  return Array.from(bySystem.entries())
+    .map(([sid, v]) => {
+      const meta = RAIL_SYSTEMS_META[sid];
+      return { id: sid, label: meta.label, short: meta.short, color: meta.color, stations: v.stations, trips: v.trips };
+    })
+    .sort((a, b) => b.trips - a.trips);
+}
+
 // ─────────────────────────────────────────────────
 // 系統分類（tab 切換用）
 // ─────────────────────────────────────────────────

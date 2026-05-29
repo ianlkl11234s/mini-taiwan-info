@@ -15,8 +15,9 @@
  *   - 縣市 24hr 分布：trips hourly_distribution 加總（real）
  *   - TRA 車種：trips by_train_type 加總（real）
  *   - 月度運量：ridership filter by county_id + stat_period 2026-XX（real，TRA 2024 月度缺）
- * 仍 mock：
- *   - 各系統車次估算（依縣市/系統站數比例分配）
+ *   - 各系統縣市別車次：stations(county) join station_daily_trips 按 system 聚合（real）
+ * 資料缺口（非本檔 mock，待 ETL Wave 2）：
+ *   - 臺鐵 2024 月度運量回填 → RidershipTab 以 missing-data-card 標註
  */
 
 import { useMemo, useState } from "react";
@@ -31,10 +32,10 @@ import { KPICard } from "@/components/kpi/KPICard";
 import { TrendChart } from "@/components/charts/TrendChart";
 import { HRankBar, type HRankRow } from "@/components/common/HRankBar";
 import { DataSourceBadge } from "@/components/common/DataSourceBadge";
-import { PendingDataCard } from "@/components/common/PendingDataCard";
 import type { RailDataState } from "@/hooks/useRailData";
 import {
   RAIL_SYSTEMS_META,
+  deriveCountySystemTrips,
   type RailSystemId,
   type CountyRailAggregate,
   type StationDailyTripsRow,
@@ -116,7 +117,7 @@ export function ViewBRail({ data, county, onBack, onAddCompare }: ViewBRailProps
             ))}
           </div>
 
-          {tab === "overview"  && <OverviewTab cname={c.name_zh} cAgg={cAgg} N={data.summary} crossNote={crossNote} />}
+          {tab === "overview"  && <OverviewTab county={county} cname={c.name_zh} cAgg={cAgg} N={data.summary} crossNote={crossNote} data={data} />}
           {tab === "stations"  && <StationsTab county={county} cname={c.name_zh} cAgg={cAgg} data={data} />}
           {tab === "service"   && <ServiceTab county={county} cname={c.name_zh} cAgg={cAgg} data={data} />}
           {tab === "ridership" && <RidershipTab county={county} c={c} cAgg={cAgg} data={data} />}
@@ -290,21 +291,21 @@ function ZeroRailFallback({ cname }: { cname: string }) {
 // ─────────────────────────────────────────────────
 // Tab 1 · 概覽
 // ─────────────────────────────────────────────────
-function OverviewTab({ cname, cAgg, N, crossNote }: {
+function OverviewTab({ county, cname, cAgg, N, crossNote, data }: {
+  county: CountyCode3;
   cname: string;
   cAgg: CountyRailAggregate;
   N: NonNullable<RailDataState["summary"]>;
   crossNote: { sys: string; txt: string } | null;
+  data: RailDataState;
 }) {
-  // 此縣市運行的系統清單（真實 from countyAggregates.systems）；
-  // 各系統「車次」無縣市別真實來源 → 不再顯示假估算數字（見下方 placeholder）。
-  const sysList = useMemo(
-    () => cAgg.systems.map((sid) => {
-      const s = RAIL_SYSTEMS_META[sid];
-      return { id: sid, label: s.label, short: s.short, color: s.color };
-    }),
-    [cAgg.systems],
-  );
+  // 各系統縣市別車次（真實）：stations(county) join station_daily_trips 按 system 聚合。
+  const sysTrips = useMemo(() => {
+    const cc = byCode3[county];
+    if (!cc) return [];
+    return deriveCountySystemTrips(cc.id_moi, data.stations, data.trips);
+  }, [county, data.stations, data.trips]);
+  const maxSysTrips = Math.max(1, ...sysTrips.map((s) => s.trips));
 
   return (
     <>
@@ -344,37 +345,49 @@ function OverviewTab({ cname, cAgg, N, crossNote }: {
           <div>
             <div className="section-title">
               <span className="pre">SYSTEMS</span>
-              {cname} · 運行系統
+              {cname} · 各系統車次
             </div>
             <div className="section-subtitle">
-              {sysList.length} 系統運行於此縣市
-              {sysList.length > 0 && <> ─ 主力系統為 <b style={{ color: sysList[0].color }}>{sysList[0].label}</b></>}
+              {sysTrips.length} 系統運行於此縣市
+              {sysTrips.length > 0 && (
+                <> ─ 主力系統為 <b style={{ color: sysTrips[0].color }}>{sysTrips[0].label}</b>
+                  （{cAgg.dailyTrips > 0 ? Math.round((sysTrips[0].trips / cAgg.dailyTrips) * 100) : 0}% 車次）</>
+              )}
             </div>
           </div>
+          <span className="coverage-badge" style={{ background: "var(--surface-2)", color: "var(--text-secondary)" }}>
+            日均停靠車次
+          </span>
         </div>
-        {/* 系統清單（真實） */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          {sysList.map((s) => (
-            <span
-              key={s.id}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "4px 10px", borderRadius: 20,
-                background: "var(--surface-2)", border: "1px solid var(--border)",
-                fontSize: 12,
-              }}
-            >
-              <i style={{ width: 9, height: 9, borderRadius: 2, background: s.color, display: "inline-block" }} />
-              {s.label}
-            </span>
-          ))}
-        </div>
-        {/* 各系統縣市別車次：無真實來源，placeholder */}
-        <PendingDataCard
-          compact
-          label="各系統縣市別車次"
-          note="目前僅有全縣合計車次；各系統在此縣市的車次拆分待 collector 接通後補上。"
-        />
+        {/* 各系統縣市別車次（真實：stations join station_daily_trips 按系統聚合） */}
+        {sysTrips.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {sysTrips.map((s) => {
+              const pct = (s.trips / maxSysTrips) * 100;
+              const share = cAgg.dailyTrips > 0 ? (s.trips / cAgg.dailyTrips) * 100 : 0;
+              return (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, width: 92, flexShrink: 0, minWidth: 0 }}>
+                    <i style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {s.label}
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 36, height: 16, background: "var(--surface-2)", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: s.color, borderRadius: 4 }} />
+                  </div>
+                  <div style={{ flexShrink: 0, textAlign: "right", minWidth: 92, fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ fontWeight: 700, fontSize: 13 }}>{fmt.num(s.trips)}</span>
+                    <span className="muted" style={{ fontSize: 11 }}> 次/日</span>
+                    <div className="muted" style={{ fontSize: 10.5 }}>{s.stations} 站 · {share.toFixed(0)}%</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="muted" style={{ fontSize: 12 }}>此縣市無車次資料</div>
+        )}
       </div>
 
       {crossNote && (
