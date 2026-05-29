@@ -214,15 +214,22 @@ export interface CountyMaritimeAggregate {
 // 3. Derive functions
 // ─────────────────────────────────────────────────
 
-/** 把不同口徑 port_class 歸到 5 大類 */
+/** 把不同口徑 port_class 歸到 5 大類；優先讀 port_class_group（粗分類），null 才 fallback port_class */
 function classifyPort(p: PortRow): "intl_comm" | "dom_comm" | "fishing" | "ferry" | "other" {
+  const grp = (p.port_class_group ?? "").trim();
+  if (grp) {
+    if (grp.includes("漁")) return "fishing";
+    if (grp.includes("國際商港")) return "intl_comm";
+    if (grp.includes("國內商港")) return "dom_comm";
+    if (grp.includes("渡輪") || grp.includes("觀光")) return "ferry";
+    return "other";
+  }
+  // port_class_group 為 null → fallback 細分類
   const cls = (p.port_class ?? "").toLowerCase();
-  const grp = (p.port_class_group ?? "").toLowerCase();
-  if (cls.includes("漁") || grp.includes("漁")) return "fishing";
-  if (cls.includes("國際") || cls.includes("intl") || cls.includes("international")) return "intl_comm";
-  if (cls.includes("國內") || cls.includes("商港") || cls.includes("commercial")) return "dom_comm";
-  if (cls.includes("渡") || cls.includes("觀光") || cls.includes("ferry") || cls.includes("tourism"))
-    return "ferry";
+  if (cls.includes("漁")) return "fishing";
+  if (cls.includes("國際") || cls.includes("intl")) return "intl_comm";
+  if (cls.includes("國內") || cls.includes("商港")) return "dom_comm";
+  if (cls.includes("渡") || cls.includes("觀光") || cls.includes("ferry")) return "ferry";
   return "other";
 }
 
