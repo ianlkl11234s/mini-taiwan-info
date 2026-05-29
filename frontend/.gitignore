@@ -33,3 +33,11 @@ dist-ssr
 # Test / coverage
 coverage
 .nyc_output
+
+# tsc -b 在 composite/build mode 重生的副產物（勿 commit，避免 .js 影子蓋過 vite.config.ts）
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo
+
+# agent-browser 驗證截圖
+.claude/

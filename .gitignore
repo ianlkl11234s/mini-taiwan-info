@@ -97,3 +97,6 @@ designs/**/*.pdf
 .cache/
 coverage/
 .nyc_output/
+
+# agent-browser 驗證截圖（不進 repo）
+.claude/screenshots/
