@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-05-29 改 GitHub 部署後整站 404（三層根因）
+
+**現象**：從「direct deploy 預建 dist（PREBUILT_V2）」改成 GitHub repo 自動部署後，線上 `mini-tw-info.itsmigu.com` 整站 HTTP 404，但 Zeabur build 顯示成功。
+
+**根因（三層疊加）**：① zbpack 從 **repo 根**掃描，app 在 `frontend/` 子目錄、根無 package.json/Dockerfile → 選 `caddy-static` plan 直接 serve 空的 repo 根 → 404。② 更早的 docker plan（frontend/Dockerfile）`pnpm build` 因 `tsconfig include:["src","scripts"]` 納入 dev 腳本但 **缺 @types/node** → `tsc -b` 報 TS2580/TS2307 → build fail → fallback static。③ 試過 root `zbpack.json app_dir` + 環境變數 `ZBPACK_APP_DIR=frontend` **都無法**把 static plan 導回 frontend/。
+
+**對策**：(1) 加 `@types/node` devDep（commit 1edbb90）；(2) **repo 根放 Dockerfile**（zbpack 必選 docker plan，commit 1fd13e5），保留 `/app/frontend`+`/app/themes` sibling 結構（build glob `../../../themes`），root .dockerignore 保留 themes/；(3) 首次 docker build 成功但 deploy 卡 FAILED → `service restart` 推上線 → 200。
+
+**教訓**：(1) monorepo 子目錄 app 走 GitHub 部署，最可靠是**根 Dockerfile**，非 zbpack app_dir / dashboard Root Directory。(2) **build 成功 ≠ 已上線**，deploy promotion 會卡，restart 可強制切 image。(3) tsc build 範圍含用 Node API 的 scripts 就要明列 @types/node，別靠本機 node_modules 巧合。完整報告見 `DEPLOYMENT.md §九`。
+
+---
+
+## 2026-05-29 rail 主要台鐵大站全缺（嘉義市只有 1 站）
+
+**現象**：軌道主題嘉義市僅 1 站（嘉北），臺北/臺中/臺南/高雄等主要轉運大站全消失；rail.stations TRA 僅 212。
+
+**根因**：taipei-gis-analytics `01_stations_county_join.py` 把 TRA 站點來源用了 mini-taiwan-pulse 的 `station_points.geojson`（212），但**該檔刻意排除 class 0/1 的 32 大站**（pulse 端大站用 3D polygon 立柱呈現，point 檔只放小站避免重複）。ETL 沿用此檔 → 缺站灌進 Supabase。非 county_id mojibake、非 JOIN 失敗。
+
+**對策**：ETL TRA 改用完整 `rail/tra/stations/stations.geojson`（244，含大站）+ 其餘系統仍用 station_points → 重跑 01 → 02 upsert（TRA 212→244、總 503→535）。gis-platform migration 116 註解同步。
+
+**教訓**：跨 repo 借資料前先確認來源檔的「設計用途」——station_points 是「給地圖點層」用、本就排除大站，不是完整站清單。派 agent 做跨 repo 根因追查很有效。
+
+---
+
 ## 2026-05-26 用「未壓縮 JSON 大小」估 Supabase egress → 高估 ~7× 的假警報
 
 **現象**：上線前費用盤點，sub-agent 估算 fire 主題單次抓 5 萬筆 ≈ 8–11MB egress/session，推論「Supabase 免費 5GB 約 350–420 session/月就爆」，列為 ❌ 高風險上線阻擋項。實測後完全推翻。
