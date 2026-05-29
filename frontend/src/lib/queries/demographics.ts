@@ -290,10 +290,11 @@ export function deriveNationalPyramid(rows: PopulationByAgeSexRow[]): AgeRow[] {
   return arr;
 }
 
-/** 全國 KPI 加總（依 pyramid + national trend + 縣市 area） */
+/** 全國 KPI 加總（依 pyramid + national trend + 縣市 area + village rows 算戶量） */
 export function deriveNationalSummary(
   rows: PopulationByAgeSexRow[],
   trend: NationalTrendRow[],
+  villageRows?: VillageDemographicsRow[],
 ): DemographicsNationalSummary {
   let male = 0;
   let female = 0;
@@ -337,8 +338,13 @@ export function deriveNationalSummary(
     }
   }
 
-  // 戶量：用 national trend 沒有，先以已知值 2.53 為 fallback；hook 內可從 village 加總 override
-  const household = 2.53;
+  // 戶量：從 village_demographics_yearly year=113 加總 household_count + population 算，null 才 fallback
+  const v113 = (villageRows ?? []).filter((v) => v.year === LATEST_YEAR_MINGUO);
+  const totalHH = v113.reduce((s, v) => s + (v.household_count ?? 0), 0);
+  const totalPopV = v113.reduce((s, v) => s + v.population, 0);
+  const household = totalHH > 0 && totalPopV > 0
+    ? Number((totalPopV / totalHH).toFixed(4))
+    : 2.53;
 
   return {
     totalPop,

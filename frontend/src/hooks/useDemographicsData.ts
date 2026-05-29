@@ -95,7 +95,7 @@ export function useDemographicsData(opts: { enabled?: boolean } = {}): Demograph
       // partial-data fallback：任一表失敗，仍以拿到的算 derived（其他 derive 對應 null）
       const summary =
         pyramidRows.length > 0 && trendRows.length > 0
-          ? deriveNationalSummary(pyramidRows, trendRows)
+          ? deriveNationalSummary(pyramidRows, trendRows, villageRows)
           : null;
       const pyramid = pyramidRows.length > 0 ? deriveNationalPyramid(pyramidRows) : [];
       const vitalsTrend = trendRows.length > 0 ? deriveVitalsTrend(trendRows) : [];
