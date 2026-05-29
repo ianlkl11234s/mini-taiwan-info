@@ -78,7 +78,8 @@ export function useRailData(opts: { enabled?: boolean } = {}): RailDataState {
     let cancelled = false;
     (async () => {
       const results = await Promise.allSettled([
-        cachedFetch("rail:stations", TTL_LONG, fetchStations),
+        // key 版本號 v2：TRA 補回 32 大站（212→244），舊快取需失效（2026-05-29）
+        cachedFetch("rail:stations:v2", TTL_LONG, fetchStations),
         cachedFetch("rail:lines", TTL_LONG, fetchLines),
         cachedFetch("rail:station_daily_trips", TTL_SHORT, fetchStationDailyTrips),
         cachedFetch("rail:ridership", TTL_LONG, fetchRidership),
