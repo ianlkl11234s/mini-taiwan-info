@@ -4291,6 +4291,14 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   overflow: hidden;
 }
 .stat-grid-4 .stat-tile { padding: 14px 14px 13px; }
+/* 灰字描述行釘底：某格描述兩行時，其餘格的 num/label 不被 grid stretch 推開，
+   四格 label 對齊、灰字底部對齊（對應設計稿 chat9 #1）。 */
+.stat-grid-4 .stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-grid-4 .stat-tile .stat-tile-ds { margin-top: auto; padding-top: 2px; }
 .stat-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
