@@ -1,51 +1,81 @@
 # Mini Taiwan Info
 
-> **各縣市開放資料儀錶板** — 從全台俯瞰到縣市深入，從數字到地圖的互動敘事。
+> **台灣縣市開放資料互動儀錶板** — 左邊地圖、右邊儀錶板，從全台俯瞰到縣市深入，把政府開放資料變成看得懂的故事。
 
-工作代號暫定 `mini-taiwan-info`，正式品名待設計師命名。本 repo 是**設計與規劃階段**的 SSOT，包含產品定位、資訊架構、版面、主題詳規、資料來源、roadmap。實作 repo 將另開。
-
----
-
-## 一句話
-
-「左邊地圖、右邊儀錶板」的縣市開放資料百科：用戶選一個主題（人口 / 水資源 / 火災 / 醫療…），全台 22 縣市依該主題著色，點選任一縣市進入專屬儀錶板，再點任一指標可「**爆炸展開**」看細節。
+🔗 **線上版**：https://mini-tw-info.itsmigu.com
 
 ---
 
-## 與 mini-taiwan-* 家族區隔
+## 這是什麼
+
+Mini Taiwan Info 把分散在各政府網站、格式各異的**開放資料**，整合成一個「選主題 → 看全台 → 點縣市 → 展指標」的互動百科。
+
+選一個主題（基礎統計 / 人口 / 軌道運輸 / 航運 / 消防 / 水資源），全台 22 縣市的地圖會依該主題著色；點任一縣市進入專屬儀錶板，再點任一指標可「**爆炸展開**」看更細的維度、時序與空間分解。
+
+資料能接真實來源就接（標 `LIVE`），暫時沒有來源的欄位誠實標示「待後續階段補上」，不用假數字充版面。
+
+---
+
+## 六大主題
+
+| 主題 | 內容 | 狀態 |
+|---|---|---|
+| 🏠 **基礎統計** | 行政區劃分、國土地理、人口總量、年齡結構、人口動態 | 上線 |
+| 👥 **人口** | 性別金字塔、老化指數、城鄉密度、社會 / 自然增減 | Beta |
+| 🚆 **軌道運輸** | 9 系統 535 站、班次與車種、運量、縣市排名 | Beta |
+| ⚓ **航運** | 港口 / 漁港、漁業產值、航線 | Beta |
+| 🚒 **消防** | 火災熱點、消防分隊、消防栓、災變時序、避難收容 | 上線 |
+| 💧 **水資源** | 水庫蓄水、雨量、河川水位、用水與漏水率、淹水潛勢 | 上線 |
+
+---
+
+## 三大核心特色
+
+1. **主題切換正交化** — 同一套版面跑所有主題，靠 `themes/*.yaml` manifest 驅動，新增主題不改版面程式。
+2. **三層下鑽** — View A 全台概覽（地圖著色）→ View B 縣市儀錶板 → View C 專項詳情（如單一水庫）。
+3. **誠實揭露資料覆蓋** — 真實資料標 `LIVE` badge；缺口資料優雅顯示「待後續階段補上」/ 🔴 缺口卡，不假裝有資料。
+
+---
+
+## 技術棧
+
+- **前端**：Vite 6 + React 18.3 + TypeScript + Mapbox GL JS v3（地圖著色 / 點位 / SPA）
+- **資料**：Supabase（PostgREST 前端直連 anon key，政府開放資料全公開）+ 前端 sessionStorage 快取層（TTL 分級 + in-flight dedupe）
+- **部署**：Zeabur GitHub 自動部署（root Dockerfile → Vite build → nginx；`git push` 觸發重建）
+- **資料管線**：見下方關聯 repo
+
+### 本機開發
+
+```bash
+cd frontend
+pnpm install
+pnpm dev          # http://localhost:5173
+pnpm build        # tsc -b + vite build
+```
+
+環境變數（`.env.local`，範本見 `frontend/.env.production.example`）：
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` / `VITE_MAPBOX_TOKEN` / `VITE_DEFAULT_THEME`。
+
+部署 SOP 與踩坑見 [`DEPLOYMENT.md`](DEPLOYMENT.md)。
+
+---
+
+## mini-taiwan-* 家族
 
 | Repo | 定位 |
 |---|---|
-| **mini-taiwan-pos** | 即時 / 動態 / 點位（餐廳店家視角） |
-| **mini-taiwan-pulse** | 即時 / 動態 / 氣象雷達雲圖 |
+| **mini-taiwan-pulse** | 即時 / 動態 / 多運具脈動（船舶、航班、公車…） |
 | **mini-taiwan-info**（本 repo） | **統計 / 半動態 / 行政區單位**（縣市開放資料小百科） |
 
----
+### 資料三部曲（後端管線）
 
-## 導讀（從哪裡開始看）
-
-1. [docs/00-vision-and-positioning.md](docs/00-vision-and-positioning.md) — 產品定位 / 目標用戶
-2. [docs/01-information-architecture.md](docs/01-information-architecture.md) — 四個 view 架構
-3. [docs/02-layout-and-wireframes.md](docs/02-layout-and-wireframes.md) — 版面 + wireframe ⭐
-4. [docs/03-exploded-view-pattern.md](docs/03-exploded-view-pattern.md) — 爆炸圖敘事模式 ⭐⭐
-5. [docs/04-theme-manifest-spec.md](docs/04-theme-manifest-spec.md) — 主題 YAML 規格
-6. [docs/05-storytelling-framework.md](docs/05-storytelling-framework.md) — 敘事框架
-7. [docs/06-components-library.md](docs/06-components-library.md) — 元件庫
-8. [docs/07-data-sources-overview.md](docs/07-data-sources-overview.md) — 資料來源全景
-9. [docs/08-roadmap-12weeks.md](docs/08-roadmap-12weeks.md) — 12 週路線圖
-10. [docs/09-phase0-infrastructure-tasklist.md](docs/09-phase0-infrastructure-tasklist.md) — Phase 0 共用基礎設施工作清單 ⭐ 開工前必讀
-
-### 主題詳規
-
-- [docs/themes/home-basics.md](docs/themes/home-basics.md) — 🏠 首頁基礎統計（TGOS 內政主題 API）
-- [docs/themes/water.md](docs/themes/water.md) — 💧 水資源（Phase 1 MVP）
-- [docs/themes/socioeconomic.md](docs/themes/socioeconomic.md) — 💼 社會經濟（Phase 2）
-- [docs/themes/fire.md](docs/themes/fire.md) — 🚒 消防 / 公共安全（Phase 3）
-
-### 配套
-
-- `themes/*.yaml` — Theme manifest（前端用）
-- `samples/*/` — 範例資料（給設計師示意）
+```
+taipei-gis-analytics（ETL / data-catalog）
+   ↓ 寫入
+gis-platform（Supabase schema / migrations / RPC）
+   ↓ 前端直連
+mini-taiwan-info（本 repo，視覺化）
+```
 
 ---
 
@@ -53,28 +83,36 @@
 
 ```
 mini-taiwan-info/
-├── README.md                    本檔
-├── docs/
-│   ├── 00..09-*.md              核心規劃文件（10 份）
-│   ├── themes/                  各主題詳細規劃（home-basics, water, socioeconomic, fire）
-│   └── wireframes/              wireframe 細部圖（補充）
-├── themes/                      Theme manifest YAML（_template + 4 主題）
-├── samples/                     範例資料（每主題一資料夾）
-└── designs/                     視覺概念補充
+├── frontend/                    React + Vite 應用（實作）
+│   ├── src/
+│   │   ├── components/views/    ViewA*/ViewB* 各主題分頁
+│   │   ├── components/map/      Mapbox 地圖 + 圖例 + 圖層控制
+│   │   ├── lib/queries/         各主題 Supabase query
+│   │   ├── hooks/               use*Data 資料 hook
+│   │   └── lib/cache.ts         前端快取層
+│   ├── Dockerfile / nginx.conf  部署
+│   └── ...
+├── themes/                      Theme manifest YAML（6 主題 + _template）
+├── docs/                        規劃文件 + 主題詳規 + 資料來源
+├── DEPLOYMENT.md                Zeabur 部署指南 + 事件報告
+└── README.md                    本檔
 ```
 
 ---
 
-## 狀態
+## 深入了解
 
-- 階段：**設計與規劃**（不含實作程式碼）
-- 目標：交付給設計師繪製 hi-fi mockup + 給工程啟動 Phase 0
-- 預估上線：Phase 1 水資源 MVP 約 12 週
+- [docs/00-vision-and-positioning.md](docs/00-vision-and-positioning.md) — 產品定位 / 目標用戶
+- [docs/01-information-architecture.md](docs/01-information-architecture.md) — 四個 view 架構
+- [docs/03-exploded-view-pattern.md](docs/03-exploded-view-pattern.md) — 爆炸圖敘事模式
+- [docs/04-theme-manifest-spec.md](docs/04-theme-manifest-spec.md) — 主題 YAML 規格
+- [docs/07-data-sources-overview.md](docs/07-data-sources-overview.md) — 資料來源全景
+- `themes/*.yaml` — 各主題 manifest（前端 metadata 來源）
 
 ---
 
-## 三大核心特色
+## 資料來源
 
-1. **主題切換正交化** — 同一份 layout 跑所有主題，靠 `themes/*.yaml` manifest 驅動
-2. **爆炸圖（Exploded View）** — KPI / 圖表可一鍵展開「按維度 / 按時間 / 按空間」三類爆炸
-3. **誠實揭露資料覆蓋** — 「資料未開放」狀態優雅顯示，不假裝有資料
+內政部戶政司 / 統計處、交通部（臺鐵 / 高鐵 / 各捷運）、消防署、經濟部水利署、國土測繪中心等政府開放資料，經 `taipei-gis-analytics` 清洗、`gis-platform` 入庫後對外。
+
+授權：資料依各來源之開放資料授權；程式碼見本 GitHub repo。
