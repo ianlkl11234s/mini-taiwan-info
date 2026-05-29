@@ -14,7 +14,7 @@ theme:
   color_ramp: blues
   description: 縣市水資源狀況：水庫、河川、用水、污水、防洪、地下水。
   tagline: 南北分裂的島嶼水帳
-  priority: 10
+  priority: 5
   status: production
 
 # ─────────────────────────────────────────────────

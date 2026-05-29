@@ -13,7 +13,7 @@ theme:
   color_ramp: reds
   description: 火災事件、救災量能、量能落差、其他救護山林 — 對齊 v03 設計 4 區塊。
   tagline: 島嶼的火帳分四章看完
-  priority: 30
+  priority: 6
   status: production
 
 # ─────────────────────────────────────────────────

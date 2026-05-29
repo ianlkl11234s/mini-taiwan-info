@@ -887,7 +887,7 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .map-controls button:hover { background: var(--surface-2); color: var(--text); }
 
 .map-meta {
-  left: 14px; bottom: 14px;
+  left: 14px; top: 14px;
   padding: 8px 12px;
   font-size: 11.5px;
   color: var(--text-tertiary);
@@ -3016,7 +3016,7 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 }
 .admin-tree-row {
   display: grid;
-  grid-template-columns: 110px 1fr 130px;
+  grid-template-columns: 110px 1fr 165px;
   align-items: center;
   gap: 16px;
   font-size: 13px;
@@ -3099,9 +3099,9 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   border-radius: 10px;
   padding: 12px;
   display: flex;
-  gap: 6px;
-  align-items: flex-end;
-  min-height: 200px;
+  flex-direction: column;
+  gap: 8px;
+  min-height: auto;
 }
 .territory-block {
   position: relative;
@@ -3200,10 +3200,9 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   padding: 22px 24px;
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 22px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .pop-hero .ph-big-label {
   font-size: 12px;
@@ -4787,10 +4786,9 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
   border-radius: var(--radius-card);
   padding: 18px 20px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 22px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .big-callout .bc-big {
   font-size: 44px;

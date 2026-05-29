@@ -91,7 +91,7 @@ function Hero({ N }: { N: ViewModel }) {
 ─────────────────────────────────────────────── */
 function H1Admin({ N }: { N: ViewModel }) {
   const max = Math.log(N.neighborhoods_total + 1);
-  const widthOf = (v: number) => Math.max(5, (Math.log(v + 1) / max) * 100);
+  const widthOf = (v: number) => Math.max(5, Math.min(68, (Math.log(v + 1) / max) * 100));
 
   const levels = [
     { ix: "L1", name: "縣市",     value: N.cities_total,      unit: "個", sub: "直轄市 6 / 縣市 16" },
@@ -162,7 +162,7 @@ function H2Geography({ N }: { N: ViewModel }) {
         <div className="territory-visual">
           <div
             className="territory-block main"
-            style={{ flex: N.main_island_km2, height: "100%", minHeight: 200 }}
+            style={{ minHeight: 100, padding: "14px 16px" }}
           >
             <div className="tb-label">本島</div>
             <div className="tb-val">{fmt.num(N.main_island_km2)}<span className="unit">km²</span></div>
@@ -170,7 +170,7 @@ function H2Geography({ N }: { N: ViewModel }) {
           </div>
           <div
             className="territory-block out"
-            style={{ flex: Math.max(N.offshore_islands_km2, 800), height: "60%" }}
+            style={{ minHeight: 60, padding: "12px 16px" }}
           >
             <div className="tb-label">離島</div>
             <div className="tb-val">{fmt.num(N.offshore_islands_km2, 1)}<span className="unit">km²</span></div>
@@ -290,7 +290,8 @@ function H4Age({ N, selectedCounty }: { N: ViewModel; selectedCounty: CountyCode
   })).sort((a, b) => b.value - a.value);
 
   const ah = AGING_HISTORY;
-  const crossIdx = ah.findIndex((d) => d.year === 2017);
+  // crossIdx reserved for future use
+  // const crossIdx = ah.findIndex((d) => d.year === 2017);
   const topVal = agingAll[0]?.value ?? 1;
   const bottomVal = agingAll[agingAll.length - 1]?.value ?? 1;
   const ratio = (topVal / bottomVal).toFixed(1);
@@ -301,7 +302,7 @@ function H4Age({ N, selectedCounty }: { N: ViewModel; selectedCounty: CountyCode
         num={4}
         title={<><span className="accent">年齡結構</span> ─ 超高齡社會的臨界</>}
         tagline={`65+ 已達 ${N.pct_65_plus.toFixed(2)}%（超高齡門檻 20%）；老化指數 ${N.aging_index.toFixed(2)}，連年攀升`}
-        badge="月度 · 主視覺"
+        badge={`月度 · ${N.as_of_month}`}
         badgeTone="live"
       />
 
@@ -393,7 +394,7 @@ function H4Age({ N, selectedCounty }: { N: ViewModel; selectedCounty: CountyCode
               <span className="pre">TREND</span>
               老化指數歷年（1994–2024）
             </div>
-            <div className="section-subtitle">2017 發生「死亡交叉」— 死亡人數首次超過出生</div>
+            <div className="section-subtitle">1994–2024 老化指數持續攀升</div>
           </div>
         </div>
         <TrendChart
@@ -403,7 +404,7 @@ function H4Age({ N, selectedCounty }: { N: ViewModel; selectedCounty: CountyCode
           yMax={185}
           height={180}
           showLegend={false}
-          annotations={crossIdx >= 0 ? [{ atIndex: crossIdx, label: "2017 死亡交叉", severity: "danger" }] : []}
+          annotations={[]}
         />
       </div>
 

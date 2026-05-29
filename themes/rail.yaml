@@ -15,7 +15,7 @@ theme:
   color_ramp: blues
   description: 台鐵、高鐵與六系統捷運輕軌的車站、路線、班次統計 — 站等分級、停靠車次排名、車種與尖峰離峰結構。
   tagline: 全島軌道：站、線、班次的統計帳
-  priority: 50
+  priority: 3
   status: beta
 
 # ─────────────────────────────────────────────────

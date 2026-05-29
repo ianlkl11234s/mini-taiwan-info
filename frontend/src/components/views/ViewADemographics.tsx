@@ -11,7 +11,7 @@
 
 import {
   Users, Home, Scale, TrendingUp, Baby, AlertTriangle,
-  ArrowLeftRight, Lightbulb, Share2, Download, Database,
+  ArrowLeftRight, Lightbulb, Share2, Download,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { byCode3 } from "@/lib/counties";
@@ -20,7 +20,7 @@ import type { DemographicsDataState } from "@/hooks/useDemographicsData";
 import { CatHeader } from "@/components/common/CatHeader";
 import { HRankBar, type HRankRow } from "@/components/common/HRankBar";
 import { DataSourceBadge } from "@/components/common/DataSourceBadge";
-import { MissingDataCard } from "@/components/common/MissingDataCard";
+// import { MissingDataCard } from "@/components/common/MissingDataCard"; // hidden pending data quality fix
 import { KPICard } from "@/components/kpi/KPICard";
 import { TrendChart } from "@/components/charts/TrendChart";
 
@@ -223,7 +223,8 @@ function S2Pyramid({ data, selectedCounty }: Props) {
 
   // 老化指數歷年
   const ah = data.agingHistory;
-  const crossYearIdx = ah.findIndex((d) => d.yearMinguo === S.crossYearMinguo);
+  // crossYearIdx reserved for future annotation use
+  // const crossYearIdx = ah.findIndex((d) => d.yearMinguo === S.crossYearMinguo);
 
   return (
     <div className="cat-block">
@@ -323,7 +324,7 @@ function S2Pyramid({ data, selectedCounty }: Props) {
             yMax={Math.max(...ah.map((d) => d.value)) + 5}
             height={160}
             showLegend={false}
-            annotations={crossYearIdx >= 0 ? [{ atIndex: crossYearIdx, label: `${ah[crossYearIdx].year} 死亡交叉`, severity: "danger" }] : []}
+            annotations={[]}
           />
         </div>
       )}
@@ -594,18 +595,6 @@ export function ViewADemographics({ data, selectedCounty, onCountyClick }: Props
         updatedAt="2026-05-13"
       />
 
-      <div className="missing-data-grid" style={{ marginTop: 14 }}>
-        <MissingDataCard
-          icon={<Users size={16} />}
-          label="日夜人口縣市別"
-          reason="statistical_areas county 欄 mojibake — 全國總值 day 3.50M / night 2.78M 可用，22 縣市拆分待修"
-        />
-        <MissingDataCard
-          icon={<Database size={16} />}
-          label="最小統計區 345 欄位"
-          reason="11,490 筆已收，欄位完整但 county 標籤需修"
-        />
-      </div>
       {/* byCode3 import 保留以便日後使用 */}
       <span style={{ display: "none" }}>{Object.keys(byCode3).length}</span>
     </div>

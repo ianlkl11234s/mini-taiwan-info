@@ -64,10 +64,10 @@ export function ThemeSwitcher({ themes, activeTheme, onThemeChange }: ThemeSwitc
 
       <div className="theme-switcher-spacer" />
       <div className="footer-links">
-        <a href="#">資料來源</a>
+        <a href="https://data.gov.tw/" target="_blank" rel="noopener noreferrer">資料來源</a>
         <a href="#">授權 CC BY 4.0</a>
         <a href="#">About</a>
-        <a href="#">GitHub ↗</a>
+        <a href="https://github.com/ianlkl11234s/mini-taiwan-info" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
       </div>
     </div>
   );
