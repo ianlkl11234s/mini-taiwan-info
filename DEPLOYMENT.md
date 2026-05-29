@@ -269,3 +269,46 @@ A：`curl https://<domain>/any-non-exist-path` 應回 index.html（200）而非 
 - 問題回報：GitHub issue
 - Mapbox 支援：https://support.mapbox.com
 - Supabase 支援：https://supabase.com/support
+
+---
+
+## 實際部署紀錄（2026-05-29）
+
+**已上線：** https://mini-tw-info.zeabur.app
+
+| 項目 | 值 |
+|---|---|
+| Zeabur 帳號 | ianlk11234s（DEVELOPER plan） |
+| Project | `mini-tw-info` · ID `6a1946657e81687840b6d363` |
+| Service | `web` · ID `6a194b4718463d8ee2669f6e` |
+| Environment ID | `6a1946655245baf7fc3dda0c` |
+| Region | agent_test（LINODE） |
+| 網域 | mini-tw-info.zeabur.app（Zeabur generated） |
+
+### 採用的部署方式：direct deploy 預建 dist（PREBUILT_V2）
+
+> ⚠️ 注意：目前**不是**走 repo 內的 Dockerfile+nginx。`zeabur deploy` 是上傳「已建置靜態檔」直接 serve，不會跑 Dockerfile build。
+> 因此目前的 cache 行為是 Zeabur 預設（gzip + ETag/no-cache 重驗證），**非** nginx.conf 裡的 immutable 長快取。
+> dist 的 VITE_ 變數是本機 `pnpm build` 時從 `.env.local` baked 進去的。
+
+### 重新部署（改了程式後）
+
+```bash
+cd frontend
+pnpm build                      # 用 .env.local 的值 baked 進 dist
+cd dist
+npx zeabur@latest deploy --project-id 6a1946657e81687840b6d363 \
+  --service-id 6a194b4718463d8ee2669f6e --json
+```
+
+> **務必帶 `--service-id`**，否則會建出重複服務。
+
+### 若要改走 Dockerfile + nginx（取得 immutable 長快取 + auto-redeploy on push）
+
+改用 Git deploy，並在 Zeabur 服務設定把 **Root Directory 設為 `frontend/`**（Dockerfile 在該子目錄），Zeabur 才找得到 Dockerfile。屬日後優化，非上線必需。
+
+### 上線後待辦
+
+- [ ] **Mapbox token 設 URL restriction** → 限 `mini-tw-info.zeabur.app`（token 已 baked，restrict 後免重建）
+- [ ] 套用 `gis-platform/migrations/124_rpc_hard_limits.sql`（DB 層 RPC 硬上限）
+- [ ] 後端 FastAPI 未部署 → explode/TGOS 功能降級（`VITE_API_BASE_URL` 預設空字串，不影響 Supabase KPI）
