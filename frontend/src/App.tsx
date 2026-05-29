@@ -11,7 +11,7 @@ import type { AppView, CountyCode3, ThemeManifest } from "@/lib/types";
 import { TopBar } from "@/components/chrome/TopBar";
 import { ThemeSwitcher } from "@/components/chrome/ThemeSwitcher";
 import type { CrumbItem } from "@/components/chrome/Breadcrumb";
-import { MapView } from "@/components/map/MapView";
+import { MapView, type PortPointFeature, type RailStationPointFeature } from "@/components/map/MapView";
 import { MapLegend } from "@/components/map/MapLegend";
 import { COLOR_RAMPS } from "@/lib/mapbox";
 import { TwoSectionLayers, type PointLayerToggle, METRIC_NONE } from "@/components/map/TwoSectionLayers";
@@ -293,6 +293,14 @@ export default function App() {
   const togglePointLayerFire = (id: string) =>
     setPointLayersOnFire((prev) => ({ ...prev, [id]: !prev[id] }));
 
+  const [pointLayersOnMaritime, setPointLayersOnMaritime] = useState<Record<string, boolean>>({ ports: true });
+  const togglePointLayerMaritime = (id: string) =>
+    setPointLayersOnMaritime((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const [pointLayersOnRail, setPointLayersOnRail] = useState<Record<string, boolean>>({ stations: true });
+  const togglePointLayerRail = (id: string) =>
+    setPointLayersOnRail((prev) => ({ ...prev, [id]: !prev[id] }));
+
   // 40 水庫真實點位（給 MapView）
   // View A: 全部 37 座；View B/C: 只顯示該縣市 + 鄰縣（聚焦上下文）
   const reservoirPointsForMap = useMemo(() => {
@@ -370,6 +378,35 @@ export default function App() {
     }
     return all;
   }, [useRealData, river.stations, view, county]);
+
+  // 航運：港口點位給 MapView
+  const portPointsForMap = useMemo((): PortPointFeature[] => {
+    if (theme !== "maritime" || !maritime.ports.length) return [];
+    return maritime.ports
+      .filter((p) => p.lat != null && p.lng != null)
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        port_class_group: p.port_class_group,
+        lat: p.lat,
+        lng: p.lng,
+      }));
+  }, [theme, maritime.ports]);
+
+  // 軌道：車站點位給 MapView
+  const railStationPointsForMap = useMemo((): RailStationPointFeature[] => {
+    if (theme !== "rail" || !rail.stations.length) return [];
+    return rail.stations
+      .filter((s) => s.lat != null && s.lng != null)
+      .map((s) => ({
+        id: s.station_id,
+        name: s.name,
+        system_id: s.system_id,
+        color: s.color ?? "#4F46E5",
+        lat: s.lat,
+        lng: s.lng,
+      }));
+  }, [theme, rail.stations]);
 
   // Breadcrumb
   const breadcrumb: CrumbItem[] = useMemo(() => {
@@ -466,12 +503,14 @@ export default function App() {
               fireIncidentPoints={fireIncidentPointsForMap}
               fireStations={fireStationsForMap}
               neutralChoropleth={neutralChoropleth}
+              portPoints={portPointsForMap}
+              showPorts={theme === "maritime" && view === "A" && pointLayersOnMaritime.ports}
+              railStationPoints={railStationPointsForMap}
+              showRailStations={theme === "rail" && view === "A" && pointLayersOnRail.stations}
             />
           </ErrorBoundary>
 
-          {/* Phase 0b+ A-2: 著色指標 + 點位圖層控制
-              - water：6 個點位 layer
-              - fire：5 個點位 layer（hotspots / stations 已 enabled，其他待 Sprint 2-4） */}
+          {/* Phase 0b+ A-2: 著色指標 + 點位圖層控制 */}
           {view === "A" && manifest.overview.color_metrics && (
             <TwoSectionLayers
               metric={metric}
@@ -489,9 +528,26 @@ export default function App() {
                         fire.forestRisk?.total ?? 0,
                         fire.shelterNationalCount
                       )
-                    : []
+                  : theme === "maritime"
+                    ? [{
+                        id: "ports", label: "港口", count: portPointsForMap.length,
+                        color: "#0D9488", shape: "dot" as const, enabled: true,
+                        on: pointLayersOnMaritime.ports,
+                      }]
+                  : theme === "rail"
+                    ? [{
+                        id: "stations", label: "車站", count: railStationPointsForMap.length,
+                        color: "#4F46E5", shape: "dot" as const, enabled: true,
+                        on: pointLayersOnRail.stations,
+                      }]
+                  : []
               }
-              onTogglePoint={theme === "fire" ? togglePointLayerFire : togglePointLayer}
+              onTogglePoint={
+                theme === "fire" ? togglePointLayerFire
+                : theme === "maritime" ? togglePointLayerMaritime
+                : theme === "rail" ? togglePointLayerRail
+                : togglePointLayer
+              }
             />
           )}
 
