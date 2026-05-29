@@ -661,3 +661,37 @@ $$;
 但 11 row 結果用 RPC 過度（前端 dedup 也 OK）— Trade-off：< 5000 row 前端 dedup 簡單可控；> 5000 走 RPC 省 bandwidth。
 
 例：Session 9 `S4Others.tsx` `disasterTimeline` + `ViewBFire.tsx OthersTab events`。
+
+---
+
+## PB-18: monorepo 子目錄 app 的 Zeabur GitHub 部署（root Dockerfile 法）
+
+**情境**：app 在 `frontend/` 子目錄，要走 Zeabur GitHub 自動部署（push 觸發重建）。直接連 repo 會讓 zbpack 從根掃描 → 誤判 static → serve 空根 → 404。
+
+**SOP**：
+1. **repo 根放 `Dockerfile`**（不是只放 frontend/）：zbpack 偵測到根 Dockerfile → 必選 docker plan。內容以 repo 根為 build context，保留 build 必需的跨目錄相對結構，從子目錄 build：
+   ```dockerfile
+   FROM node:20-alpine AS builder
+   WORKDIR /app
+   RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+   COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
+   RUN cd frontend && pnpm install --frozen-lockfile
+   ARG VITE_... ; ENV VITE_...=$VITE_...
+   COPY frontend/ ./frontend/
+   COPY themes/ ./themes/          # build glob ../../../themes 需要 sibling
+   RUN cd frontend && pnpm build
+   FROM nginx:alpine AS runner
+   COPY frontend/nginx.conf /etc/nginx/nginx.conf
+   COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+   EXPOSE 8080
+   ```
+2. **root `.dockerignore`**：保留 build 必需的跨目錄依賴（此專案 `themes/`），排除 data/designs/docs/samples + frontend/node_modules 縮小 context。
+3. **VITE_ 變數**設為 Zeabur build-arg（service variables）；build 前確認 `@types/node` 等 tsc 範圍依賴在 lockfile。
+4. **本機驗證**（Docker daemon 開著時）：`docker build -t test .`；否則至少 `cd frontend && pnpm build` 確認。
+5. push → Zeabur 自動 build。確認 `deployment list` 的 **PLANTYPE=docker**（非 static）。
+6. **build 成功但 deploy 卡 FAILED**：`npx zeabur@latest service restart --id <svc>` 強制切到新 image。
+7. 驗證：`curl -o /dev/null -w "%{http_code}" https://<domain>/` = 200 + 含 `/assets/index-*.js`。
+
+**不要用**：`zbpack.json app_dir` / `ZBPACK_APP_DIR` env — 實測無法把 static plan 導回子目錄（2026-05-29 S11 踩過）。
+
+完整事件：INCIDENTS 2026-05-29、DEPLOYMENT.md §九。
