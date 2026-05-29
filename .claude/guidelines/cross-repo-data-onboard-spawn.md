@@ -87,6 +87,8 @@ context 會膨脹拖垮品質。每個任務開**新 session**：
 ```bash
 # 每個任務一個 fresh session
 .claude/scripts/spawn_tmux_claude.sh etl_fire "<analytics 路徑>"
+# cmux 觀景窗：在過夜 workspace 加一個「以任務命名」的 tab（user 要求過夜也要開）
+.claude/scripts/cmux_named_tab.sh "$(cat .claude/tmp/overnight_workspace.txt)" etl_fire "04-fire財損起火處所ETL"
 cat prompt_fire.txt | .claude/scripts/tmux_send_prompt.sh etl_fire
 # prompt 要求 session：做任務 → 自己 atomic commit（明確路徑,兩 repo,不 add -A,不 push）
 #               → 寫 .claude/board/etl_fire.md（append milestones,結尾 === DONE etl_fire ===）
