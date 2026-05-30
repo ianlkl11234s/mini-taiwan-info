@@ -645,3 +645,19 @@ Reference: Session 10 wrap-up；本條目是重做後才補上。
 **對策**：
 
 **教訓**：
+
+---
+（S12）2026-05-30 — 全主題稽核抓到的資料/前端 bug（多數造成靜默錯誤或 rework）
+
+1. **人口出生死亡錯一個數量級**（最嚴重）：`spatial.village_demographics_yearly` 用戶政司 ODRP010 村里動態「12 月單月」檔被當年度 SUM → 全國出生 12,496（實 ~13.5萬）。根治：建 `demographics.national_vital_yearly`（民104-114 戶籍年度，交叉 dgbas+衛福驗證），national_population_trend view 改吃它。⚠️ 縣市別仍無年度來源，前端標「12 月單月」。
+2. **全國人口翻倍**：`fetchPopulationByAgeSex` 抓全部年份(2024+2025)跨年加總 → 46M。修：derive 全加 statYear 篩選。
+3. **消防栓台北重複灌兩次**：datagov:146006 + 128639 兩 dataset 同批座標 99.5% 重疊但 hydrant_id 格式不同（PK dedup 抓不到）→ 43,724(實 21,848)。且「91,691」是全台 SUM 被誤標成高雄。修：migration 141 去重 + 前端 per-county。
+4. **火災月度三年累計標單年**：MV `incidents_by_hour_month` 無 year 維度 → 民111-113 合併（台北月度3,957≠全年1,137）。修：MV 加 data_year_minguo + 前端 filter。
+5. **水庫 region 聚合漏變體**：normalizeReservoirRegion 漏「臺灣南區/澎湖地區」→ 2 座 fall through 成 null（34→32）。
+6. **連江「全村里在3km內」假陳述**：實有 74 圈外村里，被全國 Top-100 截斷誤判。
+7. **fire anon GRANT 漏**：casualty_property_by_county_year 漏 anon GRANT → 401。
+8. **起火處所雙重計算**：raw 同含年度總計列+月別列被全收（≈×2）。
+9. **mock 套綠 LIVE tone**：home-basics per-county mock 掛「月度·2026-04」+badgeTone=live；扶養比寫死 68%→22 縣市恆等 47.06%。
+10. **port_traffic 航商名污染**：port_name 混入「(CMA)」等 LOCODE fallback 假港名 7 列。
+
+（流程坑）11. **移除分享/匯出只清 ViewB 漏 ViewA**：grep 卡頓給假「0」誤判已清完 → 用戶截圖才發現 ViewA 7 檔還在。教訓：grep count 復驗 + typecheck 為準。 12. **pkill -f vite 殺掉 user gis-up(6001)**。
