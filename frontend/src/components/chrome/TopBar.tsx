@@ -3,15 +3,13 @@
  * 對應 prototype chrome.jsx TopBar
  */
 
-import { Droplet, Home, Search, Settings, Info, Scale } from "lucide-react";
+import { Droplet, Home, Search, Settings, Info } from "lucide-react";
 import { Breadcrumb, type CrumbItem } from "./Breadcrumb";
 
 interface TopBarProps {
   themeName: string;
   themeId: string;
   year: string;
-  comparing: boolean;
-  onCompare: () => void;
   breadcrumb?: CrumbItem[];
   onCrumbClick?: (item: CrumbItem) => void;
 }
@@ -20,8 +18,6 @@ export function TopBar({
   themeName,
   themeId,
   year,
-  comparing,
-  onCompare,
   breadcrumb,
   onCrumbClick,
 }: TopBarProps) {
@@ -76,14 +72,6 @@ export function TopBar({
       </div>
 
       <div className="tb-spacer" />
-
-      <button
-        className={`tb-compare-btn ${comparing ? "active" : ""}`}
-        onClick={onCompare}
-      >
-        <Scale size={14} />
-        比較模式
-      </button>
 
       <button className="tb-icon-btn" title="說明">
         <Info size={16} />

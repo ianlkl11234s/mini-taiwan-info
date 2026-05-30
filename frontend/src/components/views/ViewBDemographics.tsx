@@ -24,7 +24,7 @@
 import { useMemo, useState } from "react";
 import {
   Users, Home, Scale, TrendingUp, Baby, AlertTriangle,
-  ArrowLeftRight, Lightbulb, Share2, Download, Plus, ChevronLeft,
+  ArrowLeftRight, Lightbulb, Share2, Download, ChevronLeft,
   Locate, Triangle, type LucideIcon,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
@@ -41,7 +41,6 @@ interface ViewBDemographicsProps {
   data: DemographicsDataState;
   county: CountyCode3;
   onBack: () => void;
-  onAddCompare?: () => void;
 }
 
 type TabId = "overview" | "age" | "dynamics" | "urban";
@@ -117,7 +116,7 @@ function derive3Segment(pyr: AgeRow[]): { pct014: number; pct1564: number; pct65
 // ─────────────────────────────────────────────────
 // 主入口
 // ─────────────────────────────────────────────────
-export function ViewBDemographics({ data, county, onBack, onAddCompare }: ViewBDemographicsProps) {
+export function ViewBDemographics({ data, county, onBack }: ViewBDemographicsProps) {
   const [tab, setTab] = useState<TabId>("overview");
   const c = byCode3[county];
   const N = data.summary;
@@ -163,7 +162,6 @@ export function ViewBDemographics({ data, county, onBack, onAddCompare }: ViewBD
         growthRank={growthRank}
         depRank={depRank}
         onBack={onBack}
-        onAddCompare={onAddCompare}
       />
 
       <div className="tab-bar">
@@ -224,10 +222,9 @@ interface HeroProps {
   growthRank: number;
   depRank: number;
   onBack: () => void;
-  onAddCompare?: () => void;
 }
 
-function Hero({ c, p, N, popRank, agingRank, densityRank, growthRank, depRank, onBack, onAddCompare }: HeroProps) {
+function Hero({ c, p, N, popRank, agingRank, densityRank, growthRank, depRank, onBack }: HeroProps) {
   const region = REGION_LABELS[c.region] ?? c.region;
   let hook;
   if (agingRank === 1) {
@@ -264,11 +261,6 @@ function Hero({ c, p, N, popRank, agingRank, densityRank, growthRank, depRank, o
           <div className="hero-actions">
             <button className="btn ghost"><Download size={14} /> 下載 CSV</button>
             <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            {onAddCompare && (
-              <button className="btn primary" onClick={onAddCompare}>
-                <Plus size={14} /> 加入比較
-              </button>
-            )}
           </div>
         </div>
         <div className="ch-chips" style={{ marginTop: 12, marginBottom: 0 }}>

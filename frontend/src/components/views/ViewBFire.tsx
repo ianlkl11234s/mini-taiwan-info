@@ -24,7 +24,6 @@ import {
   HeartPulse,
   Share2,
   Download,
-  Plus,
   Lightbulb,
   Scale,
   ChevronLeft,
@@ -98,10 +97,9 @@ interface ViewBFireProps {
   data: FireDataState;
   county: CountyCode3;
   onBack: () => void;
-  onAddCompare?: () => void;
 }
 
-export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps) {
+export function ViewBFire({ data, county, onBack }: ViewBFireProps) {
   const [tab, setTab] = useState<TabId>("overview");
   const c = byCode3[county];
   if (!c) {
@@ -248,11 +246,6 @@ export function ViewBFire({ data, county, onBack, onAddCompare }: ViewBFireProps
           <div className="hero-actions">
             <button className="btn ghost"><Download size={14} /> 下載 CSV</button>
             <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            {onAddCompare && (
-              <button className="btn" onClick={onAddCompare}>
-                <Plus size={14} /> 加入比較
-              </button>
-            )}
           </div>
         </div>
       </div>

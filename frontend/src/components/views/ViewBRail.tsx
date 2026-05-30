@@ -45,7 +45,6 @@ interface ViewBRailProps {
   data: RailDataState;
   county: CountyCode3;
   onBack: () => void;
-  onAddCompare?: () => void;
 }
 
 type TabId = "overview" | "stations" | "service" | "ridership" | "rank";
@@ -55,7 +54,7 @@ const REGION_LABELS: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────────
-export function ViewBRail({ data, county, onBack, onAddCompare }: ViewBRailProps) {
+export function ViewBRail({ data, county, onBack }: ViewBRailProps) {
   const [tab, setTab] = useState<TabId>("overview");
   const c = byCode3[county];
   const cAgg = useMemo(
@@ -95,7 +94,7 @@ export function ViewBRail({ data, county, onBack, onAddCompare }: ViewBRailProps
 
   return (
     <div>
-      <Hero c={c} cAgg={cAgg} aggs={data.countyAggregates} N={data.summary} crossNote={crossNote} onBack={onBack} onAddCompare={onAddCompare} />
+      <Hero c={c} cAgg={cAgg} aggs={data.countyAggregates} N={data.summary} crossNote={crossNote} onBack={onBack} />
 
       {zero ? (
         <ZeroRailFallback cname={c.name_zh} />
@@ -134,14 +133,13 @@ export function ViewBRail({ data, county, onBack, onAddCompare }: ViewBRailProps
 }
 
 // ─────────────────────────────────────────────────
-function Hero({ c, cAgg, aggs, N, crossNote, onBack, onAddCompare }: {
+function Hero({ c, cAgg, aggs, N, crossNote, onBack }: {
   c: { name_zh: string; region: string; area_km2: number; pop_2024_wan: number };
   cAgg: CountyRailAggregate;
   aggs: CountyRailAggregate[];
   N: NonNullable<RailDataState["summary"]>;
   crossNote: { sys: string; txt: string } | null;
   onBack: () => void;
-  onAddCompare?: () => void;
 }) {
   const region = REGION_LABELS[c.region] ?? c.region;
   const rankOf = (key: keyof CountyRailAggregate) => {
@@ -177,7 +175,6 @@ function Hero({ c, cAgg, aggs, N, crossNote, onBack, onAddCompare }: {
           <div className="hero-actions">
             <button className="btn ghost"><Download size={14} /> 下載 CSV</button>
             <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            {onAddCompare && <button className="btn primary" onClick={onAddCompare}><Plus size={14} /> 加入比較</button>}
           </div>
         </div>
 

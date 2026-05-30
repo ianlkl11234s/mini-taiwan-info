@@ -440,14 +440,12 @@ export interface CountyDashboardPayload {
 // App state
 // ─────────────────────────────────────────────────
 
-export type AppView = "A" | "B" | "C" | "D";
+export type AppView = "A" | "B" | "C";
 
 export interface AppState {
   theme: string;
   view: AppView;
   county: CountyCode3 | null;
   reservoirId: string | null;
-  comparing: boolean;
-  selectedForCompare: CountyCode3[];
   metric: string; // 當前 choropleth 著色指標
 }

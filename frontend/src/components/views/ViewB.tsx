@@ -21,7 +21,6 @@ import {
   CloudRain,
   Globe,
   TrendingUp,
-  Plus,
   Share2,
   Download,
   ChevronLeft,
@@ -77,7 +76,6 @@ interface ViewBProps {
   /** governance.sewage_by_county */
   sewageByCountyId: Record<string, number>;
   onBack: () => void;
-  onAddCompare?: () => void;
   onDrillReservoir?: (reservoirId: string) => void;
 }
 
@@ -102,7 +100,6 @@ export function ViewB({
   lpcdByCountyId,
   sewageByCountyId,
   onBack,
-  onAddCompare,
   onDrillReservoir,
 }: ViewBProps) {
   const [tab, setTab] = useState<TabId>("overview");
@@ -149,11 +146,6 @@ export function ViewB({
           <div className="hero-actions">
             <button className="btn ghost"><Download size={14} /> 下載 CSV</button>
             <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            {onAddCompare && (
-              <button className="btn primary" onClick={onAddCompare}>
-                <Plus size={14} /> 加入比較
-              </button>
-            )}
           </div>
         </div>
       </div>

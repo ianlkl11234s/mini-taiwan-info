@@ -1,7 +1,7 @@
 /**
  * App — 根組件 + 路由 state machine
  *
- * 對應 prototype app.jsx：管理 view (A/B/C/D) / theme / county / compare 狀態。
+ * 對應 prototype app.jsx：管理 view (A/B/C) / theme / county / about 狀態。
  * 把 manifest + mock data 餵給 ViewA。
  */
 
@@ -23,6 +23,7 @@ import { ViewBHomeBasics } from "@/components/views/ViewBHomeBasics";
 import { ViewB } from "@/components/views/ViewB";
 import { ViewBFire } from "@/components/views/ViewBFire";
 import { ViewC } from "@/components/views/ViewC";
+import { AboutView } from "@/components/views/AboutView";
 import { getMockMetricValue } from "@/lib/mock-data";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWaterKpis } from "@/hooks/useWaterKpis";
@@ -97,7 +98,7 @@ export default function App() {
   const [view, setView] = useState<AppView>("A");
   const [county, setCounty] = useState<CountyCode3 | null>(null);
   const [reservoirId, setReservoirId] = useState<string | null>(null);
-  const [comparing, setComparing] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   // URL search params 解析（?county=TNN&view=B&theme=home-basics）— 給分享連結與 deeplink 用
   useEffect(() => {
@@ -107,7 +108,7 @@ export default function App() {
     const v = sp.get("view");
     if (t) setTheme(t);
     if (c && /^[A-Z]{3}$/.test(c)) setCounty(c as CountyCode3);
-    if (v === "A" || v === "B" || v === "C" || v === "D") setView(v);
+    if (v === "A" || v === "B" || v === "C") setView(v);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -440,27 +441,24 @@ export default function App() {
       { label: "首頁", action: () => goHome() },
       { label: `${manifest?.theme.name ?? theme}` },
     ];
-    if (comparing) items.push({ label: "比較模式" });
     if (county && (view === "B" || view === "C")) {
       items.push({ label: byCode3[county]?.name_zh ?? county });
     }
     return items;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, county, theme, comparing, manifest?.theme.name, manifest?.theme.emoji]);
+  }, [view, county, theme, manifest?.theme.name, manifest?.theme.emoji]);
 
   // ─── navigation handlers ───
   const goHome = () => {
     setView("A");
     setCounty(null);
-    setComparing(false);
+    setAboutOpen(false);
   };
   const goCity = (code: CountyCode3) => {
     // B046: fire ViewB 已上線（migration 105 + ViewBFire 5 tabs + 雷達），點縣市進 ViewB
     setCounty(code);
     setView("B");
-    setComparing(false);
   };
-  const onCompare = () => setComparing((c) => !c);
 
   if (!manifest) {
     return (
@@ -484,8 +482,6 @@ export default function App() {
         themeName={manifest.theme.name}
         themeId={theme}
         year="2024"
-        comparing={comparing}
-        onCompare={onCompare}
         breadcrumb={breadcrumb}
       />
 
@@ -520,7 +516,7 @@ export default function App() {
               drillCounty={(view === "B" || view === "C") ? county : null}
               onCountyClick={goCity}
               reservoirPoints={reservoirPointsForMap}
-              showReservoirs={useRealData && (view === "A" ? pointLayersOn.reservoir : view !== "D")}
+              showReservoirs={useRealData && (view === "A" ? pointLayersOn.reservoir : true)}
               riverStations={riverStationsForMap}
               showRiverStations={useRealData && (view === "A" ? pointLayersOn.riverLevel : view === "B" || view === "C")}
               showWaterBaseLayers={theme === "water"}
@@ -672,34 +668,29 @@ export default function App() {
                   data={fire}
                   county={county}
                   onBack={goHome}
-                  onAddCompare={() => { setComparing(true); }}
                 />
               ) : theme === "demographics" ? (
                 <ViewBDemographics
                   data={demographics}
                   county={county}
                   onBack={goHome}
-                  onAddCompare={() => { setComparing(true); }}
                 />
               ) : theme === "rail" ? (
                 <ViewBRail
                   data={rail}
                   county={county}
                   onBack={goHome}
-                  onAddCompare={() => { setComparing(true); }}
                 />
               ) : theme === "maritime" ? (
                 <ViewBMaritime
                   data={maritime}
                   county={county}
                   onBack={goHome}
-                  onAddCompare={() => { setComparing(true); }}
                 />
               ) : theme === "home-basics" ? (
                 <ViewBHomeBasics
                   county={county}
                   onBack={goHome}
-                  onAddCompare={() => { setComparing(true); }}
                   onCityClick={goCity}
                 />
               ) : (
@@ -712,7 +703,6 @@ export default function App() {
                   lpcdByCountyId={useRealData ? water.governance?.lpcd_by_county ?? {} : {}}
                   sewageByCountyId={useRealData ? water.governance?.sewage_by_county ?? {} : {}}
                   onBack={goHome}
-                  onAddCompare={() => { setComparing(true); }}
                   onDrillReservoir={(id) => {
                     setReservoirId(id);
                     setView("C");
@@ -730,14 +720,18 @@ export default function App() {
         </div>
       </div>
 
+      {aboutOpen && <AboutView onClose={() => setAboutOpen(false)} />}
+
       <ThemeSwitcher
         themes={themeList}
         activeTheme={theme}
+        aboutActive={aboutOpen}
+        onAbout={() => setAboutOpen(true)}
         onThemeChange={(t) => {
           setTheme(t);
           setView("A");
           setCounty(null);
-          setComparing(false);
+          setAboutOpen(false);
         }}
       />
     </div>

@@ -21,7 +21,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  Anchor, Ship, Fish, Waves, Locate, Plus, Share2, Download,
+  Anchor, Ship, Fish, Waves, Locate, Share2, Download,
   ChevronLeft, Lightbulb, ArrowLeftRight, AlertTriangle, Route,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
@@ -43,7 +43,6 @@ interface ViewBMaritimeProps {
   data: MaritimeDataState;
   county: CountyCode3;
   onBack: () => void;
-  onAddCompare?: () => void;
 }
 
 type TabId = "overview" | "ports" | "fishery" | "routes" | "rank";
@@ -53,7 +52,7 @@ const REGION_LABELS: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────────
-export function ViewBMaritime({ data, county, onBack, onAddCompare }: ViewBMaritimeProps) {
+export function ViewBMaritime({ data, county, onBack }: ViewBMaritimeProps) {
   const [tab, setTab] = useState<TabId>("overview");
   const c = byCode3[county];
   const cAgg = useMemo(
@@ -82,7 +81,7 @@ export function ViewBMaritime({ data, county, onBack, onAddCompare }: ViewBMarit
 
   return (
     <div>
-      <Hero c={c} cAgg={cAgg} aggs={data.countyAggregates} N={data.summary} onBack={onBack} onAddCompare={onAddCompare} />
+      <Hero c={c} cAgg={cAgg} aggs={data.countyAggregates} N={data.summary} onBack={onBack} />
 
       {zero ? (
         <ZeroPortFallback cname={c.name_zh} cAgg={cAgg} N={data.summary} />
@@ -121,13 +120,12 @@ export function ViewBMaritime({ data, county, onBack, onAddCompare }: ViewBMarit
 }
 
 // ─────────────────────────────────────────────────
-function Hero({ c, cAgg, aggs, N, onBack, onAddCompare }: {
+function Hero({ c, cAgg, aggs, N, onBack }: {
   c: { name_zh: string; region: string; area_km2: number };
   cAgg: CountyMaritimeAggregate;
   aggs: CountyMaritimeAggregate[];
   N: NonNullable<MaritimeDataState["summary"]>;
   onBack: () => void;
-  onAddCompare?: () => void;
 }) {
   const region = REGION_LABELS[c.region] ?? c.region;
   const rankOf = (key: keyof CountyMaritimeAggregate) => {
@@ -173,7 +171,6 @@ function Hero({ c, cAgg, aggs, N, onBack, onAddCompare }: {
           <div className="hero-actions">
             <button className="btn ghost"><Download size={14} /> 下載 CSV</button>
             <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            {onAddCompare && <button className="btn primary" onClick={onAddCompare}><Plus size={14} /> 加入比較</button>}
           </div>
         </div>
 

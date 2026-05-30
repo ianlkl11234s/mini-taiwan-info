@@ -15,7 +15,7 @@
  */
 
 import {
-  Share2, Download, Plus, ChevronLeft,
+  Share2, Download, ChevronLeft,
   Users, Layers, Locate,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
@@ -45,7 +45,6 @@ type ViewModel = ReturnType<typeof useNationalBasics>["data"];
 interface Props {
   county: CountyCode3;
   onBack: () => void;
-  onAddCompare?: () => void;
   onCityClick?: (code: CountyCode3) => void;
 }
 
@@ -55,7 +54,7 @@ const REGION_ZH: Record<string, string> = {
 
 const PROVINCIAL_CITIES = new Set(["HSH", "CYC", "KLC"]);
 
-export function ViewBHomeBasics({ county, onBack, onAddCompare, onCityClick }: Props) {
+export function ViewBHomeBasics({ county, onBack, onCityClick }: Props) {
   const c = byCode3[county];
   const hd = HOME_BY_COUNTY[county];
   const { data: nat } = useNationalBasics();
@@ -103,7 +102,6 @@ export function ViewBHomeBasics({ county, onBack, onAddCompare, onCityClick }: P
           <h1>{c.name_zh}</h1>
           <span className="ch-en">{c.name_en}</span>
           <div className="hero-actions" style={{ marginLeft: "auto" }}>
-            <button className="btn ghost" onClick={onAddCompare}><Plus size={14} /> 比較</button>
             <button className="btn ghost"><Share2 size={14} /> 分享</button>
             <button className="btn"><Download size={14} /> 匯出</button>
           </div>
