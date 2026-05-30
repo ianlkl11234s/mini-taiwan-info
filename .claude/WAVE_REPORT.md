@@ -236,3 +236,12 @@
 - F-1 火災加 year filter（台北月度 1,137 單年，原三年 3,957）· F-2 消防栓 per-county（台北21,848/高雄39,392,移除「全台SUM當高雄」）
 - W-3 滯洪池容量 NULL→「—（容量待補）」座數照常 · D-1 自然增加 -92,456(民114)、ViewB縣市出生死亡明標「12月單月」不偽裝、老化113→114口徑斷崖加註
 - typecheck ✅ + agent-browser 多寬度;**session 遵守禁殺規則(用5180沒碰gis-up)**
+
+### ✅ Batch 4 — 響應式 + 金字塔標籤（session batch4，已 /exit）純CSS globals.css +32行
+- P-1 金字塔:.ppy-num nowrap+min-width56px+tabular-nums → 換行8→0、列高全等高[17]、num寬全[56]對稱(ViewA+ViewB驗證)
+- 響應式:真正裁切閾值是996px(非1080)→加 @media(max-width:1080px) 地圖+pane垂直堆疊；fire tab列加橫滾
+- 多寬度驗證 1440/1150/900/820 全過(scrollWidth==clientWidth,無裁切)
+- ⚠️ 地圖choropleth著色 headless測不到,需真實瀏覽器複驗
+
+---
+## 🎉 全稽核修復完成(Batch 1-4 + 3b)。剩:縣市別年度出生死亡(村里月報彙總,另開任務)+ X-1著色真實瀏覽器複驗
