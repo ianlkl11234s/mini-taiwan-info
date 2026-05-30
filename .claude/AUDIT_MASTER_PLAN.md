@@ -60,8 +60,9 @@ W-4 / F-4 / M-3 / H-3 / manifest 對齊
 ### Batch 3 — spawn ETL session (b)（去 taipei-gis-analytics）
 **D-1 出生死亡口徑（影響最廣，先）** / F-1 MV加year / F-2 消防栓清理 / H-1(b)+H-4 per-county真實人口年齡 / W-3 滯洪池 / M-2(b) port_traffic清理
 
-### Batch 4 — 響應式 sweep (d)（需正常 WebGL 複驗後）
-pane 寬度策略統一 + 各截斷修
+### Batch 4 — 響應式 sweep (d) + 視覺 polish（需正常 WebGL 複驗後）
+- pane 寬度策略統一（固定500px/1080px split → viewport比例 + <1080 stacking 斷點 globals.css:169）+ 各 KPI grid/tab列/badge 窄寬截斷
+- **P-1 金字塔標籤對齊**（user 2026-05-30 回報）：`.ppy-num` 換行致列高不齊 → globals.css `.ppy-num` 加 `white-space:nowrap` + 固定寬52-56px + `flex:0 0 auto` + tabular-nums；`.ppy-bar` flex:1 min-width:0；可選統一數字格式 + 收緊列高。ViewADemographics + ViewBDemographics 同 `.ppy-*` 一次修。
 
 ---
 ## 截圖
