@@ -3,9 +3,11 @@
 > **Living document**。每完成一個 task / 做一個決定 / 發現新 backlog，就更新這份檔。
 > 一日一次同步：每天結束時對齊 TaskList tool 與本檔。
 
-**最後更新**：2026-05-27 (新增 3 主題 draft：人口 `demographics` / 軌道 `rail` / 航運 `maritime` — manifest + 詳規 + Sprint 0 handoff 完成，待 taipei-gis-analytics 執行前置 ETL；見本檔末三主題段)
-**當前 Phase**：水主題 Phase 0 已收尾 · 消防主題 **ViewA Phase 1 完成**（4 區塊上線，等 mock → 真實替換）
-**當前 Focus**：📍 消防主題 mock 替換 — 下個 session 把 S2/S3/S4 mock 換真實（B041-B047）
+**最後更新**：2026-05-30 (S12 — spawn 協作工作流固化 + 6 主題大量 mock→真實 + SEGIS 民國114 人口 + 全主題稽核修復 Batch1-4 + about 分頁；詳見 `.claude/WAVE_REPORT.md` / `.claude/AUDIT_MASTER_PLAN.md`)
+**當前 Phase**：水/消防/人口/基礎統計/海事/軌道 6 主題上線且**大量 mock 已換真實**；下一步 = socioeconomic 第 7 主題（從零建）。三 repo 已 push 同步。
+**當前 Focus**：📍 socioeconomic 主題從零建（資料+後端+前端，用 spawn 工作流）；縣市年度出生死亡彙總；老化指數歷年口徑統一
+**待人工確認**：rail/maritime 22 縣市 choropleth 著色（headless 測不到，需真實瀏覽器目視）
+**用詞守則**：「LIVE」嚴格定義為 collector cron + 上游 realtime；其他用「接通真實資料」
 **用詞守則**：「LIVE」嚴格定義為 collector cron + 上游 realtime；其他用「接通真實資料」
 
 ---
