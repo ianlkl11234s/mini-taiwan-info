@@ -3,7 +3,8 @@
  *
  * Promise.allSettled 並行拉 demographics schema 兩個固定小 VIEW（各 ~368 列）：
  *   - township_village_count → 縣市村里合計 + 鄉鎮市區數（真實，內政部村里數）
- *   - township_rank（2024-12）→ 依 county_id 分組的鄉鎮人口排名（county_rank asc）
+ *   - township_rank（VIEW 自動切最新月，目前 2025-12）→ 依 county_id 分組的鄉鎮人口排名（county_rank asc）
+ *     期別由 row.year_month 動態讀出（rankPeriod），不寫死
  *
  * 兩表皆固定小表，TTL_LONG 快取一次後全 session 共用，按 id_moi 建查詢 map。
  * 取代 ViewBHomeBasics 原本的村里數估算 + 鄉鎮名稱 mock（COUNTY_TOWNSHIPS_MOCK）。
@@ -26,6 +27,8 @@ export interface TownshipDataState {
   townCountByCountyId: Record<string, number>;
   /** 縣市 id_moi → 鄉鎮人口排名（county_rank asc，第一筆即該縣市最大鄉鎮） */
   ranksByCountyId: Record<string, TownshipRankRow[]>;
+  /** 鄉鎮排名期別 e.g. '2025-12'（從 row.year_month 動態讀出，VIEW 自動切最新月） */
+  rankPeriod: string;
 }
 
 const EMPTY: TownshipDataState = {
@@ -34,6 +37,7 @@ const EMPTY: TownshipDataState = {
   villageCountByCountyId: {},
   townCountByCountyId: {},
   ranksByCountyId: {},
+  rankPeriod: "",
 };
 
 export function useTownshipData(opts: { enabled?: boolean } = {}): TownshipDataState {
@@ -74,6 +78,7 @@ export function useTownshipData(opts: { enabled?: boolean } = {}): TownshipDataS
       for (const id of Object.keys(ranksByCountyId)) {
         ranksByCountyId[id].sort((a, b) => a.county_rank - b.county_rank);
       }
+      const rankPeriod = rankRows.find((r) => r.year_month)?.year_month ?? "";
 
       setState({
         loading: false,
@@ -81,6 +86,7 @@ export function useTownshipData(opts: { enabled?: boolean } = {}): TownshipDataS
         villageCountByCountyId,
         townCountByCountyId,
         ranksByCountyId,
+        rankPeriod,
       });
     })();
     return () => {

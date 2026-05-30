@@ -55,23 +55,23 @@ function S1Base({ data, selectedCounty }: Props) {
         num={1}
         title={<><span className="accent">人口家底</span> ─ 2,340 萬人，分布有多不均</>}
         tagline="總量、性別、密度、戶量、10 年成長分解"
-        badge="年度 · 2024"
+        badge={`年度 · ${data.statYear}`}
         badgeTone="historical"
       />
 
       {/* big-callout：總人口 + 性別比 */}
       <div className="big-callout" style={{ marginBottom: 14 }}>
         <div>
-          <div className="bc-label">2024 年底 全國總人口（現住人口）</div>
+          <div className="bc-label">{data.statYear} 年底 全國總人口（現住人口）</div>
           <div className="bc-big">
             {fmt.num(S.totalPop)}<span className="unit">人</span>
           </div>
           <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.55 }}>
-            較民國 112 約 <b style={{ color: "#B91C1C" }}>{fmt.signed(S.totalPopDelta, 0)}</b>
+            較 {data.statYear - 1} 約 <b style={{ color: "#B91C1C" }}>{fmt.signed(S.totalPopDelta, 0)}</b>
             {" "}· 10 年僅減 {fmt.signed(S.growth10y, 1)}%，但 <b style={{ color: "var(--accent-deep)" }}>分布劇烈遷移</b>
           </div>
           <div className="muted" style={{ fontSize: 10.5, marginTop: 4 }}>
-            ※ 口徑：現住人口 · 2024（年底，性別×年齡加總）。與首頁「戶籍登記」口徑不同，故總數略有差異
+            ※ 口徑：現住人口 · {data.statYear}（年底，性別×年齡加總）。與首頁「戶籍登記」口徑不同，故總數略有差異
           </div>
         </div>
         <div className="bc-meta">
@@ -127,7 +127,7 @@ function S1Base({ data, selectedCounty }: Props) {
           <div className="stat-tile-ico"><TrendingUp size={13} /></div>
           <div className="stat-tile-num">{fmt.signed(S.growth10y, 1)}<span className="unit">%</span></div>
           <div className="stat-tile-label">10 年成長</div>
-          <div className="stat-tile-ds">民國 104→113</div>
+          <div className="stat-tile-ds">民國 104→114</div>
         </div>
       </div>
 
@@ -233,10 +233,10 @@ function S2Pyramid({ data, selectedCounty }: Props) {
     <div className="cat-block">
       <CatHeader
         num={2}
-        title={<><span className="accent">年齡結構</span> ─ 全國金字塔（19 組）</>}
+        title={<><span className="accent">年齡結構</span> ─ 全國金字塔（{P.length} 組）</>}
         tagline={`老化指數 ${S.agingIndex.toFixed(1)}，65+ 佔 ${S.pct65.toFixed(2)}% 逼近超高齡門檻`}
-        badge="主視覺"
-        badgeTone="live"
+        badge={`年度 · ${data.statYear}`}
+        badgeTone="historical"
       />
 
       <div className="kpi-grid cols-3" style={{ marginBottom: 14 }}>
@@ -266,7 +266,7 @@ function S2Pyramid({ data, selectedCounty }: Props) {
       {/* 金字塔 */}
       <div className="pop-pyramid-card">
         <div className="pop-pyramid-head">
-          <div className="t">全國人口金字塔 · 男 ♂ 左 / 女 ♀ 右</div>
+          <div className="t">全國人口金字塔 · {data.statYear} 年度 · 男 ♂ 左 / 女 ♀ 右</div>
           <div className="meta">
             男最大 {peakAgeM} <b>{fmt.num(maxMale)}</b> · 女最大 {peakAgeF} <b>{fmt.num(maxFemale)}</b>
           </div>
@@ -594,8 +594,8 @@ export function ViewADemographics({ data, selectedCounty, onCountyClick }: Props
       <S3Vitals data={data} selectedCounty={selectedCounty} onCountyClick={onCountyClick} />
 
       <DataSourceBadge
-        sources={["內政部戶政司", "村里綜合統計（spatial.village_demographics_yearly）", "demographics.population_by_age_sex_county"]}
-        updatedAt="2026-05-13"
+        sources={["內政部戶政司", "demographics.population_by_age_sex_county（2025 年度）", "demographics.county_indicators_yearly（2025）", "spatial.village_demographics_yearly"]}
+        updatedAt="2026-05-30"
       />
 
       {/* byCode3 import 保留以便日後使用 */}

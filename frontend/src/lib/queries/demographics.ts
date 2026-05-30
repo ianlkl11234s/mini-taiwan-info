@@ -5,7 +5,9 @@
  * 無需 public wrapper，用 withSchema('demographics') / withSchema('spatial') 直接 query。
  *
  * 資料來源：
- *   - demographics.population_by_age_sex_county (836)   — 22 縣市 × 19 age_band × 男女
+ *   - demographics.population_by_age_sex_county         — 22 縣市 × 男女 × age_band；2024(19組,幼齡合計0-14)
+ *                                                          + 2025(21組,0-4/5-9/10-14細分)兩年並存（混粒度，依 stat_year 篩選）
+ *   - demographics.county_indicators_yearly (22)        — 縣市別官方指標（aging/dependency/density/sex_ratio/household_size），最新年 2025
  *   - spatial.national_population_trend (10)            — 民國 104-113 全國加總
  *   - spatial.village_demographics_yearly (77,811)      — 民國 104-113 村里級
  *
@@ -34,11 +36,11 @@ export interface PopulationByAgeSexRow {
   age_band: string;             // '0-4', '5-9', ..., '95-99', '100+'
   sex: "male" | "female" | "M" | "F" | string;
   population: number;
-  stat_year: number;            // 西元 2024
+  stat_year: number;            // 西元；目前 2024(19 band) + 2025(21 band) 並存
 }
 
 export async function fetchPopulationByAgeSex(): Promise<PopulationByAgeSexRow[]> {
-  // 836 筆固定小表，精選 6 欄避免 '*' 抓額外欄位／metadata
+  // 多年並存固定小表（~1,760 筆），精選 6 欄避免 '*' 抓額外欄位／metadata；年度篩選在 derive 端做
   const { data, error } = await db
     .from("population_by_age_sex_county")
     .select("county_id,county_name,age_band,sex,population,stat_year");
@@ -216,15 +218,16 @@ export interface TownshipRankRow {
   county_id: CountyIdMoi;
   county_name: string;
   town_name: string;
-  population: number;          // 2024-12 月底人口
+  population: number;          // 該期別月底人口
   households: number;
+  year_month: string;          // 期別 e.g. '2025-12'（VIEW 自動切最新月，前端動態顯示，不寫死）
 }
 
-/** demographics.township_rank VIEW（368 鄉鎮 2024-12，固定小表，依 national_rank 排序拉一次） */
+/** demographics.township_rank VIEW（368 鄉鎮，VIEW 自動切最新月，固定小表，依 national_rank 排序拉一次） */
 export async function fetchTownshipRank(): Promise<TownshipRankRow[]> {
   const { data, error } = await db
     .from("township_rank")
-    .select("national_rank,county_rank,county_id,county_name,town_name,population,households")
+    .select("national_rank,county_rank,county_id,county_name,town_name,population,households,year_month")
     .order("national_rank");
   if (error) {
     console.error("[demographics] township_rank failed:", error);
@@ -238,7 +241,62 @@ export async function fetchTownshipRank(): Promise<TownshipRankRow[]> {
     town_name: String(r.town_name ?? ""),
     population: Number(r.population ?? 0),
     households: Number(r.households ?? 0),
+    year_month: String(r.year_month ?? ""),
   }));
+}
+
+// ─────────────────────────────────────────────────
+// 1c. 縣市別官方指標（county_indicators_yearly）— demographics schema 固定小表
+// ─────────────────────────────────────────────────
+
+export interface CountyIndicatorRow {
+  county_id: CountyIdMoi;          // = id_moi（A-Z 單字母）
+  stat_year: number;               // 西元，目前最新 2025
+  agingIndex: number;              // 老化指數
+  dependencyRatio: number;         // 扶養比
+  childDependencyRatio: number;    // 幼年扶養比
+  oldDependencyRatio: number;      // 老年扶養比
+  popDensity: number;              // 人口密度（人/km²）
+  sexRatio: number;                // 性別比 ♂/100♀
+  householdSize: number;           // 平均戶量（人/戶）
+}
+
+/**
+ * demographics.county_indicators_yearly（22 縣市 × 年度，PK county_id+stat_year，county_id=id_moi）。
+ * 縣市儀錶板/比較頁的官方權威指標來源（取代 pyramid/village 計算值）。
+ */
+export async function fetchCountyIndicatorsYearly(): Promise<CountyIndicatorRow[]> {
+  const { data, error } = await db
+    .from("county_indicators_yearly")
+    .select(
+      "county_id,stat_year,aging_index,dependency_ratio,child_dependency_ratio,old_dependency_ratio,pop_density,sex_ratio,household_size",
+    );
+  if (error) {
+    console.error("[demographics] county_indicators_yearly failed:", error);
+    throw error;
+  }
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    county_id: String(r.county_id) as CountyIdMoi,
+    stat_year: Number(r.stat_year ?? 0),
+    agingIndex: Number(r.aging_index ?? 0),
+    dependencyRatio: Number(r.dependency_ratio ?? 0),
+    childDependencyRatio: Number(r.child_dependency_ratio ?? 0),
+    oldDependencyRatio: Number(r.old_dependency_ratio ?? 0),
+    popDensity: Number(r.pop_density ?? 0),
+    sexRatio: Number(r.sex_ratio ?? 0),
+    householdSize: Number(r.household_size ?? 0),
+  }));
+}
+
+/** 取最新年的縣市指標 map（county_id → row），供 deriveCountyAggregates 覆寫計算值 */
+export function buildCountyIndicatorMap(
+  rows: CountyIndicatorRow[],
+): Map<CountyIdMoi, CountyIndicatorRow> {
+  let latest = 0;
+  for (const r of rows) if (r.stat_year > latest) latest = r.stat_year;
+  const map = new Map<CountyIdMoi, CountyIndicatorRow>();
+  for (const r of rows) if (r.stat_year === latest) map.set(r.county_id, r);
+  return map;
 }
 
 // ─────────────────────────────────────────────────
@@ -271,7 +329,7 @@ export interface DemographicsNationalSummary {
 }
 
 export interface AgeRow {
-  age: string;       // '0-4'..'95-99'/'100+'（合併後）
+  age: string;       // 依該年實際 age_band（2024: 0-14.. / 2025: 0-4,5-9,10-14..100+）
   male: number;
   female: number;
 }
@@ -330,31 +388,40 @@ function parseAgeLow(band: string): number {
   return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;
 }
 
-/** 19 組金字塔（資料若 21 組，把 95-99 + 100+ 合併） */
-export function deriveNationalPyramid(rows: PopulationByAgeSexRow[]): AgeRow[] {
+/** population_by_age_sex_county 的最新統計年（西元）；空陣列回 0。預設金字塔/概覽以此年展示 */
+export function latestStatYear(rows: PopulationByAgeSexRow[]): number {
+  let max = 0;
+  for (const r of rows) if (r.stat_year > max) max = r.stat_year;
+  return max;
+}
+
+/**
+ * 全國人口金字塔 — 先依 stat_year 篩選，再動態讀該年實際 age_band 清單來畫。
+ * 2024(19 組,幼齡合計 0-14) 與 2025(21 組,0-4/5-9/10-14 細分) 皆原樣呈現，
+ * 不寫死組數、不強制合併最高齡組（混粒度相容）。
+ */
+export function deriveNationalPyramid(rows: PopulationByAgeSexRow[], statYear: number): AgeRow[] {
   const bucket = new Map<string, { male: number; female: number }>();
   for (const r of rows) {
+    if (r.stat_year !== statYear) continue;
     const sex = normSex(r.sex);
     if (!sex) continue;
-    let band = r.age_band.trim();
-    // 合併最高齡組
-    if (band === "100+" || band === "100-104" || band === "105+") band = "95+";
-    if (band === "95-99") band = "95+";
+    const band = r.age_band.trim();
     const slot = bucket.get(band) ?? { male: 0, female: 0 };
     if (sex === "M") slot.male += r.population;
     else slot.female += r.population;
     bucket.set(band, slot);
   }
-  const arr: AgeRow[] = Array.from(bucket.entries())
+  return Array.from(bucket.entries())
     .map(([age, v]) => ({ age, ...v }))
     .sort((a, b) => parseAgeLow(a.age) - parseAgeLow(b.age));
-  return arr;
 }
 
-/** 全國 KPI 加總（依 pyramid + national trend + 縣市 area + village rows 算戶量） */
+/** 全國 KPI 加總（依 statYear 篩選 pyramid + national trend + 縣市 area + village rows 算戶量） */
 export function deriveNationalSummary(
   rows: PopulationByAgeSexRow[],
   trend: NationalTrendRow[],
+  statYear: number,
   villageRows?: VillageDemographicsRow[],
 ): DemographicsNationalSummary {
   let male = 0;
@@ -362,7 +429,13 @@ export function deriveNationalSummary(
   let p014 = 0;
   let p1564 = 0;
   let p65 = 0;
+  let prevYearTotal = 0;        // 前一統計年總人口（同表 YoY，apples-to-apples）
   for (const r of rows) {
+    if (r.stat_year === statYear - 1) {
+      prevYearTotal += r.population;
+      continue;
+    }
+    if (r.stat_year !== statYear) continue;
     const sex = normSex(r.sex);
     if (!sex) continue;
     if (sex === "M") male += r.population;
@@ -384,7 +457,6 @@ export function deriveNationalSummary(
 
   const latest = trend.find((t) => t.year === LATEST_YEAR_MINGUO);
   const base = trend.find((t) => t.year === BASE_YEAR_MINGUO);
-  const prev = trend.find((t) => t.year === LATEST_YEAR_MINGUO - 1);
   const growth10y =
     base && base.total_population > 0
       ? ((totalPop - base.total_population) / base.total_population) * 100
@@ -426,7 +498,7 @@ export function deriveNationalSummary(
     natural: latest?.total_natural_increase ?? 0,
     growth10y: Number(growth10y.toFixed(2)),
     crossYearMinguo,
-    totalPopDelta: prev ? totalPop - prev.total_population : 0,
+    totalPopDelta: prevYearTotal > 0 ? totalPop - prevYearTotal : 0,
   };
 }
 
@@ -450,10 +522,15 @@ export function deriveAgingHistory(trend: NationalTrendRow[]): AgingHistoryRow[]
   }));
 }
 
-/** 22 縣市 demographics 聚合 — 用 village rows 加總（year=113 + year=104 給 growth） */
+/**
+ * 22 縣市 demographics 聚合 — pyramid(依 statYear 篩選) + village rows 加總（year=113 + year=104 給 growth）。
+ * indicators（county_indicators_yearly 最新年）若提供，aging/dep/density/hhSize 改用官方值，缺則用計算值。
+ */
 export function deriveCountyAggregates(
   pyramid: PopulationByAgeSexRow[],
   villages: VillageDemographicsRow[],
+  statYear: number,
+  indicators?: Map<CountyIdMoi, CountyIndicatorRow>,
 ): CountyDemographics[] {
   // 縣市中文名 → id_moi
   const zhToId = new Map<string, CountyIdMoi>();
@@ -468,6 +545,7 @@ export function deriveCountyAggregates(
     { pop: number; male: number; female: number; p014: number; p1564: number; p65: number }
   >();
   for (const r of pyramid) {
+    if (r.stat_year !== statYear) continue;
     const slot =
       pyramidAgg.get(r.county_id) ?? { pop: 0, male: 0, female: 0, p014: 0, p1564: 0, p65: 0 };
     const sex = normSex(r.sex);
@@ -540,6 +618,8 @@ export function deriveCountyAggregates(
     // social = popDelta(113-104) - natural10yr — 但只有 birth/death 12月當月值 → 用 popDelta 近似
     const popDelta = vBase ? popLatest - vBase.pop : 0;
     const social = popDelta; // 近似：含社會 + 自然，UI 標明
+    // 官方縣市指標（county_indicators_yearly 最新年）優先；缺則用 pyramid/village 計算值
+    const ind = indicators?.get(c.id_moi);
     return {
       code3: c.code3,
       id_moi: c.id_moi,
@@ -547,13 +627,13 @@ export function deriveCountyAggregates(
       pop: popLatest,
       popMale: pyr.male,
       popFemale: pyr.female,
-      density: Math.round(density),
-      agingIndex: Number(aging.toFixed(1)),
+      density: ind ? Math.round(ind.popDensity) : Math.round(density),
+      agingIndex: ind ? ind.agingIndex : Number(aging.toFixed(1)),
       growth10y: Number(growth10y.toFixed(2)),
-      depRatio: Number(depRatio.toFixed(1)),
-      depYoung: Number(depYoung.toFixed(1)),
-      depOld: Number(depOld.toFixed(1)),
-      hhSize: Number(hhSize.toFixed(2)),
+      depRatio: ind ? ind.dependencyRatio : Number(depRatio.toFixed(1)),
+      depYoung: ind ? ind.childDependencyRatio : Number(depYoung.toFixed(1)),
+      depOld: ind ? ind.oldDependencyRatio : Number(depOld.toFixed(1)),
+      hhSize: ind ? ind.householdSize : Number(hhSize.toFixed(2)),
       medianAge: Number(medianAge.toFixed(1)),
       birth: v?.birth ?? 0,
       death: v?.death ?? 0,

@@ -10,9 +10,10 @@
  *
  * 真實接通：
  *   - 縣市 KPI（pop / aging / depRatio / growth10y / density / hhSize / median_age / natural / social）
- *     全部 from `countyAggregates`（real，無 mock scale）
- *   - 縣市金字塔：從 pyramidRows filter by county_id 重建 19 組（real）
- *   - 三段年齡雷達：從 pyramidRows filter by county_id 算 pct014 / pct1564 / pct65（real）
+ *     全部 from `countyAggregates`（real，無 mock scale）；aging/dep/density/hhSize 優先用官方
+ *     demographics.county_indicators_yearly（2025），缺則 pyramid/village 計算值
+ *   - 縣市金字塔：從 pyramidRows filter by county_id + statYear(2025) 依該年實際 band 重建（real，動態組數）
+ *   - 三段年齡雷達：從該年 pyramid 算 pct014 / pct1564 / pct65（real）
  *   - 鄉鎮排名：從 villageRows year=113 filter by county 加總到 town（real）
  * 仍 mock：
  *   - 10 年 birth/death 縣市 trend（design 用全國 scale by pop 比例 + 老化係數）
@@ -64,20 +65,21 @@ function rankBy(
 }
 
 // ─────────────────────────────────────────────────
-// 該縣市的真實 pyramid（19 組）— 從 pyramidRows filter
+// 該縣市的真實 pyramid — 從 pyramidRows 依 county_id + statYear filter，依該年實際 band 呈現
 // ─────────────────────────────────────────────────
 function buildCountyPyramid(
   rows: DemographicsDataState["pyramidRows"],
   countyId: string,
+  statYear: number,
 ): AgeRow[] {
   const bucket = new Map<string, { male: number; female: number }>();
   for (const r of rows) {
     if (r.county_id !== countyId) continue;
+    if (r.stat_year !== statYear) continue;
     const sex = (r.sex === "M" || r.sex === "male" || r.sex === "男") ? "M"
               : (r.sex === "F" || r.sex === "female" || r.sex === "女") ? "F" : null;
     if (!sex) continue;
-    let band = r.age_band.trim();
-    if (band === "100+" || band === "100-104" || band === "105+" || band === "95-99") band = "95+";
+    const band = r.age_band.trim();
     const slot = bucket.get(band) ?? { male: 0, female: 0 };
     if (sex === "M") slot.male += r.population;
     else slot.female += r.population;
@@ -195,8 +197,8 @@ export function ViewBDemographics({ data, county, onBack, onAddCompare }: ViewBD
       )}
 
       <DataSourceBadge
-        sources={["內政部戶政司", "demographics.population_by_age_sex_county", "spatial.national_population_trend / village_demographics_yearly"]}
-        updatedAt="2026-05-29"
+        sources={["內政部戶政司", "demographics.population_by_age_sex_county（2025 年度）", "demographics.county_indicators_yearly（2025）", "spatial.national_population_trend / village_demographics_yearly"]}
+        updatedAt="2026-05-30"
       />
     </div>
   );
@@ -309,7 +311,7 @@ function Hero({ c, p, N, popRank, agingRank, densityRank, growthRank, depRank, o
           val={fmt.signed(p.growth10y, 1)}
           unit="%"
           rank={growthRank}
-          note={<>{p.growth10y > 0 ? "流入" : "流失"} · 民 104→113</>}
+          note={<>{p.growth10y > 0 ? "流入" : "流失"} · 民 104→114</>}
           alarm={p.growth10y < -5}
         />
       </div>
@@ -351,12 +353,12 @@ function OverviewTab({ c, p, N, popRank, agingRank, growthRank, depRank }: {
   growthRank: number;
   depRank: number;
 }) {
-  // 該縣市 10 年人口趨勢：用 民 104 / 113 兩錨點做線性插值（無年年資料）
+  // 該縣市人口趨勢：民 104(2015 村里) → 最新統計年(pyramid) 兩錨點線性插值（無年年資料）
   const series = useMemo(() => {
     const finalPop = p.pop;
     const basePop = p.growth10y !== -100 ? finalPop / (1 + p.growth10y / 100) : finalPop;
-    return Array.from({ length: 10 }, (_, i) => {
-      const t = i / 9;
+    return Array.from({ length: 11 }, (_, i) => {
+      const t = i / 10;
       const year = 2015 + i;
       return { x: year, y: Math.round(basePop + (finalPop - basePop) * t) };
     });
@@ -411,10 +413,10 @@ function OverviewTab({ c, p, N, popRank, agingRank, growthRank, depRank }: {
               {c.name_zh} · 人口 10 年趨勢
             </div>
             <div className="section-subtitle">
-              民 104→113 · {p.growth10y > 0
+              民 104→114 · {p.growth10y > 0
                 ? <>累計流入 <b style={{ color: "var(--accent-deep)" }}>+{p.growth10y.toFixed(2)}%</b></>
                 : <>累計流失 <b style={{ color: "#B91C1C" }}>{p.growth10y.toFixed(2)}%</b></>}
-              {" · 起 "}{fmt.num(series[0].y)}{" → 終 "}{fmt.num(series[9].y)}
+              {" · 起 "}{fmt.num(series[0].y)}{" → 終 "}{fmt.num(series[series.length - 1].y)}
               <span className="muted" style={{ marginLeft: 6, fontSize: 11 }}>(端點 real，中間線性內插)</span>
             </div>
           </div>
@@ -453,7 +455,7 @@ function AgeTab({ data, c, p, N, agingRank }: {
   N: NonNullable<DemographicsDataState["summary"]>;
   agingRank: number;
 }) {
-  const py = useMemo(() => buildCountyPyramid(data.pyramidRows, p.id_moi), [data.pyramidRows, p.id_moi]);
+  const py = useMemo(() => buildCountyPyramid(data.pyramidRows, p.id_moi, data.statYear), [data.pyramidRows, p.id_moi, data.statYear]);
   const seg = useMemo(() => derive3Segment(py), [py]);
   const maxRow = py.length > 0 ? Math.max(...py.map((r) => Math.max(r.male, r.female))) : 1;
   const maxMale = py.length > 0 ? Math.max(...py.map((r) => r.male)) : 0;
@@ -507,7 +509,7 @@ function AgeTab({ data, c, p, N, agingRank }: {
       {py.length > 0 && (
         <div className="pop-pyramid-card">
           <div className="pop-pyramid-head">
-            <div className="t">{c.name_zh} · 人口金字塔（19 組 · 真實資料）</div>
+            <div className="t">{c.name_zh} · 人口金字塔（{py.length} 組 · {data.statYear} 年度）</div>
             <div className="meta">
               男最大 <b>{py[peakIdxM]?.age ?? "—"}</b> · 女最大 <b>{py[peakIdxF]?.age ?? "—"}</b> · 65+ 占 <b>{seg.pct65.toFixed(1)}%</b>
             </div>
@@ -718,7 +720,7 @@ function DynamicsTab({ c, p, socialRank }: {
           <div>
             <div className="section-title">
               <span className="pre">FLOW</span>
-              人口增減分解（民 104→113 推估）
+              人口增減分解（民 104→114 推估）
             </div>
             <div className="section-subtitle">
               自然 {fmt.signed(p.natural, 0)} + 社會 {fmt.signed(p.social, 0)} = 淨 {fmt.signed(p.natural + p.social, 0)}
@@ -747,7 +749,7 @@ function DynamicsTab({ c, p, socialRank }: {
           })}
         </div>
         <div className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
-          ※ 自然增加 = 出生 − 死亡；社會增加 ≈ pop(113) − pop(104) − 自然累計（近似）。
+          ※ 自然增加 = 出生 − 死亡；社會增加 ≈ pop(114) − pop(104) − 自然累計（近似）。
           {c.name_zh} 主要靠
           <b style={{ color: "var(--accent-deep)" }}>
             {" "}{Math.abs(p.social) > Math.abs(p.natural) ? "社會增加" : "自然增加"}{" "}

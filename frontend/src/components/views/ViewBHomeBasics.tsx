@@ -125,6 +125,7 @@ export function ViewBHomeBasics({ county, onBack, onAddCompare, onCityClick }: P
         c={c} hd={hd}
         villages={villages} villagesIsReal={villagesIsReal} neighborhoods={neighborhoods}
         townRanks={townRanks} townshipLoading={township.loading}
+        rankPeriod={township.rankPeriod || "2025-12"}
       />
       <H2Geography c={c} nat={nat} onCityClick={onCityClick} />
       <H3Population c={c} s={s} nat={nat} popRank={popRank} densityRank={densityRank} />
@@ -202,7 +203,7 @@ function CountyFactGrid({
    H1 · 行政區結構
 ─────────────────────────────────────────────── */
 function H1Admin({
-  c, hd, villages, villagesIsReal, neighborhoods, townRanks, townshipLoading,
+  c, hd, villages, villagesIsReal, neighborhoods, townRanks, townshipLoading, rankPeriod,
 }: {
   c: County;
   hd: HomeCountyDemographic;
@@ -211,6 +212,7 @@ function H1Admin({
   neighborhoods: number;
   townRanks: TownshipRankRow[];
   townshipLoading: boolean;
+  rankPeriod: string;
 }) {
   const RANK_CAP = 16;
   const shown = townRanks.slice(0, RANK_CAP);
@@ -249,7 +251,7 @@ function H1Admin({
         <div className="township-head">
           <div className="t">
             <span className="pre">DRILL</span>
-            鄉鎮市區人口排名（2024-12）
+            鄉鎮市區人口排名（{rankPeriod}）
           </div>
           {townRanks.length > 0 && <span className="coverage-badge">真實 · 內政部戶政司</span>}
         </div>
@@ -268,7 +270,7 @@ function H1Admin({
             </div>
             <div className="muted" style={{ fontSize: 11.5, marginTop: 10, paddingLeft: 4 }}>
               {townRanks.length > RANK_CAP && <>顯示前 {RANK_CAP} / {townRanks.length} 名 · </>}
-              ※ 來源：demographics.township_rank（內政部戶政司 2024-12 月底人口）
+              ※ 來源：demographics.township_rank（內政部戶政司 {rankPeriod} 月底人口）
             </div>
           </>
         ) : townshipLoading ? (
