@@ -42,6 +42,7 @@ export const ABOUT_PROJECTS: AboutProject[] = [
     desc: "台灣縣市開放資料互動儀錶板 — 選主題、看全台、點縣市、展指標，把政府開放資料變成看得懂的故事。",
     site: "https://mini-tw-info.itsmigu.com",
     github: "https://github.com/ianlkl11234s/mini-taiwan-info",
+    screenshot: "/about/mini-taiwan-info.png",
     tier: "app",
     current: true,
   },
@@ -66,6 +67,7 @@ export const ABOUT_PROJECTS: AboutProject[] = [
     desc: "真實時刻表驅動的交通即時模擬 — 2D／3D 呈現北高中捷運、高鐵、台鐵全路網 992 班列車運行。",
     site: "https://mini-taiwan-learning-project.zeabur.app/",
     github: "https://github.com/ianlkl11234s/mini-taiwan-learning-project",
+    screenshot: "/about/rail-sim.png",
     tier: "app",
   },
   {
@@ -73,6 +75,7 @@ export const ABOUT_PROJECTS: AboutProject[] = [
     desc: "台灣氣象時序動畫視覺化 — 把氣象觀測資料轉成時間軸上的動態變化。",
     site: "https://taiwan-weather-timelapse.zeabur.app/",
     github: "https://github.com/ianlkl11234s/taiwan-weather-timelapse",
+    screenshot: "/about/weather.png",
     tier: "app",
   },
 ];
