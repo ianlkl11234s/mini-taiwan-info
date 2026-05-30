@@ -114,12 +114,16 @@ tmux kill-session -t recon_demog       # 關 session
 
 ---
 
-## MCP 可用性（spawn 勝過 Task agent 的關鍵）
+## SKILL / HOOK / MCP 可用性（2026-05-30 兩 session ToolSearch 實測）
 
-spawn 的是真實 `claude` session，**會自動載入該 cwd 的 project-scoped MCP**（記在 `~/.claude.json` 該專案路徑下）：
-- `taipei-gis-analytics` → **`twinkle-hub`**（`https://api.twinkleai.tw/mcp/`，全國資料鏡像，台鐵月度/漁業細分/全國回填的來源）
-- Task agent **吃不到** project MCP，這是 spawn 的硬優勢。
-- 開工提醒：prompt 可要 session **實測 twinkle-hub 可用**（呼一個 tool）並記到 board 檔；不可用則 fallback datagov/segis。
+spawn 的是真實 `claude` session，**SKILL 與 HOOK 隨 cwd 載入該專案的**（這是 spawn 勝過 Task agent 處）：
+- `mini` → theme-loop/wrap-up/check-schema-exposed… + PostToolUse 前端 typecheck
+- `analytics` → gis-start/gis-data-onboard/catalog-search… + SessionStart status_snapshot
+
+⚠️ **但本機 MCP 不會載入 spawn session**（更正先前誤判）：
+- twinkle-hub / pencil / graphiti / dev-orchestrator 在 `~/.claude.json` 有設定，但 spawn session ToolSearch 查 0 → **不可用**。
+- spawn session 只有 claude.ai connector（Asana/Slack/Google Drive）。
+- 需 twinkle-hub 的任務 → 改用 datagov / master_catalog / 本地檔案。**勿假設 MCP 可用，叫 session ToolSearch 查證。**
 
 ## 多 session 共編進度：Session Board 模式
 

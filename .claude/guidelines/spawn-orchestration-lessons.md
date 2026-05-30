@@ -20,10 +20,18 @@
 - `stat -f%z`（非 `wc -c`，後者有 leading space）。
 - cmux workspace 無 close cli，要手動 GUI 關。
 
-### B. MCP（spawn 的硬優勢）
-- **project-scoped MCP 隨 cwd 自動載入**：spawn 到 taipei-gis-analytics → `twinkle-hub`(api.twinkleai.tw/mcp) 自動可用。
-- Task agent **吃不到** project MCP。需要 twinkle-hub/特定 MCP 的任務必須 spawn。
-- prompt 可要 session 實測 MCP 可用並記 board。
+### B. MCP（⚠️ 2026-05-30 實測更正：本機 MCP 不會載入 spawn session）
+- ❌ **先前誤判**：曾說「spawn 到 analytics 會自動載入 twinkle-hub MCP」。**錯**。
+- ✅ **實測（兩個 probe session ToolSearch 查證）**：spawn 出的 `claude --dangerously-skip-permissions`
+  **不載入任何本機設定的 MCP**（twinkle-hub / pencil / graphiti-memory / dev-orchestrator / context7…
+  在 `~/.claude.json` 都有設定，但 ToolSearch 查 0 結果 → 不可呼叫）。
+- ✅ spawn session **只有 claude.ai 帳號層 connector**（Asana / Slack / Google Drive 已授權；
+  Gmail/Notion/Figma/Canva/Calendar/Sentry 僅露 authenticate）。
+- ✅ **SKILL 與 HOOK 確實隨 cwd 不同**（專案 skill/hook 會載入）：
+  mini → theme-loop/wrap-up/check-schema-exposed… + PostToolUse 前端 typecheck；
+  analytics → gis-start/gis-data-onboard/catalog-search… + SessionStart status_snapshot。
+- **教訓**：需要 twinkle-hub 的任務，spawn session 拿不到 → 改用 datagov / master_catalog / 本地檔案
+  （昨晚 ETL 都這樣完成，未受影響）。要驗證「某 MCP 能不能用」一律叫 session 跑 ToolSearch 查證，別信 config 有設定。
 
 ### C. 稽核/文件不可盡信（本次最大教訓）
 - **Explore 稽核 agent 幻覺**：宣稱 maritime `fishery_rights`/`lighthouse` 表「已存在」→ 實際 migrations 根本沒有。建表類一律 `grep "CREATE TABLE" gis-platform/migrations/` 驗證。
