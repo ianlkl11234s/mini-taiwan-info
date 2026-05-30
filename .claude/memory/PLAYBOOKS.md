@@ -695,3 +695,16 @@ $$;
 **不要用**：`zbpack.json app_dir` / `ZBPACK_APP_DIR` env — 實測無法把 static plan 導回子目錄（2026-05-29 S11 踩過）。
 
 完整事件：INCIDENTS 2026-05-29、DEPLOYMENT.md §九。
+
+---
+（PB-19）tmux+cmux spawn 跨 repo 協作工作流（S12 固化，日後標準）
+
+**何時用**：要動到另一個 repo 的職責（taipei-gis-analytics 搜集 / gis-platform migration）、或大量平行任務、或需保護主 agent context 時。單純讀本 repo 幾檔仍用 Task agent。
+
+**完整 SOP 在 `.claude/guidelines/`**（本 PB 只是指路牌）：
+1. `cross-repo-data-onboard-spawn.md` — L3 流程（盤點→人工 gate→fresh session per task→驗證→commit）
+2. `spawn-orchestration-lessons.md` — 必讀踩坑（驗證>信文件 / cmux 限制 / MCP 不載入 / /exit / 禁殺 6001-6005）
+3. `cmux_tmux_spawn_primer.md` + `spawn_patterns_catalog.md` — L1 原語 + L2 七模式
+4. 腳本 `.claude/scripts/`、看板 `SESSION_BOARD.md`/`WAVE_REPORT.md`/`board/*.md`
+
+**最小循環**：`spawn_tmux_claude.sh <name> <cwd>` → `cmux_view_tabs.sh "任務名" tabs <name>`（命名觀景窗）→ `cat prompt | tmux_send_prompt.sh <name>` → `tmux_monitor_files.sh` 背景監控 board → 完成送 `/exit` 釋放 → 主 agent 讀 board 驗證 → 下一個。每個 prompt 必含「先驗證/自己 commit 明確路徑不 add -A/寫 board/只關自己 port」。
