@@ -69,17 +69,28 @@ export function ViewBHomeBasics({ county, onBack, onCityClick }: Props) {
     );
   }
 
-  const s = deriveHomeStats(c, hd);
-  const region = REGION_ZH[c.region] ?? c.region;
-  const muni = MUNI_INFO[c.code3];
-
   // 村里數 / 鄉鎮排名：優先真實（demographics.township_*），無則 fallback 估算
   const realVillages = township.villageCountByCountyId[c.id_moi];
   const villagesIsReal = realVillages != null;
-  const villages = villagesIsReal ? realVillages : s.villages;
-  // 鄰數無真實源：以村里數推估（×18.69），real villages 在手時估得更準，仍標「估」
-  const neighborhoods = villagesIsReal ? Math.round(realVillages * 18.69) : s.neighborhoods;
   const townRanks = township.ranksByCountyId[c.id_moi] ?? [];
+
+  // H-3 SSOT 對齊：縣市總人口/戶數改用真實鄉鎮加總（township_rank，2025-12），
+  // 與下方 H1 鄉鎮排名 drill 同源 → 消除「13,000(2024推估) vs 13,621(2025真實)」矛盾。
+  const realPopTotal = townRanks.length > 0
+    ? townRanks.reduce((sum, r) => sum + r.population, 0)
+    : null;
+  const realHouseholds = townRanks.length > 0
+    ? townRanks.reduce((sum, r) => sum + (r.households ?? 0), 0)
+    : null;
+  const rankPeriod = township.rankPeriod || "2025-12";
+
+  const s = deriveHomeStats(c, hd, { popTotal: realPopTotal, households: realHouseholds });
+  const region = REGION_ZH[c.region] ?? c.region;
+  const muni = MUNI_INFO[c.code3];
+
+  // 鄰數無真實源：以村里數推估（×18.69），real villages 在手時估得更準，仍標「估」
+  const villages = villagesIsReal ? realVillages : s.villages;
+  const neighborhoods = villagesIsReal ? Math.round(realVillages * 18.69) : s.neighborhoods;
 
   // 4 fact tile ranks
   const popRank     = rankAmongCounties(c.code3, (cc) => cc.pop_2024_wan).rank;
@@ -123,10 +134,10 @@ export function ViewBHomeBasics({ county, onBack, onCityClick }: Props) {
         c={c} hd={hd}
         villages={villages} villagesIsReal={villagesIsReal} neighborhoods={neighborhoods}
         townRanks={townRanks} townshipLoading={township.loading}
-        rankPeriod={township.rankPeriod || "2025-12"}
+        rankPeriod={rankPeriod}
       />
       <H2Geography c={c} nat={nat} onCityClick={onCityClick} />
-      <H3Population c={c} s={s} nat={nat} popRank={popRank} densityRank={densityRank} />
+      <H3Population c={c} s={s} nat={nat} popRank={popRank} densityRank={densityRank} rankPeriod={rankPeriod} />
       <H4Age c={c} hd={hd} s={s} nat={nat} agingRank={agingRank} />
       <H5Dynamics c={c} hd={hd} nat={nat} />
 
@@ -135,7 +146,7 @@ export function ViewBHomeBasics({ county, onBack, onCityClick }: Props) {
         <span>·</span>
         <span>全國基準月度 {nat.as_of_month}</span>
         {!nat.is_fallback && <span style={{ color: "#059669", fontWeight: 600 }}>· 全國 LIVE Supabase</span>}
-        <span style={{ marginLeft: "auto", color: "#9A6E00" }}>· 縣市指標 MOCK · 待 per-county ETL</span>
+        <span style={{ marginLeft: "auto", color: "#9A6E00" }}>· 縣市人口/戶數=鄉鎮加總(真實) · 年齡/性別/老化/動態仍推估，待 per-county ETL</span>
       </div>
     </div>
   );
@@ -364,10 +375,10 @@ function H2Geography({
    H3 · 人口總量
 ─────────────────────────────────────────────── */
 function H3Population({
-  c, s, nat, popRank, densityRank,
+  c, s, nat, popRank, densityRank, rankPeriod,
 }: {
   c: County; s: HomeCountyStats; nat: ViewModel;
-  popRank: number; densityRank: number;
+  popRank: number; densityRank: number; rankPeriod: string;
 }) {
   const malePct = (s.popMale / s.popTotal) * 100;
   const femalePct = 100 - malePct;
@@ -381,8 +392,8 @@ function H3Population({
         num={3}
         title={<><span className="accent">人口總量</span> ─ {c.name_zh}有多少人</>}
         tagline={`${fmt.num(s.popTotal)} 人 · 性比例 ${s.sexRatio.toFixed(1)} · 密度為全國的 ${ratioVsNat.toFixed(2)} 倍`}
-        badge="2024 推估"
-        badgeTone="placeholder"
+        badge={s.popIsReal ? `${rankPeriod} 鄉鎮加總` : "2024 推估"}
+        badgeTone={s.popIsReal ? "static" : "placeholder"}
       />
 
       <div className="county-pop-hero">
@@ -405,6 +416,7 @@ function H3Population({
           </div>
           <div className="muted" style={{ fontSize: 10.5, marginTop: 4 }}>
             性比例 <b style={{ color: "var(--text)" }}>{s.sexRatio.toFixed(2)}</b>（全國 {nat.sex_ratio}）
+            {s.popIsReal && <span style={{ color: "var(--text-tertiary)" }}> · 男女拆分按性比例推估</span>}
           </div>
         </div>
       </div>
@@ -413,7 +425,7 @@ function H3Population({
         <div className="hr-cell">
           <div className="hr-lbl">戶數</div>
           <div className="hr-val">{fmt.num(s.households)}<span className="unit">戶</span></div>
-          <div className="hr-sub">待戶政司月報 ETL · 目前由戶量推算</div>
+          <div className="hr-sub">{s.householdsIsReal ? `${rankPeriod} 戶政司鄉鎮加總` : "待戶政司月報 ETL · 目前由戶量推算"}</div>
         </div>
         <div className="hr-cell">
           <div className="hr-lbl">平均戶量</div>

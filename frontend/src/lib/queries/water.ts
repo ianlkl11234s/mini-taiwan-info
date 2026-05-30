@@ -218,11 +218,16 @@ export function aggregateFloodPct(rows: FloodPctRow[]): FloodSummary {
 // ─────────────────────────────────────────────────
 
 const REGION_NORMALIZE: Record<string, "north" | "central" | "south" | "east" | "island"> = {
-  北: "north", 北部: "north", 北區: "north",
-  中: "central", 中部: "central", 中區: "central",
-  南: "south", 南部: "south", 南區: "south",
-  東: "east", 東部: "east", 東區: "east",
+  北: "north", 北部: "north", 北區: "north", 臺灣北區: "north", 台灣北區: "north",
+  中: "central", 中部: "central", 中區: "central", 臺灣中區: "central", 台灣中區: "central",
+  南: "south", 南部: "south", 南區: "south", 臺灣南區: "south", 台灣南區: "south",
+  東: "east", 東部: "east", 東區: "east", 臺灣東區: "east", 台灣東區: "east",
+  // 離島：水利署 region 對「離島」與單一外島群（澎湖/金門/馬祖）混用 → 全歸 island，
+  // 避免「澎湖地區」「臺灣南區」這類變體 fall through 成 null 而從地理區聚合漏算（W-4: 34→32 bug）
   離島: "island", 外島: "island",
+  澎湖: "island", 澎湖地區: "island",
+  金門: "island", 金門地區: "island",
+  馬祖: "island", 連江: "island", 連江地區: "island",
 };
 
 /**

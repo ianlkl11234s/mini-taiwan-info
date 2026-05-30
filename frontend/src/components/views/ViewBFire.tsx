@@ -45,6 +45,7 @@ import type {
   EmergencyShelterRow,
   DisasterIncidentRow,
   UncoveredVillageRow,
+  ServiceCoverageRow,
 } from "@/lib/queries/fire";
 import {
   FIRE_MOCK_BY_COUNTY,
@@ -290,6 +291,7 @@ export function ViewBFire({ data, county, onBack }: ViewBFireProps) {
           idMoi={idMoi}
           popWan={c.pop_2024_wan}
           merged={merged}
+          coverage={coverageRow}
           uncoveredVillages={data.uncoveredVillages}
         />
       )}
@@ -1017,12 +1019,14 @@ function ServiceTab({
   idMoi,
   popWan,
   merged,
+  coverage,
   uncoveredVillages,
 }: {
   county: CountyCode3;
   idMoi: string;
   popWan: number;
   merged: MergedCountyData;
+  coverage: ServiceCoverageRow | null;
   uncoveredVillages: UncoveredVillageRow[];
 }) {
   // B068：該縣市圈外村里 Top 10（real from fire.uncovered_villages_top MV）
@@ -1037,7 +1041,15 @@ function ServiceTab({
       }));
     return filtered.length > 0 ? filtered : null;
   }, [uncoveredVillages, idMoi]);
-  const outOfPop = Math.round(popWan * 10000 * (merged.outOf5MinPct / 100));
+  // F-4 口徑統一：圈外人口/村里數皆來自 fire.service_coverage_by_county（同一 3km buffer MV）。
+  //   - uncoveredPop / uncoveredPct：距最近分隊 > 3km（≈ 5 分鐘車程）的人口
+  //   - uncoveredVillageCount：該縣市 3km 圈外村里「數」（per-county 全量，連江=74）
+  //   下方 Top 10 表只取 fire.uncovered_villages_top（全國圈外人口 Top 100 明細）→ 小縣村里人口太小
+  //   不會上榜，但**不代表沒有圈外村里**。先前空狀態誤寫「全村里在 3km 內」與 5.5% 圈外自相矛盾（F-4）。
+  const uncoveredPop = coverage?.uncovered_pop ?? Math.round(popWan * 10000 * (merged.outOf5MinPct / 100));
+  const uncoveredPct = coverage?.uncovered_pop_pct ?? merged.outOf5MinPct;
+  const uncoveredVillageCount = coverage?.uncovered_villages ?? 0;
+  const totalVillages = coverage?.total_villages ?? 0;
   // Mark county arg as used for future UI hooks (e.g., 5/10min selector)
   void county;
 
@@ -1050,34 +1062,34 @@ function ServiceTab({
           value={merged.stations}
           unit="個"
           trend={{
-            delta: "3km buffer = 5min",
+            delta: "服務圈 = 3km",
             direction: "flat",
-            baseline: "",
+            baseline: "≈ 5 分鐘車程",
             sentiment: "neutral",
           }}
         />
         <KPICard
           icon={<Users size={13} />}
-          label="5min 圈外人口"
-          value={fmt.bigNum(outOfPop)}
+          label="3km 圈外人口"
+          value={fmt.bigNum(uncoveredPop)}
           unit="人"
           trend={{
-            delta: `${merged.outOf5MinPct.toFixed(1)}%`,
+            delta: `${uncoveredPct.toFixed(1)}%`,
             direction: "flat",
-            baseline: "佔全縣市",
-            sentiment: merged.outOf5MinPct >= 20 ? "negative" : "neutral",
+            baseline: "佔全縣市 · 距分隊>3km",
+            sentiment: uncoveredPct >= 20 ? "negative" : "neutral",
           }}
         />
         <KPICard
           icon={<AlertTriangle size={13} />}
-          label="最遠村里距分隊"
-          value={villages ? villages[0].distance.toFixed(1) : "—"}
-          unit="km"
+          label="3km 圈外村里"
+          value={uncoveredVillageCount}
+          unit="里"
           trend={{
-            delta: villages ? villages[0].name : "該縣市無圈外村里",
+            delta: totalVillages > 0 ? `共 ${totalVillages} 村里` : "",
             direction: "flat",
-            baseline: "",
-            sentiment: villages ? "negative" : "neutral",
+            baseline: villages ? `最遠 ${villages[0].distance.toFixed(1)}km` : "明細見全國 Top 100",
+            sentiment: uncoveredVillageCount > 0 ? "negative" : "positive",
           }}
         />
       </div>
@@ -1109,9 +1121,13 @@ function ServiceTab({
             <span className="fbl-sw fbl-out" />
             <b>圈外</b>
             <span className="muted">
-              距最近分隊 {">"} 6 km — <b>{merged.outOf5MinPct.toFixed(1)}%</b> 人口
+              距最近分隊 {">"} 3 km — <b>{uncoveredPct.toFixed(1)}%</b> 人口（{fmt.bigNum(uncoveredPop)} 人 · {uncoveredVillageCount} 村里）
             </span>
           </div>
+        </div>
+        <div className="muted" style={{ fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+          ※ 圈外人口/村里數均來自 <code>fire.service_coverage_by_county</code>（3km 直線 buffer，≈ 5 分鐘車程）。
+          下方明細表另取「全國圈外人口 Top 100」<code>fire.uncovered_villages_top</code>，故小縣即使有圈外村里也可能不在明細內。
         </div>
       </div>
 
@@ -1155,6 +1171,30 @@ function ServiceTab({
             </table>
           </div>
         </div>
+      ) : uncoveredVillageCount > 0 ? (
+        // F-4：該縣市有圈外村里（service_coverage_by_county），只是人口規模小未進全國 Top 100 明細。
+        // 不可再寫「全村里在 3km 內」——那會與上方「{uncoveredPct}% 圈外」自相矛盾。
+        <div
+          className="section"
+          style={{ textAlign: "center", padding: 36 }}
+        >
+          <div style={{ fontSize: 24, marginBottom: 8 }}>ⓘ</div>
+          <div
+            className="section-title"
+            style={{ justifyContent: "center", marginBottom: 8 }}
+          >
+            圈外村里明細
+          </div>
+          <div
+            className="muted"
+            style={{ fontSize: 12.5, maxWidth: 400, margin: "0 auto" }}
+          >
+            本縣有 <b>{uncoveredVillageCount}</b> 個「3km 圈外」村里（共 {totalVillages} 村里、圈外人口 {fmt.bigNum(uncoveredPop)} 人），
+            但因村里人口規模較小，未進「全國圈外人口 Top 100」明細榜。
+            <br />
+            <span style={{ fontSize: 11 }}>數據：fire.service_coverage_by_county（圈外總量）／ fire.uncovered_villages_top（全國 Top 100 明細）</span>
+          </div>
+        </div>
       ) : (
         <div
           className="section"
@@ -1173,7 +1213,7 @@ function ServiceTab({
           >
             該縣市無「3km 圈外」村里 — 全縣市村里皆在最近消防分隊 3km 範圍內。
             <br />
-            <span style={{ fontSize: 11 }}>來源：fire.uncovered_villages_top MV（全國 Top 100，該縣市未上榜）</span>
+            <span style={{ fontSize: 11 }}>來源：fire.service_coverage_by_county（圈外村里數 = 0）</span>
           </div>
         </div>
       )}

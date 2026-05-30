@@ -47,6 +47,11 @@ export function PointProfile({ reservoirs, onReservoirClick }: Props) {
 
   const valid = reservoirs.filter((r) => r.storage_ratio_pct != null);
   const total = valid.length;
+  // W-4 口徑：reservoirs = 主要水庫總數（KPI「主要水庫」同源，如 37 座）；
+  // valid = 目前有即時蓄水率資料者（如 34 座，差額為當期無水情快照的水庫）。
+  // 分布/地理區/散布圖僅能呈現有水情者 → 明確標清兩數差異，避免被當成 SSOT 打架。
+  const allCount = reservoirs.length;
+  const missingData = allCount - total;
 
   // 桶分配
   const counted = BUCKETS.map((b) => ({
@@ -93,6 +98,14 @@ export function PointProfile({ reservoirs, onReservoirClick }: Props) {
           </div>
           <div className="section-subtitle" style={{ marginTop: 2 }}>
             把縣市彙整看不到的個別狀態攤開
+            {missingData > 0 && (
+              <>
+                {" · "}
+                <span style={{ color: "var(--text-tertiary)" }}>
+                  共 {allCount} 座主要水庫，{total} 座有即時水情（{missingData} 座當期無水情快照）
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div

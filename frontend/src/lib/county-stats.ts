@@ -29,6 +29,18 @@ export interface HomeCountyStats {
   density: number;
   villages: number;
   neighborhoods: number;
+  /** popTotal 是否來自真實鄉鎮加總（township_rank），否則為 pop_2024_wan 推估 */
+  popIsReal: boolean;
+  /** households 是否來自真實鄉鎮加總（township_rank），否則為戶量回推 */
+  householdsIsReal: boolean;
+}
+
+/** deriveHomeStats 的真實資料覆蓋（來自 demographics.township_rank 該縣鄉鎮加總，2025-12） */
+export interface HomeStatsReal {
+  /** 該縣鄉鎮人口加總（真實月底人口）；null/0 → 用 pop_2024_wan 推估 */
+  popTotal?: number | null;
+  /** 該縣鄉鎮戶數加總（真實）；null/0 → 用戶量回推 */
+  households?: number | null;
 }
 
 /** 縣市性別比 mock（女多於男佔多數，原鄉略男多） */
@@ -52,13 +64,16 @@ function householdSizeOf(region: County["region"]): number {
 
 /** 從 COUNTIES SSOT + HOME_BY_COUNTY mock 推導 per-county 統計
  *
- *  ⚠️ Mock 階段：年齡三段、男女、戶數、村里、鄰 都是反推/估算。
- *  上 ETL 後改成 query reference.national_basics_by_county_monthly。
+ *  ⚠️ Mock 階段：年齡三段、男女、村里、鄰 仍是反推/估算。
+ *  H-3 SSOT 對齊：popTotal / households 若帶入 real（demographics.township_rank 鄉鎮加總，
+ *  2025-12 真實），則改用真實值，使 Hero/H3/密度與下方鄉鎮排名 drill 一致（消除 13,000 vs 13,621 矛盾）。
+ *  男女/年齡仍依 mock 比例「按真實總量重新分配」→ 主數字真實、分項標推估。
  */
-export function deriveHomeStats(c: County, hd: HomeCountyDemographic): HomeCountyStats {
-  const popTotal = Math.round(c.pop_2024_wan * 10000);
+export function deriveHomeStats(c: County, hd: HomeCountyDemographic, real?: HomeStatsReal): HomeCountyStats {
+  const popIsReal = real?.popTotal != null && real.popTotal > 0;
+  const popTotal = popIsReal ? Math.round(real!.popTotal!) : Math.round(c.pop_2024_wan * 10000);
 
-  // 男女
+  // 男女（性比例仍 mock；按真實總量重新分配 → 加總對齊 popTotal）
   const sexRatio = SEX_RATIO_MAP[c.code3] ?? 96.75;
   const popMale = Math.round((popTotal * sexRatio) / (100 + sexRatio));
   const popFemale = popTotal - popMale;
@@ -73,9 +88,13 @@ export function deriveHomeStats(c: County, hd: HomeCountyDemographic): HomeCount
   const pop1564 = popTotal - pop014 - pop65;
   const dependencyRatio = ((pop014 + pop65) / pop1564) * 100;
 
-  // 戶數 + 戶量
-  const householdSize = householdSizeOf(c.region);
-  const households = Math.round(popTotal / householdSize);
+  // 戶數 + 戶量（real 在手用真實加總，否則戶量回推）
+  const householdsIsReal = real?.households != null && real.households > 0;
+  const households = householdsIsReal ? Math.round(real!.households!) : Math.round(popTotal / householdSizeOf(c.region));
+  // 戶量：真實戶數在手時 = popTotal/households（真實），否則用區域 mock 戶量
+  const householdSize = households > 0 && (householdsIsReal || popIsReal)
+    ? popTotal / households
+    : householdSizeOf(c.region);
 
   // 密度
   const density = popTotal / c.area_km2;
@@ -91,6 +110,7 @@ export function deriveHomeStats(c: County, hd: HomeCountyDemographic): HomeCount
     households, householdSize,
     density,
     villages, neighborhoods,
+    popIsReal, householdsIsReal,
   };
 }
 

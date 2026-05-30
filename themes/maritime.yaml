@@ -94,7 +94,7 @@ overview:
       group: structural
       format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
       response_shape: { value: number, delta: number }
-      coverage_note: "國際商港 7 + 國內商港 4 = 11；含基隆/高雄/臺中/花蓮等"
+      coverage_note: "國際商港 7 + 國內商港 7 = 14（port_class_group 口徑，與前端一致；國內商港 7 = 細分類國內商港 4 + 客運港 3）。含基隆/高雄/臺中/花蓮等"
 
     - id: fishery_rights_area_km2
       label: 漁業權水域面積
@@ -380,7 +380,7 @@ data_sources:
     updated_field: ~
     refresh_cadence: static
     supabase_tables: [maritime.ports]
-    note: "缺口 1：線上 ports 表僅 73 筆 TDX 子集，Sprint 0 全量同步 277 筆（含 port_class/county）"
+    note: "已完成 277 筆全量同步（含 port_class/port_class_group/county）；商港 14（國際 7 + 國內 7）、漁港 239、渡輪觀光 18"
 
   - id: fishery_rights
     title: 農業部漁業署 — 漁業權水域範圍
