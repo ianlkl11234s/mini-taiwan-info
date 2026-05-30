@@ -113,3 +113,30 @@
 | 2026-05-14 | A-1 | PointProfile 三模式（bucket / region / scatter） |
 | 2026-05-14 | 0d | flood_hazard_pct_by_county MV + 6/6 KPI 接通真實資料 |
 | 2026-05-14 | 0c-C | 22 縣市 ranking + choropleth + hero + explode 全接通真實資料 |
+
+---
+## S12 新增（2026-05-30）
+
+**P1**
+- 縣市別「年度」出生死亡：無現成來源，須程式化彙總戶政司村里 12 個月月報。前端現標「12 月單月」。
+- 老化指數歷年口徑統一：民104-113 村里平均 vs 民114 全國彙總，trend 連線斷崖，需歷年 age-band。
+- fire 11953 起火原因 / severity normalizer：疑同款「年度列+月別列雙重計算」bug，上線前比對。
+- rail 台鐵 2024 月度運量：collector 2026-Q2 後才穩，目前 missing-data-card。
+
+**P2**
+- about 截圖優化：Flight Arc 3.3MB 壓 WebP；補 Ship GIS/Pulse 真實截圖；Pulse 線上 URL 待確認補 site。
+- water 地方級：漏水率/工業用水/雨水下水道/滯洪池容量（部分縣市缺，無公開源 → topic-research）。
+- S1Incidents「下載 CSV」鈕（無功能，視需求移除）。
+- repo-root `public/` 殘留 untracked（about 擷取落錯點）待清。
+- cmux 過夜累積 workspace（無 close cli，手動 GUI 關）。
+
+**P0（下個大主題）**
+- socioeconomic 第 7 主題：完全空，從零建（資料+後端+前端），用 spawn 工作流。
+
+## S12 已完成（移自 P0/P1）
+- ✅ 比較模式移除（半成品 View D）
+- ✅ about 分頁（Migu profile + 作品集，5 截圖）
+- ✅ 搜尋/分享/匯出移除（全 13 view）
+- ✅ 6 主題大量 mock → 真實（過夜 7 任務 + 稽核 4 批）
+- ✅ SEGIS 民國114 人口更新
+- ✅ spawn 協作工作流固化（guidelines/ + scripts/）
