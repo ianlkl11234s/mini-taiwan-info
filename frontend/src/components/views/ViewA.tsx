@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react";
-import { Droplet, Waves, CloudRain, Recycle, AlertTriangle, Download } from "lucide-react";
+import { Droplet, Waves, CloudRain, Recycle, AlertTriangle } from "lucide-react";
 import type { ThemeManifest, CountyCode3 } from "@/lib/types";
 import { COUNTIES, codeConvert } from "@/lib/counties";
 import { fmt } from "@/lib/format";

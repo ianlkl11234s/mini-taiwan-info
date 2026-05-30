@@ -10,7 +10,7 @@
  *           + Anthropic design bundle view-a-fire.jsx
  */
 
-import { Flame, Download } from "lucide-react";
+import { Flame } from "lucide-react";
 import { fmt } from "@/lib/format";
 import type { CountyCode3 } from "@/lib/types";
 import type { FireDataState } from "@/hooks/useFireData";

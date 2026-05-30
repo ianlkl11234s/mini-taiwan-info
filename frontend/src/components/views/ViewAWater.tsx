@@ -9,7 +9,7 @@
  * 與 ViewA.tsx（manifest-driven）/ ViewAFire.tsx 並列為 per-theme view。
  */
 
-import { Droplet, Download } from "lucide-react";
+import { Droplet } from "lucide-react";
 import { fmt } from "@/lib/format";
 import type { CountyCode3 } from "@/lib/types";
 import type { WaterKpisState } from "@/hooks/useWaterKpis";
