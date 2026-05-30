@@ -215,4 +215,19 @@
 - W-1 LPCD排名語意 · W-2 LIVE誤標6處改中性badge · H-2 自然增加假等式改月度−4.10 · H-1(a) mock去LIVE綠tone · D-2 mojibake文案 · D-3 Top5只列正值
 - typecheck ✅ + agent-browser DOM 抽驗多項 ✅
 
+### ✅ Batch 2 — SSOT/manifest 對齊 4 項（session batch2，已 /exit）commit `1d5381c`
+- W-4 水庫總數：解碼 37(總)/34(有即時率)/32(**region聚合bug漏臺灣南區/澎湖變體**)→修normalize回34+標37vs34口徑
+- F-4 連江圈外：DB證實**確有74圈外村里**(舊「全村里3km內」是假陳述,Top100截斷)→改顯真實74+3km口徑
+- M-3 maritime.yaml：商港14/277筆全量/燈塔漁權已上線屬實
+- H-3 連江總人口：mock13,000→**真實鄉鎮加總13,621**+戶數4,063(年齡性別仍標推估)
+- typecheck ✅ + agent-browser 3/3 PASS
+
 <!-- Batch 進度在此 append -->
+
+### ✅ Batch 3 — ETL 後端根治 5 項（session batch3，已 /exit）gis-platform `e0fdd41` + analytics `bab4d7e`(mig138-141)
+- D-1 出生死亡量級：**根因=村里用ODRP010_12月單月當年度加總**→建權威表 national_vital_yearly(民104-114,交叉驗證)+補民114(出生107,812/死亡200,268/現住23,299,132);死亡交叉修正民109
+- F-1 fire 月度MV加year維度(台北113=1,137,原三年累計3,957)
+- F-2 消防栓:台北**重複灌兩次**(兩dataset 99.5%重疊)→去重43,724→21,848;「91,691」是全台SUM誤標高雄
+- M-2(b) port_traffic刪7筆(CMA)航商假港名 · W-3 滯洪池容量=NULL非0(查證,前端改「—」)
+- 主agent獨立REST驗證 D-1/F-1/F-2 全✅
+- ⚠️ **前端跟進清單**(後端好了前端要接):F-1加year filter/F-2 per-county顯示/W-3 NULL→「—」/D-1移除存疑badge+ViewB縣市出生死亡標單月(縣市年度源不可得🔴)
