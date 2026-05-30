@@ -182,6 +182,25 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
     padding: 0 12px;
   }
 }
+/* Batch4 響應式 sweep（鐵則4）：viewport < ~996 時兩欄 min(460+500) 撐爆 viewport，
+   dashboard pane 右緣被裁（加入比較鈕/KPI卡/tab列被切）。改為地圖與 dashboard pane
+   垂直堆疊 → pane 取全寬不被裁，整頁改 .main 捲動。僅影響 ≤1080，不動既有 >1080 兩欄版面。 */
+@media (max-width: 1080px) {
+  .main {
+    grid-template-columns: 1fr;
+    grid-auto-rows: min-content;
+    gap: 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .main > .map-cell {
+    height: 56vh;
+    min-height: 340px;
+  }
+  .dashboard-pane {
+    overflow-y: visible;   /* 堆疊時由 .main 捲動，避免巢狀捲軸 */
+  }
+}
 .main > .map-cell {
   position: relative;
   border-radius: var(--radius-card-lg);
@@ -1835,7 +1854,10 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   display: flex;
   gap: 6px;
   margin-bottom: 10px;
+  overflow-x: auto;        /* 窄 pane tab 過多時可橫滾，避免「其他救護」被切字 */
+  scrollbar-width: none;
 }
+.fire-tab-row::-webkit-scrollbar { display: none; }
 .fire-mini-tab {
   padding: 6px 14px;
   border-radius: 7px;
@@ -1846,6 +1868,8 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s;
+  flex-shrink: 0;          /* 不被擠壓變形 */
+  white-space: nowrap;
 }
 .fire-mini-tab:hover { background: var(--surface-3); color: var(--text); }
 .fire-mini-tab.active {
@@ -4339,6 +4363,7 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   height: 14px;
   border-radius: 2px;
   margin: 1.5px 0;
+  min-width: 0;   /* P-1: bar 可縮，剩餘空間歸 bar、不擠壓固定寬的 .ppy-num */
 }
 .pop-pyramid .ppy-cell {
   display: flex;
@@ -4363,7 +4388,12 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
   padding: 0 4px;
+  white-space: nowrap;   /* P-1: 寬標籤（如「102.0 萬」）不斷行，否則該列變兩行高致列高/間距不齊 */
+  flex: 0 0 auto;        /* 不被 bar 擠壓 */
+  min-width: 56px;       /* 容得下最寬「102.0 萬」+ 兩側等寬 → 金字塔左右對稱、列等高 */
 }
+.pop-pyramid .ppy-cell.male .ppy-num { text-align: right; }   /* 男側數值靠右、貼近 bar 外緣 */
+.pop-pyramid .ppy-cell.female .ppy-num { text-align: left; }  /* 女側數值靠左、貼近 bar 外緣 */
 .pop-pyramid .ppy-age {
   display: flex; align-items: center; justify-content: center;
   font-size: 10.5px;
@@ -5018,7 +5048,7 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
     grid-template-columns: 1fr 48px 1fr;
   }
   .pop-pyramid .ppy-age { font-size: 9.5px; }
-  .pop-pyramid .ppy-cell .ppy-num { font-size: 9px; padding: 0 2px; }
+  .pop-pyramid .ppy-cell .ppy-num { font-size: 9px; padding: 0 2px; min-width: 44px; }
   .pop-pyramid .ppy-bar { height: 11px; }
 }
 @container dash (max-width: 380px) {
