@@ -258,10 +258,6 @@ function Hero({ c, p, N, popRank, agingRank, densityRank, growthRank, depRank, o
             </h1>
             <div className="hook" style={{ fontSize: 14 }}>{hook}</div>
           </div>
-          <div className="hero-actions">
-            <button className="btn ghost"><Download size={14} /> 下載 CSV</button>
-            <button className="btn ghost"><Share2 size={14} /> 分享</button>
-          </div>
         </div>
         <div className="ch-chips" style={{ marginTop: 12, marginBottom: 0 }}>
           <span className="ch-chip region"><span className="swatch"></span>{region}</span>

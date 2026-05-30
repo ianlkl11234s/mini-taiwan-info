@@ -3,7 +3,7 @@
  * 對應 prototype chrome.jsx TopBar
  */
 
-import { Droplet, Home, Search, Settings, Info } from "lucide-react";
+import { Droplet, Home, Settings, Info } from "lucide-react";
 import { Breadcrumb, type CrumbItem } from "./Breadcrumb";
 
 interface TopBarProps {
@@ -52,24 +52,6 @@ export function TopBar({
           </button>
         </>
       )}
-
-      <div className="tb-divider" />
-
-      <div className="tb-search">
-        <Search size={14} />
-        <input placeholder="搜尋縣市、指標或關鍵字…" />
-        <span
-          className="muted"
-          style={{
-            fontSize: 11,
-            padding: "1px 5px",
-            border: "1px solid var(--border)",
-            borderRadius: 4,
-          }}
-        >
-          ⌘ K
-        </span>
-      </div>
 
       <div className="tb-spacer" />
 

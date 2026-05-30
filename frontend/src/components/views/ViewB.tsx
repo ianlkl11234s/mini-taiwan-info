@@ -143,10 +143,6 @@ export function ViewB({
               <span className="muted">{c.region}</span>
             </div>
           </div>
-          <div className="hero-actions">
-            <button className="btn ghost"><Download size={14} /> 下載 CSV</button>
-            <button className="btn ghost"><Share2 size={14} /> 分享</button>
-          </div>
         </div>
       </div>
 

@@ -15,7 +15,7 @@
  */
 
 import {
-  Share2, Download, ChevronLeft,
+  ChevronLeft,
   Users, Layers, Locate,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
@@ -112,10 +112,6 @@ export function ViewBHomeBasics({ county, onBack, onCityClick }: Props) {
         <div className="ch-titlerow">
           <h1>{c.name_zh}</h1>
           <span className="ch-en">{c.name_en}</span>
-          <div className="hero-actions" style={{ marginLeft: "auto" }}>
-            <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            <button className="btn"><Download size={14} /> 匯出</button>
-          </div>
         </div>
         <div className="ch-chips">
           <span className="ch-chip region"><span className="swatch"></span>{region}</span>

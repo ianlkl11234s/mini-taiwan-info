@@ -172,10 +172,6 @@ function Hero({ c, cAgg, aggs, N, crossNote, onBack }: {
             </h1>
             <div className="hook" style={{ fontSize: 14 }}>{hook}</div>
           </div>
-          <div className="hero-actions">
-            <button className="btn ghost"><Download size={14} /> 下載 CSV</button>
-            <button className="btn ghost"><Share2 size={14} /> 分享</button>
-          </div>
         </div>
 
         {/* 系統徽章 strip */}
