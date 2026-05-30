@@ -365,11 +365,17 @@ function FireRadarCard({
       .filter((c) => c.pop_2024_wan > 0)
       .map((c) => (stationsByCty.get(c.id_moi) ?? 0) / c.pop_2024_wan);
 
-    // hydrantDensity：真實，但目前只高雄有；計平均時只用該 1 縣市
-    const khh = COUNTIES.find((x) => x.id_moi === "E");
+    // hydrantDensity（Batch3 F-2）：per-county 真實密度的平均；只用有涵蓋縣市（排除屏東零星）
+    const hydrantDensities = data.hydrantCounts
+      .filter((h) => h.coverage !== "sparse" && h.hydrant_count > 0)
+      .map((h) => {
+        const c = COUNTIES.find((x) => x.id_moi === h.county_id);
+        return c && c.area_km2 > 0 ? h.hydrant_count / c.area_km2 : null;
+      })
+      .filter((v): v is number => v != null);
     const hydrantDensity =
-      khh && data.hydrantNationalCount > 0 && khh.area_km2 > 0
-        ? data.hydrantNationalCount / khh.area_km2
+      hydrantDensities.length > 0
+        ? hydrantDensities.reduce((s, v) => s + v, 0) / hydrantDensities.length
         : null;
 
     // outOf5Min — 真實 from fire.service_coverage_by_county MV (B067)
@@ -389,7 +395,7 @@ function FireRadarCard({
       outOf5Min:      mean(outOf5MinList),
       hydrantDensity,
     };
-  }, [data.countyAggregates, data.stations, data.hydrantNationalCount, data.serviceCoverage]);
+  }, [data.countyAggregates, data.stations, data.hydrantCounts, data.serviceCoverage]);
 
   // 該縣市 5 軸值；hydrants=0 (非 4 都) 視為 null，雷達跳過該軸
   const cArea = (county.area_km2 ?? 0) > 0 ? county.area_km2 : 1;
@@ -1000,9 +1006,8 @@ function ResponseTab({
             ⚠
           </div>
           <div className="body">
-            <b>{cname}</b> 消防栓資料目前僅高雄市已完整接通（39,395 個）。
-            北/中/南/南源 dataset 欄位 mapping 待修；其他 18 縣市無公開資料。
-            地圖切到本縣市時「消防栓」layer 自動標示「無資料」。
+            <b>{cname}</b> 無公開消防栓資料。目前台北（21,848）、高雄（39,392）完整、新北（8,572）部分接通；
+            其他縣市資料未開放。地圖切到本縣市時「消防栓」layer 自動標示「無資料」。
           </div>
         </div>
       )}

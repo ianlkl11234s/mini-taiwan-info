@@ -232,7 +232,7 @@ function Hero({ c, p, N, popRank, agingRank, densityRank, growthRank, depRank, o
   } else if (densityRank === 1) {
     hook = <>全國<b className="em">最密縣市</b> · {fmt.num(p.density)} 人/km²</>;
   } else if (p.natural > 0) {
-    hook = <>2024 自然增加 <b className="em">+{fmt.num(p.natural)}</b> ─ 全國 22 縣市僅少數正值之一</>;
+    hook = <>自然增加 <b className="em">+{fmt.num(p.natural)}</b>（村里 12 月單月）─ 全國少數正值之一</>;
   } else if (p.growth10y > 8) {
     hook = <>10 年人口成長 <b className="em">+{p.growth10y.toFixed(2)}%</b> · 全國第 {growthRank} 名</>;
   } else if (p.growth10y < -7) {
@@ -657,19 +657,21 @@ function DynamicsTab({ c, p, socialRank }: {
   return (
     <>
       <div className="kpi-grid cols-3">
+        {/* Batch3 D-1：縣市別年度出生/死亡無現成來源；村里源僅 12 月單月（量級非年度）。
+            明確標「12 月單月」避免裸奔偽裝年度（鐵則1）；待戶政司縣市別年度月報 ETL 接通。 */}
         <KPICard
           icon={<Baby size={13} />}
-          label="2024 出生"
+          label="出生（12 月單月）"
           value={p.birth > 0 ? fmt.num(p.birth) : "—"}
           unit="人"
-          trend={{ delta: "村里加總（實）", direction: "down", baseline: "戶政司年度", sentiment: "negative" }}
+          trend={{ delta: "村里 12 月單月", direction: "flat", baseline: "非年度·量級待補", sentiment: "neutral" }}
         />
         <KPICard
           icon={<AlertTriangle size={13} />}
-          label="2024 死亡"
+          label="死亡（12 月單月）"
           value={p.death > 0 ? fmt.num(p.death) : "—"}
           unit="人"
-          trend={{ delta: "村里加總（實）", direction: "up", baseline: "戶政司年度", sentiment: "negative" }}
+          trend={{ delta: "村里 12 月單月", direction: "flat", baseline: "非年度·量級待補", sentiment: "neutral" }}
         />
         <KPICard
           icon={<ArrowLeftRight size={13} />}
@@ -695,8 +697,8 @@ function DynamicsTab({ c, p, socialRank }: {
             </div>
             <div className="section-subtitle">
               {naturalPos
-                ? <>2024 自然增加 <b style={{ color: "#047857" }}>+{fmt.num(p.natural)}</b>（實）</>
-                : <>2024 自然增加 <b style={{ color: "#B91C1C" }}>{fmt.signed(p.natural, 0)}</b>（實）</>}
+                ? <>自然增加 <b style={{ color: "#047857" }}>+{fmt.num(p.natural)}</b>（村里 12 月單月，非年度）</>
+                : <>自然增加 <b style={{ color: "#B91C1C" }}>{fmt.signed(p.natural, 0)}</b>（村里 12 月單月，非年度）</>}
             </div>
           </div>
         </div>
@@ -741,12 +743,8 @@ function DynamicsTab({ c, p, socialRank }: {
           })}
         </div>
         <div className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
-          ※ 自然增加 = 出生 − 死亡；社會增加 ≈ pop(114) − pop(104) − 自然累計（近似）。
-          {c.name_zh} 主要靠
-          <b style={{ color: "var(--accent-deep)" }}>
-            {" "}{Math.abs(p.social) > Math.abs(p.natural) ? "社會增加" : "自然增加"}{" "}
-          </b>
-          主導人口變化。
+          ※ 自然增加 = 出生 − 死亡（村里 <b>12 月單月</b>口徑，非全年）；社會增加 ≈ pop(114) − pop(104)
+          （10 年近似）。兩者口徑不同，「淨增減」僅示意，待縣市別年度出生死亡來源接通後校正。
         </div>
       </div>
     </>

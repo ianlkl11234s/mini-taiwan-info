@@ -17,7 +17,7 @@ import {
   fetchIncidentsByDayOfYear,
   listIncidents,
   fetchFireStations,
-  fetchFireHydrantNationalCount,
+  fetchFireHydrantCountsByCounty,
   fetchShelterNationalCount,
   fetchDisasterIncidents,
   fetchForestFireRiskSummary,
@@ -49,6 +49,7 @@ import {
   type FireCountyAggregate,
   type FireCauseAggregate,
   type FireStationRow,
+  type FireHydrantCountRow,
   type DisasterIncidentRow,
   type ForestFireRiskSummary,
   type CasualtyPropertyRow,
@@ -91,8 +92,8 @@ export interface FireDataState {
 
   /** Raw new ETL */
   stations: FireStationRow[];
-  /** 全國消防栓總數（不拉明細，目前=39395 只高雄） */
-  hydrantNationalCount: number;
+  /** 各涵蓋縣市消防栓數（Batch3 F-2：per-county，台北21,848/高雄39,392/新北8,572/屏東3；不再 SUM 全台） */
+  hydrantCounts: FireHydrantCountRow[];
   /** 全國避難所總數（不拉明細，22 縣市齊） */
   shelterNationalCount: number;
   /** 中央災變最近 N 筆（全國 timeline） */
@@ -143,7 +144,7 @@ const EMPTY_STATE: FireDataState = {
   taxonomy: [],
   incidentPoints: [],
   stations: [],
-  hydrantNationalCount: 0,
+  hydrantCounts: [],
   shelterNationalCount: 0,
   disasterEvents: [],
   forestRisk: null,
@@ -189,12 +190,12 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
         cachedFetch("fire:incidents_by_county_year", TTL_LONG, fetchIncidentsByCountyYear),               // 1
         cachedFetch("fire:incidents_by_cause_year", TTL_LONG, fetchIncidentsByCauseYear),                 // 2
         cachedFetch("fire:incidents_by_county_cause_year", TTL_LONG, fetchIncidentsByCountyCauseYear),    // 3
-        cachedFetch("fire:incidents_by_hour_month", TTL_LONG, fetchIncidentsByHourMonth),                 // 4
+        cachedFetch("fire:incidents_by_hour_month:113", TTL_LONG, () => fetchIncidentsByHourMonth(113)),   // 4（Batch3 F-1：單年 113）
         cachedFetch("fire:incidents_by_day_of_year:113", TTL_LIVE, () => fetchIncidentsByDayOfYear(113)), // 5
         cachedFetch("fire:list_incidents:113", TTL_SHORT, () => listIncidents({ yearMin: 113, yearMax: 113, limit: 50000 })), // 6
         // ─── 新 ETL ───
         cachedFetch("fire:fire_stations", TTL_LONG, fetchFireStations),                                   // 7
-        cachedFetch("fire:hydrant_count", TTL_LONG, fetchFireHydrantNationalCount),                       // 8
+        cachedFetch("fire:hydrant_counts_by_county:v2", TTL_LONG, fetchFireHydrantCountsByCounty),         // 8（Batch3 F-2：per-county）
         cachedFetch("fire:shelter_count", TTL_LONG, fetchShelterNationalCount),                           // 9
         // 55k 筆 county-level，~15 unique disaster_name。多拉樣本確保 ViewA timeline dedupe 後仍能拿 6+ 種
         cachedFetch("fire:disaster_incidents:2000", TTL_SHORT, () => fetchDisasterIncidents({ limit: 2000, orderDesc: true })), // 10
@@ -219,7 +220,7 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
         "taxonomy", "incidents_by_county_year", "incidents_by_cause_year",
         "incidents_by_county_cause_year", "incidents_by_hour_month",
         "incidents_by_day_of_year", "list_incidents",
-        "fire_stations", "hydrant_count", "shelter_count",
+        "fire_stations", "hydrant_counts_by_county", "shelter_count",
         "disaster_incidents", "forest_risk_summary",
         "incidents_by_severity", "incidents_by_location_type",
         "casualty_property", "personnel_vehicles", "ems_by_county_year",
@@ -241,7 +242,7 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
       const dayOfYear = get(5, [] as IncidentsByDayOfYearRow[]);
       const incidentPoints = get(6, [] as IncidentRow[]);
       const stations = get(7, [] as FireStationRow[]);
-      const hydrantNationalCount = get(8, 0);
+      const hydrantCounts = get(8, [] as FireHydrantCountRow[]);
       const shelterNationalCount = get(9, 0);
       const disasterEvents = get(10, [] as DisasterIncidentRow[]);
       const forestRisk = get<ForestFireRiskSummary | null>(11, null);
@@ -275,7 +276,7 @@ export function useFireData(opts: { enabled?: boolean } = {}): FireDataState {
         taxonomy,
         incidentPoints,
         stations,
-        hydrantNationalCount,
+        hydrantCounts,
         shelterNationalCount,
         disasterEvents,
         forestRisk,

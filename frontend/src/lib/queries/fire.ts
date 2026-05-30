@@ -137,12 +137,22 @@ export interface IncidentsByHourMonthRow {
   month: number;        // 1-12
   hour: number;         // 0-23
   incident_count: number;
+  data_year_minguo: number;  // 111-113（Batch3 F-1：MV 加 year 維度後）
 }
 
-export async function fetchIncidentsByHourMonth(): Promise<IncidentsByHourMonthRow[]> {
+/**
+ * 24h × 12 月熱力（時段分析）。
+ * Batch3 F-1：MV `fire.incidents_by_hour_month` 原無 year 維度，依 month/hour 加總
+ * ＝民111-113 三年總和（台北 12 月 3,957 ≠ 全年 1,137）。MV 加 `data_year_minguo`
+ * 後，預設只取最新單年（民113）＝與 KPI 同口徑；caller 可傳年覆寫。
+ */
+export async function fetchIncidentsByHourMonth(
+  yearMinguo: number = 113
+): Promise<IncidentsByHourMonthRow[]> {
   const { data, error } = await db
     .from("fire_incidents_by_hour_month")
-    .select("county_id,month,hour,incident_count");
+    .select("county_id,month,hour,incident_count,data_year_minguo")
+    .eq("data_year_minguo", yearMinguo);
   if (error) {
     console.error("[fire] incidents_by_hour_month failed:", error);
     throw error;
@@ -152,6 +162,7 @@ export async function fetchIncidentsByHourMonth(): Promise<IncidentsByHourMonthR
     month: Number(r.month),
     hour: Number(r.hour),
     incident_count: Number(r.incident_count),
+    data_year_minguo: Number(r.data_year_minguo),
   }));
 }
 
@@ -577,8 +588,9 @@ export function deriveCauseAggregates(
 }
 
 /**
- * 月份聚合 12 月（全國 across years，給時間長條 "month" mode）
- * 把 hour_month 的 hour 維度 sum 掉
+ * 月份聚合 12 月（給時間長條 "month" mode）
+ * 把 hour_month 的 hour 維度 sum 掉。Batch3 F-1：hourMonth 已 filter 單年（民113），
+ * 故為單年口徑，不再是三年總和。
  */
 export function deriveMonthlyTotals(
   hourMonth: IncidentsByHourMonthRow[]
@@ -748,7 +760,10 @@ export async function fetchFireHydrants(opts: { county?: string | null; limit?: 
   }));
 }
 
-/** 全國消防栓總數（不拉明細，避免下載 39k 筆）*/
+/**
+ * 全台消防栓總列數（跨所有縣市 SUM，不拉明細）。
+ * ⚠️ Batch3 F-2 後改用 `fetchFireHydrantCountsByCounty()` per-county；此全台和勿當單一縣市顯示。
+ */
 export async function fetchFireHydrantNationalCount(): Promise<number> {
   const { count, error } = await db
     .from("fire_hydrants")
@@ -784,25 +799,45 @@ export async function fetchShelterNationalCount(): Promise<number> {
   return count ?? 0;
 }
 
+/**
+ * fire.hydrants 涵蓋（Batch3 F-2）：非全 22 縣市，且涵蓋程度不一。
+ * 台北已去 datagov:128639 重複列（43,724→21,848，保留北水處 146006 權威源）。
+ * 一律 per-county 顯示，絕不 SUM 全台當單一縣市（91,691 是全台和，非高雄）。
+ */
+export type HydrantCoverage = "full" | "partial" | "sparse";
+export const HYDRANT_COVERAGE: Array<{ county_id: string; coverage: HydrantCoverage }> = [
+  { county_id: "A", coverage: "full" },     // 臺北 — 北水處全市（21,848）
+  { county_id: "E", coverage: "full" },     // 高雄 — 5 個 data.gov dataset（39,392）
+  { county_id: "F", coverage: "partial" },  // 新北 — 僅 datagov:128639（8,572）
+  { county_id: "T", coverage: "sparse" },   // 屏東 — 零星樣本（3），視為無資料
+];
+
 /** 各縣市消防栓數量（不拉點位） */
 export interface FireHydrantCountRow {
   county_id: string;
   hydrant_count: number;
+  coverage: HydrantCoverage;
 }
 
+/**
+ * 各涵蓋縣市消防栓數量（per-county HEAD count，不下載點位）。
+ * 只查 HYDRANT_COVERAGE 列出的縣市（其餘 18 縣市無公開資料），4 個輕量 count 請求。
+ */
 export async function fetchFireHydrantCountsByCounty(): Promise<FireHydrantCountRow[]> {
-  // PostgREST 沒原生 GROUP BY，前端 fetch all county_id 後 reduce
-  const { data, error } = await db.from("fire_hydrants").select("county_id").limit(100000);
-  if (error) {
-    console.error("[fire] fetchFireHydrantCountsByCounty failed:", error);
-    throw error;
-  }
-  const acc = new Map<string, number>();
-  for (const r of (data ?? []) as Array<{ county_id: string }>) {
-    const id = String(r.county_id);
-    acc.set(id, (acc.get(id) ?? 0) + 1);
-  }
-  return [...acc.entries()].map(([county_id, hydrant_count]) => ({ county_id, hydrant_count }));
+  const results = await Promise.all(
+    HYDRANT_COVERAGE.map(async ({ county_id, coverage }) => {
+      const { count, error } = await db
+        .from("fire_hydrants")
+        .select("hydrant_id", { count: "exact", head: true })
+        .eq("county_id", county_id);
+      if (error) {
+        console.error(`[fire] hydrant count ${county_id} failed:`, error);
+        return { county_id, hydrant_count: 0, coverage };
+      }
+      return { county_id, hydrant_count: count ?? 0, coverage };
+    })
+  );
+  return results;
 }
 
 // ─────────────────────────────────────────────────

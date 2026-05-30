@@ -329,16 +329,21 @@ export async function fetchDetentionSummary(): Promise<DetentionSummary> {
     return { total_basins: 0, total_volume_m3: 0, by_county: [], admin_counties: [], parks: [] };
   }
   const rows = data as { county: string | null; designed_volume_m3: number | null }[];
-  const byCounty = new Map<string, { count: number; vol: number }>();
+  // Batch3 W-3：designed_volume_m3 在台北/台南/桃園/台中 全 NULL（來源缺設計容量欄，非真 0）。
+  // 只 sum 非 NULL；某縣市全 NULL → total_vol_m3 = null（前端顯「—（容量待補）」），座數照常。
+  const byCounty = new Map<string, { count: number; vol: number; hasVol: boolean }>();
   for (const r of rows) {
     const key = r.county ?? "(unknown)";
-    const cur = byCounty.get(key) ?? { count: 0, vol: 0 };
+    const cur = byCounty.get(key) ?? { count: 0, vol: 0, hasVol: false };
     cur.count += 1;
-    cur.vol += Number(r.designed_volume_m3 ?? 0);
+    if (r.designed_volume_m3 != null) {
+      cur.vol += Number(r.designed_volume_m3);
+      cur.hasVol = true;
+    }
     byCounty.set(key, cur);
   }
   const list = Array.from(byCounty.entries())
-    .map(([county, v]) => ({ county, count: v.count, total_vol_m3: v.vol }))
+    .map(([county, v]) => ({ county, count: v.count, total_vol_m3: v.hasVol ? v.vol : null }))
     .sort((a, b) => b.count - a.count);
   const adminCounties = list.filter((r) => r.county && !PARK_SLUGS.has(r.county)).map((r) => r.county!);
   const parks = list.filter((r) => r.county && PARK_SLUGS.has(r.county)).map((r) => r.county!);

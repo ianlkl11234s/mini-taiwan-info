@@ -3,12 +3,12 @@
  *
  * 真實資料：
  *   - 全國消防分隊 716 個（fire.stations，22 縣市齊）
- *   - 全國消防栓 39,395 個（fire.hydrants，目前僅高雄 county_id='E'）
+ *   - 消防栓 per-county（Batch3 F-2 去重後）：台北 21,848 / 高雄 39,392 完整、
+ *     新北 8,572 部分、屏東 3 零星；一律 per-county 顯示，不 SUM 全台
  *   - 縣市分隊密度（stations / pop）為前端推算
  *
  * 等 ETL：
- *   - 其他 3 都消防栓（B2 bug fix，user 標 TODO）
- *   - 18 縣市消防栓資料未開放
+ *   - 其他 18 縣市消防栓資料未開放
  */
 
 import { useMemo } from "react";
@@ -33,29 +33,29 @@ export function S2Response({ data }: S2Props) {
     return acc;
   }, [data.stations]);
 
-  // 4 都消防栓表：目前只有高雄 (E)。從 hydrantNationalCount 推 row。
-  // 之後 ETL 補完，再從 hydrants groupBy county_id（同 stationsByCounty pattern）
-  const hydrantRows = useMemo(() => {
-    const KHH_COUNT = data.hydrantNationalCount; // 全國 = 高雄
-    const khhArea = byIdMoi["E"]?.area_km2 ?? 2952;
-    return [
-      {
-        id_moi: "E",
-        county: "高雄市",
-        total: KHH_COUNT,
-        densityPerKm2: KHH_COUNT / khhArea,
-        coverage: "real" as const,
-      },
-      { id_moi: "A", county: "臺北市", total: 0, densityPerKm2: 0, coverage: "pending" as const },
-      { id_moi: "F", county: "新北市", total: 0, densityPerKm2: 0, coverage: "pending" as const },
-      { id_moi: "H", county: "桃園市", total: 0, densityPerKm2: 0, coverage: "pending" as const },
-      { id_moi: "B", county: "臺中市", total: 0, densityPerKm2: 0, coverage: "pending" as const },
-      { id_moi: "D", county: "臺南市", total: 0, densityPerKm2: 0, coverage: "pending" as const },
-    ];
-  }, [data.hydrantNationalCount]);
+  // 消防栓表（Batch3 F-2）：fire.hydrants 已去台北重複；一律 per-county，絕不 SUM 全台。
+  // 涵蓋：台北 21,848 完整 / 高雄 39,392 完整 / 新北 8,572 部分 / 屏東 3 零星（視為無資料）。
+  const hydrantRows = useMemo(
+    () =>
+      data.hydrantCounts
+        .map((h) => {
+          const c = byIdMoi[h.county_id];
+          const area = c?.area_km2 ?? 0;
+          return {
+            id_moi: h.county_id,
+            county: c?.name_zh ?? h.county_id,
+            total: h.hydrant_count,
+            densityPerKm2: area > 0 ? h.hydrant_count / area : 0,
+            coverage: h.coverage,
+          };
+        })
+        .sort((a, b) => b.total - a.total),
+    [data.hydrantCounts]
+  );
 
   const totalStations = data.stations.length;
-  const totalHydrants = data.hydrantNationalCount;
+  // 已接通縣市數（排除屏東零星樣本）— 標題不顯全台 SUM，per-county 數在下表
+  const coveredCounties = data.hydrantCounts.filter((h) => h.coverage !== "sparse").length;
 
   return (
     <div className="cat-block">
@@ -66,7 +66,7 @@ export function S2Response({ data }: S2Props) {
             <span className="accent">火災救災</span> ─ 我們有什麼能用
           </>
         }
-        tagline={`全國 ${fmt.num(totalStations)} 個消防分隊（22 縣市齊）+ ${fmt.num(totalHydrants)} 個消防栓（目前僅高雄完整）`}
+        tagline={`全國 ${fmt.num(totalStations)} 個消防分隊（22 縣市齊）+ 消防栓 ${coveredCounties} 縣市已接通（台北 / 高雄完整 · 新北部分）`}
         badge="接通真實資料"
         badgeTone="historical"
       />
@@ -88,13 +88,13 @@ export function S2Response({ data }: S2Props) {
           icon={<Droplet size={13} />}
           label={
             <>
-              消防栓 <span className="muted" style={{ fontSize: 9 }}>限高雄</span>
+              消防栓 <span className="muted" style={{ fontSize: 9 }}>per-county</span>
             </>
           }
-          value={fmt.num(totalHydrants)}
-          unit="個"
+          value={fmt.num(coveredCounties)}
+          unit="縣市"
           trend={{
-            delta: "其他 3 都待補資料",
+            delta: "台北 / 高雄完整 · 新北部分",
             direction: "flat",
             baseline: "fire.hydrants",
             sentiment: "neutral",
@@ -107,13 +107,13 @@ export function S2Response({ data }: S2Props) {
           <div>
             <div className="section-title">
               <span className="pre">HYDRANTS</span>
-              4 都消防栓統計
+              消防栓涵蓋（per-county）
             </div>
             <div className="section-subtitle">
-              目前僅高雄完整接通；北/中/南欄位 mapping 待修；其他 18 縣市無開放資料
+              台北 / 高雄完整、新北部分；屏東零星樣本視為無資料；其他 18 縣市無開放資料
             </div>
           </div>
-          <span className="fire-warn-pill">⚠ 限高雄 + 4 都待補</span>
+          <span className="fire-warn-pill">⚠ 僅 4 縣市有資料</span>
         </div>
 
         <div className="fire-table-wrap">
@@ -139,10 +139,12 @@ export function S2Response({ data }: S2Props) {
                     <td className="tnum">{r.total > 0 ? r.densityPerKm2.toFixed(1) : "—"}</td>
                     <td className="tnum">{stationCount}</td>
                     <td>
-                      {r.coverage === "real" ? (
-                        <span style={{ color: "var(--positive)", fontSize: 11 }}>✓ 已接通</span>
+                      {r.coverage === "full" ? (
+                        <span style={{ color: "var(--positive)", fontSize: 11 }}>✓ 完整</span>
+                      ) : r.coverage === "partial" ? (
+                        <span style={{ color: "var(--warning)", fontSize: 11 }}>△ 部分涵蓋</span>
                       ) : (
-                        <span className="muted" style={{ fontSize: 11 }}>待 ETL 補欄位</span>
+                        <span className="muted" style={{ fontSize: 11 }}>零星·視為無資料</span>
                       )}
                     </td>
                   </tr>
@@ -163,9 +165,9 @@ export function S2Response({ data }: S2Props) {
           <Lightbulb size={18} />
         </div>
         <div className="body">
-          全國 <b>{fmt.num(totalStations)} 個</b>消防分隊已全 22 縣市覆蓋（左側地圖始終顯示），
-          消防栓資料目前僅高雄 <b className="em">{fmt.num(totalHydrants)} 個</b>完整 —
-          其他 3 都欄位 mapping 待修、18 縣市資料未開放（B2 dataset bug，待後續 ETL 補完）。
+          全國 <b>{fmt.num(totalStations)} 個</b>消防分隊已全 22 縣市覆蓋（左側地圖始終顯示）。
+          消防栓 <b className="em">台北 / 高雄完整</b>（各 {fmt.num(hydrantRows.find((r) => r.id_moi === "A")?.total ?? 0)} / {fmt.num(hydrantRows.find((r) => r.id_moi === "E")?.total ?? 0)} 個）、
+          新北部分涵蓋、屏東僅零星樣本；其他 18 縣市資料未開放。各縣市數值一律 per-county，不加總當全台。
         </div>
       </div>
     </div>

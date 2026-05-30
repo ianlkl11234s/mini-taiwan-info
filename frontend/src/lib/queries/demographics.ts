@@ -455,7 +455,13 @@ export function deriveNationalSummary(
   const totalArea = COUNTIES.reduce((s, c) => s + (c.area_km2 ?? 0), 0);
   const density = totalArea > 0 ? totalPop / totalArea : 0;
 
-  const latest = trend.find((t) => t.year === LATEST_YEAR_MINGUO);
+  // Batch3 D-1：trend 已含民114（national_vital_yearly 修正後）。vitals（出生/死亡/自然增加）
+  // 取 trend 可得最新年（114），與下方 deriveVitalsTrend 末點口徑一致，避免 KPI label 顯 2025
+  // 但值卻是民113 的 mismatch。
+  const latestTrendYear = trend.length
+    ? Math.max(...trend.map((t) => t.year))
+    : LATEST_YEAR_MINGUO;
+  const latest = trend.find((t) => t.year === latestTrendYear);
   const base = trend.find((t) => t.year === BASE_YEAR_MINGUO);
   const growth10y =
     base && base.total_population > 0
@@ -513,13 +519,20 @@ export function deriveVitalsTrend(trend: NationalTrendRow[]): VitalRow[] {
   }));
 }
 
-/** 老化指數歷年（民國 104-113） */
+/**
+ * 老化指數歷年（民國 104-113）。
+ * Batch3 D-1：avg_aging_index 民104-113 為「村里未加權平均」口徑（113≈270.9）；民114 改「全國
+ * 彙總」口徑（174.25）。兩者不可混用（鐵則2），歷年連線只取同口徑的 ≤113，避免 113→114 視覺斷崖。
+ * 民114 最新老化指數由金字塔計算值（summary.agingIndex）另行呈現。
+ */
 export function deriveAgingHistory(trend: NationalTrendRow[]): AgingHistoryRow[] {
-  return trend.map((t) => ({
-    year: t.year + MINGUO_OFFSET,
-    yearMinguo: t.year,
-    value: Number(t.avg_aging_index.toFixed(1)),
-  }));
+  return trend
+    .filter((t) => t.year <= LATEST_YEAR_MINGUO)
+    .map((t) => ({
+      year: t.year + MINGUO_OFFSET,
+      yearMinguo: t.year,
+      value: Number(t.avg_aging_index.toFixed(1)),
+    }));
 }
 
 /**

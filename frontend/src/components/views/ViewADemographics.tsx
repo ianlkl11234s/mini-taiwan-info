@@ -329,6 +329,10 @@ function S2Pyramid({ data, selectedCounty }: Props) {
             showLegend={false}
             annotations={[]}
           />
+          <div className="muted" style={{ fontSize: 11, marginTop: 8, lineHeight: 1.55 }}>
+            ※ 此歷年線為「村里未加權平均」口徑（民 104–113）。民 114 老化指數改用「全國彙總」口徑
+            （{S.agingIndex.toFixed(1)}，見上方金字塔），與本線口徑不同故未併入連線。
+          </div>
         </div>
       )}
 
@@ -524,9 +528,12 @@ function S3Vitals({ data, selectedCounty }: Props) {
         <div className="rank-footer">
           <Lightbulb size={14} />
           <span>
-            {V.at(-1)?.year} 自然增加為正的縣市僅 <strong style={{ color: "var(--accent-deep)" }}>{positiveNatural.length}</strong>
+            縣市別自然增加為正僅 <strong style={{ color: "var(--accent-deep)" }}>{positiveNatural.length}</strong>
             {" "}個（{positiveNatural.slice(0, 3).map((p) => p.name).join(" / ") || "—"}），
             其餘 {22 - positiveNatural.length} 個皆負
+            <span className="muted" style={{ fontSize: 11 }}>
+              {" "}· 縣市值為村里 12 月單月口徑（非年度）；全國出生/死亡/自然增加見上方為戶政司年度
+            </span>
           </span>
         </div>
       </div>

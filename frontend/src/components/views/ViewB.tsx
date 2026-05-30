@@ -1107,7 +1107,17 @@ function FloodTab({
                   ? fmt.num(detentionRow.total_vol_m3 / 10000, 1)
                   : "—"
               }
-              unit="萬 m³"
+              unit={detentionRow.total_vol_m3 != null ? "萬 m³" : ""}
+              trend={
+                detentionRow.total_vol_m3 == null
+                  ? {
+                      delta: "容量待補",
+                      direction: "flat",
+                      baseline: "來源缺設計容量欄（缺值非 0）",
+                      sentiment: "neutral",
+                    }
+                  : undefined
+              }
             />
           </div>
         ) : (

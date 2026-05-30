@@ -82,7 +82,7 @@ function buildFirePointLayers(
   return [
     { id: "hotspots",    label: "火災熱點",          count: hotspotCount,  color: "#DC2626", shape: "small",  enabled: true,  on: on.hotspots },
     { id: "stations",    label: "消防分隊",          count: stationCount,  color: "#DC2626", shape: "dot",    enabled: true,  on: on.stations },
-    { id: "hydrants",    label: "消防栓（限高雄）",  count: hydrantCount,  color: "#0EA5E9", shape: "small",  enabled: false, on: on.hydrants },
+    { id: "hydrants",    label: "消防栓（部分縣市）",  count: hydrantCount,  color: "#0EA5E9", shape: "small",  enabled: false, on: on.hydrants },
     { id: "forestRisk",  label: "林火風險點",        count: forestRiskCount, color: "#84CC16", shape: "ring",   enabled: false, on: on.forestRisk },
     { id: "emsHospital", label: "避難收容所",        count: shelterCount,  color: "#10B981", shape: "square", enabled: false, on: on.emsHospital },
   ];
@@ -253,12 +253,13 @@ export default function App() {
           stationsPerWanByCode3.set(c.code3 as CountyCode3, cnt / c.pop_2024_wan);
         }
       }
-      // 真實栓密度（目前只高雄）
-      // hydrantNationalCount 是 1 個整數，要走縣市 fetch 才能 by county；簡化做法：
-      // 只給高雄 = hydrantNationalCount / 高雄 area，其他縣市 null（地圖會 gray）
-      const khh = COUNTIES.find((x) => x.id_moi === "E");
-      if (khh && fire.hydrantNationalCount > 0 && khh.area_km2 > 0) {
-        hydrantsByCode3.set(khh.code3 as CountyCode3, fire.hydrantNationalCount / khh.area_km2);
+      // 真實栓密度（Batch3 F-2：per-county，台北/高雄/新北有值；屏東零星視為無資料不著色）
+      for (const h of fire.hydrantCounts) {
+        if (h.coverage === "sparse") continue;     // 屏東 3 個視為無資料
+        const c = COUNTIES.find((x) => x.id_moi === h.county_id);
+        if (c && h.hydrant_count > 0 && c.area_km2 > 0) {
+          hydrantsByCode3.set(c.code3 as CountyCode3, h.hydrant_count / c.area_km2);
+        }
       }
     }
 
@@ -583,7 +584,7 @@ export default function App() {
                         pointLayersOnFire,
                         fireStationsForMap.length,
                         fireIncidentPointsForMap.length,
-                        fire.hydrantNationalCount,
+                        fire.hydrantCounts.reduce((s, h) => s + h.hydrant_count, 0),
                         fire.forestRisk?.total ?? 0,
                         fire.shelterNationalCount
                       )
