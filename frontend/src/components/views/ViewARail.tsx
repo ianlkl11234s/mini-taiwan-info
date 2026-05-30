@@ -29,6 +29,8 @@ import {
   RAIL_GROUPS,
   railGroupCountyRank,
   railGroupSysTrips,
+  deriveHourlyProfile,
+  deriveTopStations,
   type RailGroup,
 } from "@/lib/queries/rail";
 
@@ -250,13 +252,9 @@ function S1Base({ data, selectedCounty, group, setGroup }: GroupProps) {
 // ─────────────────────────────────────────────────
 function S2Service({ data, group, setGroup }: GroupProps) {
   const S = data.summary;
-  if (!S) return null;
-
-  const H = data.hourly;
-  const TRA = data.traBreakdown;
-  const TOP = data.topStations;
 
   const hasTra = !group.systems || group.systems.includes("tra");
+  const TRA = data.traBreakdown;
 
   // 各系統車次（依分類）
   const sysTrips = useMemo(
@@ -264,12 +262,26 @@ function S2Service({ data, group, setGroup }: GroupProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [group.id, data.trips, data.systems],
   );
+  // Bug 1：24hr 依選定系統「重算」（非全國縮放）→ 選高鐵顯示高鐵自己的時段分布形狀
+  const H = useMemo(
+    () => deriveHourlyProfile(data.trips, group.systems),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [group.id, data.trips],
+  );
+  // Bug 3 / Bug 4：TOP10 依選定系統重算 + 排除貓纜回填占位（切高鐵只出高鐵站）
+  const TOP = useMemo(
+    () => deriveTopStations(data.trips, data.stations, group.systems),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [group.id, data.trips, data.stations],
+  );
+
+  if (!S) return null;
+
   const grpTrips = sysTrips.reduce((a, s) => a + s.trips, 0) || 1;
   const scale = S.dailyTrips > 0 ? grpTrips / S.dailyTrips : 1;
 
-  // hourly 依分類佔比縮放
-  const Hscaled = H.map((h) => ({ ...h, value: Math.max(0, Math.round(h.value * scale)) }));
-  const maxHour = Math.max(1, ...Hscaled.map((h) => h.value));
+  // 24hr bar 用重算後的 H（形狀隨系統變），不再對全國 profile 線性縮放
+  const maxHour = Math.max(1, ...H.map((h) => h.value));
   const peakHours = new Set([7, 8, 17, 18]);
 
   return (
@@ -376,7 +388,7 @@ function S2Service({ data, group, setGroup }: GroupProps) {
           </div>
         </div>
         <div className="rail-hour-bars">
-          {Hscaled.map((h) => (
+          {H.map((h) => (
             <div
               key={h.x}
               className={`rhb ${peakHours.has(h.x) ? "peak" : ""}`}
@@ -385,12 +397,12 @@ function S2Service({ data, group, setGroup }: GroupProps) {
             />
           ))}
           <div className="rhb-labels">
-            {Hscaled.map((h) => <span key={h.x}>{h.label}</span>)}
+            {H.map((h) => <span key={h.x}>{h.label}</span>)}
           </div>
         </div>
         <div className="rail-hour-foot">
           <span>單日總計 <b style={{ color: "var(--text)" }}>{fmt.num(grpTrips)}</b> 班次</span>
-          <span className="pill">尖峰時段最大值約 {fmt.num(Math.max(...Array.from(peakHours).map((h) => Hscaled[h]?.value ?? 0)))} 班/時</span>
+          <span className="pill">尖峰時段最大值約 {fmt.num(Math.max(...Array.from(peakHours).map((h) => H[h]?.value ?? 0)))} 班/時</span>
         </div>
       </div>
 
@@ -401,12 +413,14 @@ function S2Service({ data, group, setGroup }: GroupProps) {
             <div>
               <div className="section-title">
                 <span className="pre">{hasTra ? "TRA" : (group.short ?? group.label)}</span>
-                {hasTra ? "臺鐵車種佔比" : "車種組成"}
+                {hasTra ? "臺鐵車種佔比" : "車種組成（自有車組）"}
               </div>
               <div className="section-subtitle">
                 {hasTra
                   ? (TRA[0] ? `${TRA[0].label} 獨佔 ${TRA[0].pct.toFixed(1)}% — 通勤本位` : "—")
-                  : `${group.label} 為捷運／高鐵自有車組，無臺鐵車種分類`}
+                  : (sysTrips.length === 1
+                      ? `${sysTrips[0].label} 為單一車組 — 佔本分類 100%`
+                      : `${group.label} 各系統自有車組，無臺鐵式車種細分`)}
               </div>
             </div>
           </div>
@@ -430,8 +444,24 @@ function S2Service({ data, group, setGroup }: GroupProps) {
               </div>
             </div>
           ) : (
-            <div className="muted" style={{ fontSize: 12, padding: "8px 0" }}>
-              ※ 車種佔比僅適用於臺鐵路段，請切換至「全部」或「台鐵」檢視。
+            // Bug 2：非臺鐵分類 → 顯示該分類各系統 100% 單條（單一系統如高鐵=一條滿格）
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", height: 22, borderRadius: 4, overflow: "hidden", background: "var(--surface-2)" }}>
+                {sysTrips.map((s) => (
+                  <div key={s.id} style={{ flex: s.trips, background: s.color }} title={`${s.label} ${(s.trips / grpTrips * 100).toFixed(1)}%`}></div>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 14px", marginTop: 4 }}>
+                {sysTrips.map((s) => (
+                  <div key={s.id} className="row gap-8" style={{ fontSize: 11.5 }}>
+                    <i style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: s.color }}></i>
+                    <span style={{ color: "var(--text)" }}>{s.label}</span>
+                    <span className="muted" style={{ marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
+                      {(s.trips / grpTrips * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -443,7 +473,9 @@ function S2Service({ data, group, setGroup }: GroupProps) {
                 <span className="pre">TOP 10</span>
                 大車站 · 每日總車次
               </div>
-              <div className="section-subtitle">含貓纜 4 站回填，注意視覺去重</div>
+              <div className="section-subtitle">
+                {group.id === "all" ? "全系統" : group.label} · 已排除貓纜 4 站（962 回填占位，非真實停靠班次）
+              </div>
             </div>
           </div>
           <div className="rail-top-stations" style={{ border: "none", borderTop: "1px solid var(--border)", borderRadius: 0 }}>

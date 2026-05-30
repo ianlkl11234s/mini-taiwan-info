@@ -13,9 +13,7 @@ import {
   fetchRidership,
   deriveSystems,
   deriveRailSummary,
-  deriveHourlyProfile,
   deriveTRABreakdown,
-  deriveTopStations,
   deriveTRAMonthly,
   deriveCountyAggregates,
   type StationRow,
@@ -24,7 +22,6 @@ import {
   type RidershipRow,
   type RailSystemDerived,
   type RailNationalSummary,
-  type TopStationRow,
   type TRABreakdownRow,
   type MonthlyRow,
   type CountyRailAggregate,
@@ -42,9 +39,8 @@ export interface RailDataState {
   // derived
   systems: RailSystemDerived[];
   summary: RailNationalSummary | null;
-  hourly: Array<{ x: number; label: string; value: number }>;
+  // 註：hourly / topStations 改由 ViewARail S2Service 依 group.systems useMemo 重算（隨系統切換），不在此預算
   traBreakdown: TRABreakdownRow[];
-  topStations: TopStationRow[];
   traMonthly: MonthlyRow[];
   countyAggregates: CountyRailAggregate[];
 }
@@ -58,9 +54,7 @@ const EMPTY: RailDataState = {
   ridership: [],
   systems: [],
   summary: null,
-  hourly: [],
   traBreakdown: [],
-  topStations: [],
   traMonthly: [],
   countyAggregates: [],
 };
@@ -97,9 +91,7 @@ export function useRailData(opts: { enabled?: boolean } = {}): RailDataState {
       const systems = stations.length > 0 ? deriveSystems(stations, lines, ridership) : [];
       const summary =
         stations.length > 0 ? deriveRailSummary(systems, trips, stations) : null;
-      const hourly = trips.length > 0 ? deriveHourlyProfile(trips) : [];
       const traBreakdown = trips.length > 0 ? deriveTRABreakdown(trips) : [];
-      const topStations = trips.length > 0 ? deriveTopStations(trips, stations) : [];
       const traMonthly = ridership.length > 0 ? deriveTRAMonthly(ridership) : [];
       const countyAggregates =
         stations.length > 0 ? deriveCountyAggregates(stations, trips, ridership, lines) : [];
@@ -113,9 +105,7 @@ export function useRailData(opts: { enabled?: boolean } = {}): RailDataState {
         ridership,
         systems,
         summary,
-        hourly,
         traBreakdown,
-        topStations,
         traMonthly,
         countyAggregates,
       });

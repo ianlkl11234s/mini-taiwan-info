@@ -384,10 +384,19 @@ export function deriveRailSummary(
   };
 }
 
-/** 24 小時逐時班次 — 從 station_daily_trips 的 hourly_distribution 加總 */
-export function deriveHourlyProfile(trips: StationDailyTripsRow[]): Array<{ x: number; label: string; value: number }> {
+/**
+ * 24 小時逐時班次 — 從 station_daily_trips 的 hourly_distribution 加總
+ * systemFilter：限定系統（group.systems）→ 該分類自己的時段分布形狀（非全國縮放）。
+ * null/undefined = 全系統。
+ */
+export function deriveHourlyProfile(
+  trips: StationDailyTripsRow[],
+  systemFilter?: RailSystemId[] | null,
+): Array<{ x: number; label: string; value: number }> {
+  const sysSet = systemFilter ? new Set(systemFilter) : null;
   const buckets = new Array(24).fill(0);
   for (const t of trips) {
+    if (sysSet && !sysSet.has(t.system_id as RailSystemId)) continue;
     if (!t.hourly_distribution || t.hourly_distribution.length !== 24) continue;
     for (let h = 0; h < 24; h++) buckets[h] += t.hourly_distribution[h];
   }
@@ -431,28 +440,42 @@ export function deriveTRABreakdown(trips: StationDailyTripsRow[]): TRABreakdownR
   return out;
 }
 
-/** Top 10 大站（依 daily_stop_count） */
+/**
+ * 貓纜回填占位辨識：trtc 的 line_id='MK'（動物園站/動物園南站/指南宮站/貓空站，各寫死 962）。
+ * 962 = 兩方向各 481 班次靜態快照，非真實停靠車次，且占全國 daily_stop_count TOP1-4，
+ * 混進「大車站車次排名」會把 4 個真實大站擠出榜外並誤導。故排除。
+ * ⚠ 用 line_id='MK' 精準辨識，不用站名 — 文湖線真實「動物園」(BR01) 名稱近似但 line_id='BR'，不可誤殺。
+ */
+function isCableBackfill(t: StationDailyTripsRow): boolean {
+  return t.system_id === "trtc" && t.line_id === "MK";
+}
+
+/**
+ * Top N 大站（依 daily_stop_count）
+ * systemFilter：限定系統（group.systems）→ 切高鐵只出高鐵站。null/undefined = 全系統。
+ * 一律排除貓纜回填占位站（見 isCableBackfill）。
+ */
 export function deriveTopStations(
   trips: StationDailyTripsRow[],
   stations: StationRow[],
+  systemFilter?: RailSystemId[] | null,
   limit = 10,
 ): TopStationRow[] {
+  const sysSet = systemFilter ? new Set(systemFilter) : null;
   // station_id × system_id 對應到 stations
   const stMap = new Map<string, StationRow>();
   for (const s of stations) {
     stMap.set(`${s.system_id}|${s.station_id}`, s);
   }
   return trips
-    .slice()
+    .filter((t) => (!sysSet || sysSet.has(t.system_id as RailSystemId)) && !isCableBackfill(t))
     .sort((a, b) => b.daily_stop_count - a.daily_stop_count)
     .slice(0, limit)
     .map((t) => {
       const st = stMap.get(`${t.system_id}|${t.station_id}`);
-      const note = ["動物園", "動物園南", "貓空", "指南宮"].includes(st?.name ?? "")
-        ? "貓纜回填"
-        : st?.name === "臺北車站" && t.system_id === "trtc"
-          ? "板南+淡水信義 雙線"
-          : undefined;
+      const note = st?.name === "臺北車站" && t.system_id === "trtc"
+        ? "板南+淡水信義 雙線"
+        : undefined;
       return {
         name: st?.name ?? t.station_id,
         system: t.system_id,
