@@ -798,8 +798,8 @@ function UrbanTab({ data, c, p, N, densityRank }: {
         <KPICard
           icon={<Users size={13} />}
           label="日夜人口比"
-          value="資料整備中"
-          trend={{ delta: "🔴 待修", direction: "flat", baseline: "statistical_areas county 欄 mojibake", sentiment: "neutral" }}
+          value="整備中"
+          trend={{ delta: "縣市別資料整備中", direction: "flat", baseline: "全國值可用", sentiment: "neutral" }}
         />
         <KPICard
           icon={<Home size={13} />}
@@ -821,8 +821,8 @@ function UrbanTab({ data, c, p, N, densityRank }: {
           <div className="title">日夜人口縣市別 · 資料整備中</div>
           <div className="reason">
             全國總值可用（日 3.50M / 夜 2.78M · 比 1.258）；
-            <code>spatial.statistical_areas</code> county 欄 mojibake，22 縣市拆分待修。
-            <b style={{ color: "var(--accent-deep)" }}>{c.name_zh}</b> 上線後將自動補齊。
+            縣市別日夜人口正進行 22 縣市分區整備，
+            <b style={{ color: "var(--accent-deep)" }}>{c.name_zh}</b> 完成後將自動補齊。
           </div>
         </div>
       </div>

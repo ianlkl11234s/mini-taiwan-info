@@ -700,7 +700,7 @@ function RidershipTab({ county, c, cAgg, data }: {
   data: RailDataState;
 }) {
   const N = data.summary!;
-  const has2024 = cAgg.ridership24 > 0;
+  const has2024 = cAgg.ridership24 != null && cAgg.ridership24 > 0;
   // 月度：filter ridership county_id matching idMoi + stat_period '2026-XX'
   const monthly = useMemo(() => {
     const cc = byCode3[county];
@@ -721,19 +721,19 @@ function RidershipTab({ county, c, cAgg, data }: {
         <KPICard
           icon={<Award size={13} />}
           label="2024 年度運量"
-          value={has2024 ? cAgg.ridership24.toFixed(2) : "—"}
+          value={has2024 ? (cAgg.ridership24 ?? 0).toFixed(2) : "—"}
           unit="億人次"
           trend={{
-            delta: has2024 ? `${(cAgg.ridership24 / Math.max(0.01, N.ridership24) * 100).toFixed(1)}% 全國` : "資料缺",
+            delta: has2024 ? `${((cAgg.ridership24 ?? 0) / Math.max(0.01, N.ridership24) * 100).toFixed(1)}% 全國` : "資料缺",
             direction: "flat",
-            baseline: has2024 ? `${(cAgg.ridership24 / Math.max(0.01, N.ridership24) * 100).toFixed(1)}% 全國` : "TRA 2024 月度缺",
+            baseline: has2024 ? `${((cAgg.ridership24 ?? 0) / Math.max(0.01, N.ridership24) * 100).toFixed(1)}% 全國` : "TRA 2024 月度缺",
             sentiment: "neutral",
           }}
         />
         <KPICard
           icon={<Users size={13} />}
           label="人均年運量"
-          value={has2024 && c.pop_2024_wan > 0 ? fmt.num(Math.round(cAgg.ridership24 * 1e8 / (c.pop_2024_wan * 1e4))) : "—"}
+          value={has2024 && c.pop_2024_wan > 0 ? fmt.num(Math.round((cAgg.ridership24 ?? 0) * 1e8 / (c.pop_2024_wan * 1e4))) : "—"}
           unit="人次/年"
           trend={{
             delta: has2024 ? "通勤強度指標" : "—",
@@ -745,7 +745,7 @@ function RidershipTab({ county, c, cAgg, data }: {
         <KPICard
           icon={<Train size={13} />}
           label="日均運量"
-          value={has2024 ? fmt.num(Math.round(cAgg.ridership24 * 1e8 / 365 / 1e4)) : "—"}
+          value={has2024 ? fmt.num(Math.round((cAgg.ridership24 ?? 0) * 1e8 / 365 / 1e4)) : "—"}
           unit="萬人次/日"
           trend={{ delta: `${cAgg.systems.length} 系統合計`, direction: "flat", baseline: "÷ 365 天", sentiment: "neutral" }}
         />
@@ -805,18 +805,25 @@ function RankTab({ county, aggs }: { county: CountyCode3; aggs: CountyRailAggreg
   return (
     <div className="rank-multi-grid">
       {items.map((it) => {
+        // R-1：無資料縣市（ridership24 null）排除排名，不偽裝成真實 0.00
         const rows: HRankRow[] = aggs
-          .map((a) => ({ code: a.code3, name: a.name, value: Number(a[it.key] ?? 0) }))
+          .map((a) => {
+            const raw = a[it.key];
+            return { code: a.code3, name: a.name, value: typeof raw === "number" ? raw : null };
+          })
+          .filter((r): r is HRankRow => r.value != null)
           .sort((a, b) => b.value - a.value);
-        const rank = rows.findIndex((r) => r.code === county) + 1;
-        const self = rows[rank - 1];
+        const selfRaw = aggs.find((a) => a.code3 === county)?.[it.key];
+        const selfHasValue = typeof selfRaw === "number";
+        const rank = selfHasValue ? rows.findIndex((r) => r.code === county) + 1 : 0;
+        const self = selfHasValue ? rows[rank - 1] : undefined;
         return (
           <div key={it.key as string} className="rmg-card">
             <div className="rmg-head">
               <div className="rmg-title">{it.label}</div>
               <div className="rmg-rank">
-                <span className="rmg-rank-num">#{rank}</span>
-                <span className="rmg-rank-tot">/ 22</span>
+                <span className="rmg-rank-num">{selfHasValue ? `#${rank}` : "—"}</span>
+                <span className="rmg-rank-tot">/ {rows.length}</span>
               </div>
             </div>
             <div className="rmg-val">

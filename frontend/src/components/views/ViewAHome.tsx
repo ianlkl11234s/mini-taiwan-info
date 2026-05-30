@@ -73,7 +73,7 @@ function Hero({ N }: { N: ViewModel }) {
             老化指數 <b className="em">{N.aging_index.toFixed(1)}</b>、
             65+ 佔 <b>{N.pct_65_plus.toFixed(2)}%</b> 已逾超高齡門檻。
             出生 <b>{N.birth_rate}</b>‰ ＜ 死亡 <b>{N.death_rate}</b>‰，
-            自然增加 <b className="em">{fmt.signed(N.natural_increase_rate, 2)}‰</b>。
+            自然增加 <b className="em">{fmt.signed(Number((N.birth_rate - N.death_rate).toFixed(2)), 2)}‰</b>（月度）。
           </p>
         </div>
         <div className="hero-actions">
@@ -491,7 +491,7 @@ function H5Dynamics({ N, demographics }: { N: ViewModel; demographics?: Demograp
       <CatHeader
         num={5}
         title={<><span className="accent">人口動態</span> ─ 人口的拐點</>}
-        tagline={`出生率 ${N.birth_rate.toFixed(2)}‰ < 死亡率 ${N.death_rate.toFixed(2)}‰ — 自然減少 ${fmt.signed(N.natural_increase_rate, 2)}‰`}
+        tagline={`出生率 ${N.birth_rate.toFixed(2)}‰ < 死亡率 ${N.death_rate.toFixed(2)}‰ — 自然減少 ${fmt.signed(Number((N.birth_rate - N.death_rate).toFixed(2)), 2)}‰（月度）`}
         badge="月度 + 年度"
         badgeTone="live"
       />
@@ -524,13 +524,16 @@ function H5Dynamics({ N, demographics }: { N: ViewModel; demographics?: Demograp
           </div>
         </div>
 
+        {/* H-2：等式須同口徑 — 出生率/死亡率為月度(2026-04)，自然增加率也用同口徑相減
+            （4.26 − 8.36 = −4.10），不再混用 2024 年度的 −2.87 造成數學不成立的假等式。 */}
         <div className="dyn-result">
           <div className="rs-label">
             <b>自然增加率</b>
             出生率 − 死亡率　＝　{N.birth_rate.toFixed(2)} − {N.death_rate.toFixed(2)}
+            <span style={{ marginLeft: 6, fontSize: 11, color: "var(--text-tertiary)" }}>· {N.as_of_month} 月度</span>
           </div>
           <div className="rs-num">
-            {fmt.signed(N.natural_increase_rate, 2)}<span className="unit">‰</span>
+            {fmt.signed(Number((N.birth_rate - N.death_rate).toFixed(2)), 2)}<span className="unit">‰</span>
           </div>
         </div>
 

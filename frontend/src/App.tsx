@@ -194,6 +194,21 @@ export default function App() {
   const useDemoRealData =
     (theme === "demographics" || theme === "home-basics") && demoAggByCode3.size > 0;
 
+  // rail / maritime 縣市聚合 Map（X-1：choropleth 著色用，原本無分支永遠灰底）
+  const railAggByCode3 = useMemo(() => {
+    const m = new Map<CountyCode3, (typeof rail.countyAggregates)[0]>();
+    for (const a of rail.countyAggregates) m.set(a.code3 as CountyCode3, a);
+    return m;
+  }, [rail.countyAggregates]);
+  const useRailRealData = theme === "rail" && railAggByCode3.size > 0;
+
+  const maritimeAggByCode3 = useMemo(() => {
+    const m = new Map<CountyCode3, (typeof maritime.countyAggregates)[0]>();
+    for (const a of maritime.countyAggregates) m.set(a.code3 as CountyCode3, a);
+    return m;
+  }, [maritime.countyAggregates]);
+  const useMaritimeRealData = theme === "maritime" && maritimeAggByCode3.size > 0;
+
   // 計算 22 縣市 metric values — 真實資料優先，缺則 mock
   const metricValues = useMemo(() => {
     const out: Record<CountyCode3, number | null> = {} as never;
@@ -283,13 +298,35 @@ export default function App() {
             value = c?.area_km2 ?? null;
           }
         }
+      } else if (useRailRealData) {
+        // rail — 真實縣市聚合（對應 rail.yaml color_metrics）
+        const agg = railAggByCode3.get(code);
+        if (agg) {
+          if (metric === "station_count") value = agg.stations;        // 0 站為真實值（無軌道縣市）
+          else if (metric === "rail_length_km") value = agg.km;        // 0 km 為真實值
+          else if (metric === "daily_trips_per_station")
+            value = agg.stations > 0 ? Math.round(agg.dailyTrips / agg.stations) : null;
+          else if (metric === "ridership_per_capita") value = null;    // Sprint 0 待補（站級運量 join 縣市）
+        }
+      } else if (useMaritimeRealData) {
+        // maritime — 真實縣市聚合（對應 maritime.yaml color_metrics）
+        const agg = maritimeAggByCode3.get(code);
+        if (agg) {
+          if (metric === "port_count") value = agg.ports;              // 0 港為真實值（內陸縣市）
+          else if (metric === "fishing_port_count") value = agg.fishing;
+          else if (metric === "fishery_value_billion")
+            value = agg.fisheryValue > 0 ? agg.fisheryValue : null;    // coverage 不全 → 缺值 null
+          else if (metric === "port_calls_yearly")
+            value = agg.shipTraffic > 0 ? agg.shipTraffic : null;      // 僅商港縣市有 → 缺值 null
+        }
       }
-      // fallback to mock (water mock; fire / demographics 無資料則保持 null)
-      if (value == null && !useFireRealData && !useDemoRealData) value = getMockMetricValue(metric, code);
+      // fallback to mock（僅 water 有 mock；fire/demo/rail/maritime 無資料保持 null）
+      if (value == null && !useFireRealData && !useDemoRealData && !useRailRealData && !useMaritimeRealData)
+        value = getMockMetricValue(metric, code);
       out[code] = value;
     }
     return out;
-  }, [metric, neutralChoropleth, useRealData, useFireRealData, useDemoRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates, demoAggByCode3]);
+  }, [metric, neutralChoropleth, useRealData, useFireRealData, useDemoRealData, useRailRealData, useMaritimeRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates, demoAggByCode3, railAggByCode3, maritimeAggByCode3]);
 
   // Phase 0b+ A-2: 點位圖層 toggle state（目前只 reservoir 有資料，其他 placeholder）
   const [pointLayersOn, setPointLayersOn] = useState<Record<string, boolean>>({
@@ -580,6 +617,7 @@ export default function App() {
               rampName={manifest.theme.color_ramp}
               rampDirection={colorMetric.ramp_direction}
               domain={colorMetric.domain}
+              coverageNote={colorMetric.coverage_note}
             />
           )}
 

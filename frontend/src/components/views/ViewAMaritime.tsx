@@ -325,10 +325,10 @@ function S3Throughput({ data }: Props) {
 
   const maxShare = Math.max(0.1, ...TOP.map((p) => p.share));
 
-  // 缺口
+  // M-1：燈塔 / 漁業權水域已接通 public 表（從缺口移除，改顯真實值）
+  const FAC = data.facilities;
+  // 缺口（剩餘）
   const REDS: Array<{ label: string; reason: string; icon: React.ReactNode }> = [
-    { label: "漁業權水域面積", reason: "DB 表不存在", icon: <Waves size={16} /> },
-    { label: "燈塔", reason: "DB 表不存在", icon: <MapPin size={16} /> },
     { label: "現有漁船數", reason: "全 NULL", icon: <Ship size={16} /> },
     { label: "養殖面積", reason: "全 NULL", icon: <Fish size={16} /> },
     { label: "跨縣市離島客船航線", reason: "表不存在", icon: <Route size={16} /> },
@@ -422,6 +422,40 @@ function S3Throughput({ data }: Props) {
           })}
         </div>
       </div>
+
+      {/* 海洋設施（M-1：燈塔 + 漁業權水域，已接通 public 真實表）*/}
+      {FAC && (
+        <div className="section" style={{ marginBottom: 14 }}>
+          <div className="section-head">
+            <div>
+              <div className="section-title">
+                <span className="pre">FACILITY</span>
+                海洋設施
+              </div>
+              <div className="section-subtitle">
+                航港局全國燈塔 + 漁業署漁業權水域 — 已接通真實資料
+              </div>
+            </div>
+            <span className="coverage-badge">年度 / 靜態</span>
+          </div>
+          <div className="kpi-grid cols-2">
+            <KPICard
+              icon={<MapPin size={13} />}
+              label="燈塔"
+              value={FAC.lighthouseCount}
+              unit="座"
+              trend={{ delta: "全國", direction: "flat", baseline: "交通部航港局", sentiment: "neutral" }}
+            />
+            <KPICard
+              icon={<Waves size={13} />}
+              label="漁業權水域"
+              value={FAC.fisheryRightsCount}
+              unit="筆"
+              trend={{ delta: `${fmt.num(FAC.fisheryRightsAreaKm2)} km²`, direction: "flat", baseline: "農業部漁業署", sentiment: "neutral" }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 缺口卡 */}
       <div className="section" style={{ marginBottom: 0 }}>

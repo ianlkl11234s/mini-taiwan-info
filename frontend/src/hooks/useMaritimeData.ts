@@ -10,19 +10,25 @@ import {
   fetchPorts,
   fetchFisheryStats,
   fetchPortTraffic,
+  fetchLighthouses,
+  fetchFisheryRights,
   derivePortClass,
   deriveMaritimeSummary,
   deriveFisheryTrend,
   deriveTopCommPorts,
   deriveCountyAggregates,
+  deriveMaritimeFacilities,
   type PortRow,
   type FisheryStatsRow,
   type PortTrafficRow,
+  type LighthouseRow,
+  type FisheryRightRow,
   type PortClassRow,
   type MaritimeNationalSummary,
   type FisheryTrendRow,
   type TopCommPortRow,
   type CountyMaritimeAggregate,
+  type MaritimeFacilities,
 } from "@/lib/queries/maritime";
 import { cachedFetch, TTL_LONG } from "@/lib/cache";
 
@@ -32,11 +38,14 @@ export interface MaritimeDataState {
   ports: PortRow[];
   fishery: FisheryStatsRow[];
   traffic: PortTrafficRow[];
+  lighthouses: LighthouseRow[];
+  fisheryRights: FisheryRightRow[];
   summary: MaritimeNationalSummary | null;
   portClass: PortClassRow[];
   fisheryTrend: FisheryTrendRow[];
   topCommPorts: TopCommPortRow[];
   countyAggregates: CountyMaritimeAggregate[];
+  facilities: MaritimeFacilities | null;
 }
 
 const EMPTY: MaritimeDataState = {
@@ -45,11 +54,14 @@ const EMPTY: MaritimeDataState = {
   ports: [],
   fishery: [],
   traffic: [],
+  lighthouses: [],
+  fisheryRights: [],
   summary: null,
   portClass: [],
   fisheryTrend: [],
   topCommPorts: [],
   countyAggregates: [],
+  facilities: null,
 };
 
 export function useMaritimeData(opts: { enabled?: boolean } = {}): MaritimeDataState {
@@ -69,12 +81,16 @@ export function useMaritimeData(opts: { enabled?: boolean } = {}): MaritimeDataS
         cachedFetch("maritime:ports", TTL_LONG, fetchPorts),
         cachedFetch("maritime:fishery_stats", TTL_LONG, fetchFisheryStats),
         cachedFetch("maritime:port_traffic", TTL_LONG, fetchPortTraffic),
+        cachedFetch("maritime:lighthouse", TTL_LONG, fetchLighthouses),
+        cachedFetch("maritime:fishery_rights", TTL_LONG, fetchFisheryRights),
       ]);
       if (cancelled) return;
 
       const ports = results[0].status === "fulfilled" ? results[0].value : [];
       const fishery = results[1].status === "fulfilled" ? results[1].value : [];
       const traffic = results[2].status === "fulfilled" ? results[2].value : [];
+      const lighthouses = results[3].status === "fulfilled" ? results[3].value : [];
+      const fisheryRights = results[4].status === "fulfilled" ? results[4].value : [];
       const errors = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
       const firstError = errors[0]?.reason instanceof Error ? errors[0].reason : null;
 
@@ -85,6 +101,10 @@ export function useMaritimeData(opts: { enabled?: boolean } = {}): MaritimeDataS
       const topCommPorts = traffic.length > 0 ? deriveTopCommPorts(traffic, ports) : [];
       const countyAggregates =
         ports.length > 0 ? deriveCountyAggregates(ports, fishery, traffic) : [];
+      const facilities =
+        lighthouses.length > 0 || fisheryRights.length > 0
+          ? deriveMaritimeFacilities(lighthouses, fisheryRights)
+          : null;
 
       setState({
         loading: false,
@@ -92,11 +112,14 @@ export function useMaritimeData(opts: { enabled?: boolean } = {}): MaritimeDataS
         ports,
         fishery,
         traffic,
+        lighthouses,
+        fisheryRights,
         summary,
         portClass,
         fisheryTrend,
         topCommPorts,
         countyAggregates,
+        facilities,
       });
     })();
     return () => {

@@ -381,8 +381,8 @@ function H3Population({
         num={3}
         title={<><span className="accent">人口總量</span> ─ {c.name_zh}有多少人</>}
         tagline={`${fmt.num(s.popTotal)} 人 · 性比例 ${s.sexRatio.toFixed(1)} · 密度為全國的 ${ratioVsNat.toFixed(2)} 倍`}
-        badge={`月度 · ${nat.as_of_month}`}
-        badgeTone="sampled"
+        badge="2024 推估"
+        badgeTone="placeholder"
       />
 
       <div className="county-pop-hero">
@@ -475,8 +475,8 @@ function H4Age({
         num={4}
         title={<><span className="accent">年齡結構</span> ─ {c.name_zh}的人口三段</>}
         tagline={`65+ 佔 ${s.pct65.toFixed(2)}% ${aboveThreshold ? "（已逾超高齡 20% 門檻）" : "（未達超高齡門檻）"} · 老化指數 ${hd.agingIndex.toFixed(1)}`}
-        badge="月度 · 主視覺"
-        badgeTone="live"
+        badge="推估 · 待 per-county ETL"
+        badgeTone="placeholder"
       />
 
       <div className="pyramid-card pyramid-with-overlay">
@@ -590,8 +590,8 @@ function H5Dynamics({
         num={5}
         title={<><span className="accent">人口動態</span> ─ {c.name_zh}的拐點</>}
         tagline={`出生 ${hd.birthRate.toFixed(2)}‰ ${hd.birthRate < hd.deathRate ? "<" : ">"} 死亡 ${hd.deathRate.toFixed(2)}‰ · 自然增加 ${fmt.signed(hd.natural, 2)}‰`}
-        badge="月度 + 年度"
-        badgeTone="live"
+        badge="推估 · 待 per-county ETL"
+        badgeTone="placeholder"
       />
 
       <div className="dyn-card">

@@ -640,7 +640,7 @@ function OverviewTab({
           trend={{
             delta: `${merged.stationsPerWan.toFixed(1)} 隊/萬人`,
             direction: "flat",
-            baseline: "待 Sprint 2 ETL",
+            baseline: "fire.stations 實測",
             sentiment: "neutral",
           }}
         />
@@ -652,7 +652,7 @@ function OverviewTab({
           trend={{
             delta: merged.outOf5MinPct >= 20 ? "偏鄉服務缺口大" : "覆蓋良好",
             direction: "flat",
-            baseline: "待 Sprint 3 ETL",
+            baseline: "service_coverage MV",
             sentiment: merged.outOf5MinPct >= 20 ? "negative" : "positive",
           }}
         />
@@ -1093,19 +1093,17 @@ function ServiceTab({
           </div>
         </div>
         <div className="fire-buffer-legend">
+          {/* F-3：移除硬編碼魔術係數 0.7/0.4 推算的「約 X% 人口涵蓋」（無依據、與「全村里 3km 內」矛盾）。
+              真實 buffer 涵蓋率待 Sprint 3 村里 buffer MV 接通後再顯示。 */}
           <div className="fbl-row">
             <span className="fbl-sw fbl-3km" />
             <b>3 km buffer</b>
-            <span className="muted">
-              5 分鐘可達 — 約 {((100 - merged.outOf5MinPct) * 0.7).toFixed(0)}% 人口涵蓋
-            </span>
+            <span className="muted">約 5 分鐘可達範圍</span>
           </div>
           <div className="fbl-row">
             <span className="fbl-sw fbl-6km" />
             <b>6 km buffer</b>
-            <span className="muted">
-              10 分鐘可達 — 約 {(100 - merged.outOf5MinPct * 0.4).toFixed(0)}% 人口涵蓋
-            </span>
+            <span className="muted">約 10 分鐘可達範圍</span>
           </div>
           <div className="fbl-row">
             <span className="fbl-sw fbl-out" />

@@ -503,14 +503,22 @@ function S3Vitals({ data, selectedCounty }: Props) {
             />
           </div>
           <div className="col">
-            <h4 className="bot">自然增加 Top 5</h4>
-            <HRankBar
-              rows={naturalRank.slice(0, 5).map((r) => ({ ...r, value: Math.abs(r.value) }))}
-              max={Math.max(...naturalRank.map((r) => Math.abs(r.value)))}
-              color="var(--accent-ramp-3)"
-              highlightCode={selectedCounty}
-              decimals={0}
-            />
+            <h4 className="bot">自然增加 Top 5（正值）</h4>
+            {/* D-3：只列自然增加為正的縣市、正確遞減排序（naturalRank 已降序）。
+                原本對 slice(0,5) 取 Math.abs → 把負值放大成大 bar、破壞排序又把負誤現為正，與 footer 矛盾。 */}
+            {positiveNatural.length > 0 ? (
+              <HRankBar
+                rows={positiveNatural.slice(0, 5)}
+                max={Math.max(1, positiveNatural[0]?.value ?? 1)}
+                color="var(--accent-ramp-3)"
+                highlightCode={selectedCounty}
+                decimals={0}
+              />
+            ) : (
+              <div className="muted" style={{ fontSize: 12, padding: "8px 0" }}>
+                {V.at(-1)?.year} 無自然增加為正的縣市
+              </div>
+            )}
           </div>
         </div>
         <div className="rank-footer">

@@ -530,7 +530,7 @@ function S3Ridership({ data, selectedCounty }: Props) {
   // 縣市運量 ranking（可展開）
   const ridRank: HRankRow[] = data.countyAggregates
     .map((c) => ({ code: c.code3, name: c.name, value: c.ridership24 }))
-    .filter((r) => r.value > 0)
+    .filter((r): r is HRankRow => r.value != null && r.value > 0)
     .sort((a, b) => b.value - a.value);
 
   return (

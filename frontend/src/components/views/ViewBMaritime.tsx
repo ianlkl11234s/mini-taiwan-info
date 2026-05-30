@@ -12,10 +12,11 @@
  *   - 縣市港口分類 mar-class-bars：由 ports filter by county_id 重算 5 大類（real）
  *   - 縣市港口點位 group：ports filter by county_id（real，lng/lat 可給地圖）
  *   - 縣市漁業 10 年 trend：fishery filter by county_id 10 年（real）
+ *   - 漁業權水域：public.fishery_rights per-county（county_id）count + area_km2（real, M-1）
+ *   - 燈塔：public.lighthouse 全國 36 座（無 county 欄，僅全國總量）（real, M-1）
  * 仍 mock：
  *   - 漁業類別組成（全國比例 mock）
  *   - 離島客船航線（passenger_routes 表不存在）
- *   - 漁業權水域 / 燈塔（表不存在）
  *   - 現有漁船數（欄位 fishing_vessels_count 全 NULL）
  */
 
@@ -37,6 +38,7 @@ import type {
   CountyMaritimeAggregate,
   PortRow,
   FisheryStatsRow,
+  MaritimeFacilities,
 } from "@/lib/queries/maritime";
 
 interface ViewBMaritimeProps {
@@ -103,7 +105,7 @@ export function ViewBMaritime({ data, county, onBack }: ViewBMaritimeProps) {
             ))}
           </div>
 
-          {tab === "overview" && <OverviewTab cname={c.name_zh} cAgg={cAgg} />}
+          {tab === "overview" && <OverviewTab county={county} cname={c.name_zh} cAgg={cAgg} facilities={data.facilities} />}
           {tab === "ports"    && <PortsTab county={county} cname={c.name_zh} cAgg={cAgg} ports={data.ports} />}
           {tab === "fishery"  && <FisheryTab county={county} cname={c.name_zh} cAgg={cAgg} N={data.summary} fishery={data.fishery} />}
           {tab === "routes"   && <RoutesTab county={county} cname={c.name_zh} />}
@@ -140,7 +142,10 @@ function Hero({ c, cAgg, aggs, N, onBack }: {
 
   let hook: React.ReactNode;
   if (cAgg.ports === 0) {
-    hook = <><b className="em">內陸縣市無港口</b> ─ {c.name_zh} 屬 22 縣市中僅 2 個無港者之一（與南投、嘉義市）</>;
+    // M-4：動態列出「另一個」無港縣市，避免在南投卻寫「與南投」自我指涉
+    const zeroPortAll = aggs.filter((a) => a.ports === 0);
+    const others = zeroPortAll.filter((a) => a.code3 !== cAgg.code3).map((a) => a.name);
+    hook = <><b className="em">內陸縣市無港口</b> ─ {c.name_zh} 屬 22 縣市中僅 {zeroPortAll.length} 個無港者之一{others.length > 0 && <>（另一個是 {others.join("、")}）</>}</>;
   } else if (cAgg.code3 === "KHH") {
     hook = <>南臺灣航運核心 ─ 高雄港 2024 貨櫃 <b className="em">{fmt.num(cAgg.containers)} TEU</b></>;
   } else if (portRank === 1) {
@@ -291,7 +296,14 @@ function ZeroPortFallback({ cname, cAgg, N }: {
 // ─────────────────────────────────────────────────
 // Tab 1 · 概覽
 // ─────────────────────────────────────────────────
-function OverviewTab({ cname, cAgg }: { cname: string; cAgg: CountyMaritimeAggregate; }) {
+function OverviewTab({ county, cname, cAgg, facilities }: {
+  county: CountyCode3;
+  cname: string;
+  cAgg: CountyMaritimeAggregate;
+  facilities: MaritimeFacilities | null;
+}) {
+  // M-1：漁業權水域 per-county（fishery_rights 有 county_id）；燈塔僅全國（無 county 欄）
+  const cFishery = facilities?.fisheryByCode3[county] ?? { count: 0, areaKm2: 0 };
   return (
     <>
       <div className="kpi-grid cols-4">
@@ -318,14 +330,28 @@ function OverviewTab({ cname, cAgg }: { cname: string; cAgg: CountyMaritimeAggre
         <KPICard
           icon={<Waves size={13} />}
           label="漁業權水域"
-          value="資料整備中"
-          trend={{ delta: "🔴 表不存在", direction: "flat", baseline: "public.fishery_rights 未建", sentiment: "neutral" }}
+          value={facilities ? cFishery.count : "—"}
+          unit={facilities ? "筆" : ""}
+          trend={{
+            delta: facilities
+              ? (cFishery.count > 0 ? `${fmt.num(Number(cFishery.areaKm2.toFixed(1)))} km²` : "本縣市無")
+              : "載入中",
+            direction: "flat",
+            baseline: facilities ? `全國 ${facilities.fisheryRightsCount} 筆` : "public.fishery_rights",
+            sentiment: "neutral",
+          }}
         />
         <KPICard
           icon={<Locate size={13} />}
           label="燈塔"
-          value="資料整備中"
-          trend={{ delta: "🔴 表不存在", direction: "flat", baseline: "public.lighthouse 未建", sentiment: "neutral" }}
+          value={facilities ? facilities.lighthouseCount : "—"}
+          unit={facilities ? "座" : ""}
+          trend={{
+            delta: "全國",
+            direction: "flat",
+            baseline: facilities ? "航港局 · 無縣市拆分" : "public.lighthouse",
+            sentiment: "neutral",
+          }}
         />
       </div>
 
@@ -356,21 +382,27 @@ function OverviewTab({ cname, cAgg }: { cname: string; cAgg: CountyMaritimeAggre
             </div>
             <div className={`ml-state ${cAgg.commercial > 0 ? "on" : "off"}`}>{cAgg.commercial > 0 ? "ON" : "—"}</div>
           </div>
-          <div className="mar-layer disabled">
-            <div className="ml-dot" style={{ background: "#9CA3AF" }}></div>
+          <div className="mar-layer">
+            <div className="ml-dot" style={{ background: "#0891B2" }}></div>
             <div className="ml-body">
               <div className="ml-t">漁業權水域</div>
-              <div className="ml-d">🔴 表不存在</div>
+              <div className="ml-d">
+                {facilities
+                  ? (cFishery.count > 0
+                      ? `${cFishery.count} 筆 · ${fmt.num(Number(cFishery.areaKm2.toFixed(1)))} km²`
+                      : "本縣市無 · 全國 " + facilities.fisheryRightsCount + " 筆")
+                  : "資料載入中"}
+              </div>
             </div>
-            <div className="ml-state miss">缺</div>
+            <div className="ml-state off">圖層待接</div>
           </div>
-          <div className="mar-layer disabled">
-            <div className="ml-dot" style={{ background: "#9CA3AF" }}></div>
+          <div className="mar-layer">
+            <div className="ml-dot" style={{ background: "#F59E0B" }}></div>
             <div className="ml-body">
               <div className="ml-t">燈塔</div>
-              <div className="ml-d">🔴 表不存在</div>
+              <div className="ml-d">{facilities ? `全國 ${facilities.lighthouseCount} 座（航港局）` : "資料載入中"}</div>
             </div>
-            <div className="ml-state miss">缺</div>
+            <div className="ml-state off">圖層待接</div>
           </div>
         </div>
       </div>

@@ -77,6 +77,7 @@ export interface ColorMetric {
   unit: string;
   ramp_direction: RampDirection;
   domain: [number, number];
+  coverage_note?: string;       // 部分縣市無資料時的口徑說明（M-5：圖例下顯 warning badge）
 }
 
 // ── KPI ──

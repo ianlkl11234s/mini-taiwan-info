@@ -111,6 +111,15 @@ export function S4Others({ data, selectedCounty, onCountyClick }: S4Props) {
   const forestHigh = data.forestRisk?.high_risk_count ?? 0;
   const forestTotal = data.forestRisk?.total ?? 0;
 
+  // F-5：救護出勤僅部分縣市有資料 → KPI/tagline 標清涵蓋範圍，避免把單縣當全國
+  const emsCovered = emsRows.filter((r) => r.emsTrips > 0);
+  const emsCoveredLabel =
+    emsCovered.length === 0
+      ? "尚無縣市資料"
+      : emsCovered.length === 1
+        ? `僅${emsCovered[0].name}`
+        : `僅 ${emsCovered.length}/22 縣市`;
+
   return (
     <div className="cat-block">
       <FireCatHeader
@@ -120,7 +129,7 @@ export function S4Others({ data, selectedCounty, onCountyClick }: S4Props) {
             <span className="accent">其他救災救護</span> ─ 山林、急救、災變
           </>
         }
-        tagline={`救護出勤 ${fmt.bigNum(totalDispatch)} 次 · 山林高風險 ${forestHigh} 處 · 災變紀錄 ${data.disasterEvents.length} 筆`}
+        tagline={`救護出勤 ${fmt.bigNum(totalDispatch)} 次（${emsCoveredLabel}） · 山林高風險 ${forestHigh} 處 · 災變紀錄 ${data.disasterEvents.length} 筆`}
         badge="接通真實資料"
         badgeTone="historical"
       />
@@ -132,9 +141,9 @@ export function S4Others({ data, selectedCounty, onCountyClick }: S4Props) {
           value={fmt.bigNum(totalDispatch)}
           unit="次"
           trend={{
-            delta: emsYear ? `${emsYear} 年資料` : "—",
+            delta: emsYear ? `${emsYear} 年 · ${emsCoveredLabel}` : "—",
             direction: "flat",
-            baseline: `OHCA ${fmt.num(totalOhca)} 件`,
+            baseline: `OHCA ${fmt.num(totalOhca)} 件 · 非全國`,
             sentiment: "neutral",
           }}
         />

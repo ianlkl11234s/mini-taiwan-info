@@ -7,12 +7,14 @@
  *   - maritime.ports (277)                  — 全國港口靜態
  *   - maritime.fishery_stats_by_county (632) — 22 縣市 × 29 年（1996-2024）
  *   - maritime.port_traffic_yearly (48)      — iMarine 港埠運量
+ *   - public.lighthouse (36)                  — 全國燈塔（name/lng/lat），航港局
+ *   - public.fishery_rights (19)              — 漁業權水域（name/county/county_id/status/area_km2），漁業署
  *
- * 缺口：fishery_rights / lighthouse 表不存在；fishing_vessels_count / aquaculture_area_ha 全 NULL
+ * 缺口：fishing_vessels_count / aquaculture_area_ha 全 NULL（Sprint 0）
  * 設計來源：data-maritime.js
  */
 
-import { withSchema } from "../supabase";
+import { supabase, withSchema } from "../supabase";
 import { COUNTIES } from "../counties";
 import type { CountyCode3, CountyIdMoi } from "../types";
 
@@ -151,6 +153,59 @@ export async function fetchPortTraffic(): Promise<PortTrafficRow[]> {
     metric: String(r.metric ?? ""),
     value: Number(r.value ?? 0),
     unit: String(r.unit ?? ""),
+  }));
+}
+
+// ── M-1：燈塔（public.lighthouse, 36 座）+ 漁業權水域（public.fishery_rights, 19 筆）──
+// 兩表在 public schema，免 Accept-Profile。
+
+export interface LighthouseRow {
+  id: number;
+  name: string;
+  lng: number;
+  lat: number;
+}
+
+export async function fetchLighthouses(): Promise<LighthouseRow[]> {
+  const { data, error } = await supabase
+    .from("lighthouse")
+    .select("id,name,lng,lat");
+  if (error) {
+    console.error("[maritime] lighthouse failed:", error);
+    throw error;
+  }
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: Number(r.id),
+    name: String(r.name ?? ""),
+    lng: Number(r.lng ?? 0),
+    lat: Number(r.lat ?? 0),
+  }));
+}
+
+export interface FisheryRightRow {
+  id: number;
+  name: string;
+  county: string;
+  county_id: CountyIdMoi | null;
+  status: string | null;
+  area_km2: number | null;
+}
+
+export async function fetchFisheryRights(): Promise<FisheryRightRow[]> {
+  const { data, error } = await supabase
+    .from("fishery_rights")
+    .select("id,name,county,county_id,status,area_km2");
+  if (error) {
+    console.error("[maritime] fishery_rights failed:", error);
+    throw error;
+  }
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: Number(r.id),
+    name: String(r.name ?? ""),
+    county: String(r.county ?? ""),
+    county_id: r.county_id == null ? null : (String(r.county_id) as CountyIdMoi),
+    status: r.status == null ? null : String(r.status),
+    area_km2: r.area_km2 == null ? null : Number(r.area_km2),
   }));
 }
 
@@ -327,8 +382,10 @@ export function deriveTopCommPorts(
   const t = traffic.filter((x) => x.stat_period === "2025" && x.scope === "port");
   const byPort = new Map<string, { ships: number; containers: number }>();
   for (const r of t) {
-    const key = r.port_name ?? r.port_uid ?? "";
-    if (!key) continue;
+    // M-2(a)：前端防衛 — 須有 port_name 且非航商名污染（如 "(CMA)" = CMA CGM 縮寫，非港口）
+    // 後端 port_traffic_yearly 清理另列 Batch3
+    if (!r.port_name || r.port_name.startsWith("(")) continue;
+    const key = r.port_name;
     const slot = byPort.get(key) ?? { ships: 0, containers: 0 };
     if (r.metric.includes("port_calls") || r.metric.includes("ship_calls") || r.metric.includes("艘次") || r.metric.includes("船舶")) slot.ships += r.value;
     if (r.metric.toLowerCase().includes("teu")) slot.containers += r.value;
@@ -362,6 +419,40 @@ export function deriveTopCommPorts(
 function mapIdMoiToCode3(id: CountyIdMoi): CountyCode3 | null {
   const c = COUNTIES.find((x) => x.id_moi === id);
   return c?.code3 ?? null;
+}
+
+// ── M-1：燈塔 / 漁業權水域 派生（全國總量 + 漁業權 per-county）──
+export interface MaritimeFacilities {
+  lighthouseCount: number;                 // 全國燈塔座數（36）
+  fisheryRightsCount: number;              // 全國漁業權水域筆數（19）
+  fisheryRightsAreaKm2: number;            // 全國漁業權水域面積 SUM（km²）
+  // 漁業權 per-county（fishery_rights 有 county_id，可靠）；燈塔無 county 欄不做拆分
+  fisheryByCode3: Record<CountyCode3, { count: number; areaKm2: number }>;
+}
+
+export function deriveMaritimeFacilities(
+  lighthouses: LighthouseRow[],
+  fisheryRights: FisheryRightRow[],
+): MaritimeFacilities {
+  const fisheryByCode3 = {} as Record<CountyCode3, { count: number; areaKm2: number }>;
+  let areaTotal = 0;
+  for (const f of fisheryRights) {
+    const area = f.area_km2 ?? 0;
+    areaTotal += area;
+    if (!f.county_id) continue;
+    const code = mapIdMoiToCode3(f.county_id);
+    if (!code) continue;
+    const slot = fisheryByCode3[code] ?? { count: 0, areaKm2: 0 };
+    slot.count += 1;
+    slot.areaKm2 += area;
+    fisheryByCode3[code] = slot;
+  }
+  return {
+    lighthouseCount: lighthouses.length,
+    fisheryRightsCount: fisheryRights.length,
+    fisheryRightsAreaKm2: Number(areaTotal.toFixed(1)),
+    fisheryByCode3,
+  };
 }
 
 export function deriveCountyAggregates(

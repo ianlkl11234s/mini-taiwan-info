@@ -294,7 +294,7 @@ export interface CountyRailAggregate {
   lines: number;
   km: number;
   dailyTrips: number;
-  ridership24: number;          // 億人次
+  ridership24: number | null;   // 億人次；無資料縣市為 null（顯「—」非偽裝 0.00）
   systems: RailSystemId[];
 }
 
@@ -551,7 +551,8 @@ export function deriveCountyAggregates(
       (s, st) => s + (tripMap.get(`${st.system_id}|${st.station_id}`) ?? 0),
       0,
     );
-    const rid = ridCounty.get(c.id_moi) ?? 0;
+    // R-1：無運量資料縣市應顯「—」而非偽裝成真實 0.00（鐵則1 邊界）
+    const rid = ridCounty.get(c.id_moi);
     return {
       code3: c.code3,
       id_moi: c.id_moi,
@@ -560,7 +561,7 @@ export function deriveCountyAggregates(
       lines: cLines.length,
       km: Number(km.toFixed(1)),
       dailyTrips,
-      ridership24: Number((rid / 1e8).toFixed(2)),
+      ridership24: rid != null ? Number((rid / 1e8).toFixed(2)) : null,
       systems,
     };
   });

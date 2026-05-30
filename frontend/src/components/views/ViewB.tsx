@@ -241,6 +241,8 @@ function OverviewTab({
   onDrillReservoir?: (id: string) => void;
 }) {
   // 計算 LPCD 排名（從 governance 縣市 dict）
+  // W-1：此處依「用水量高→低」排序（rank 1 = 用水量最高），與「排名」分頁的
+  // 「越低越好」方向相反但兩者皆正確 —— 用水量高 ≠ 用水效率好。文案需標清避免混淆。
   const lpcdRank = useMemo(() => {
     const entries = Object.entries(lpcdByCountyId);
     if (entries.length === 0) return null;
@@ -251,7 +253,8 @@ function OverviewTab({
     return idx >= 0 ? idx + 1 : null;
   }, [lpcdByCountyId, county]);
 
-  const tier = lpcdRank == null ? "—" : lpcdRank <= 7 ? "前段" : lpcdRank >= 16 ? "後段" : "中段";
+  // tier 改用「用水量」語意（非籠統前/後段），避免「用水量高=第1=好」誤讀
+  const tier = lpcdRank == null ? "—" : lpcdRank <= 7 ? "用量高" : lpcdRank >= 16 ? "用量低" : "用量中";
 
   return (
     <>
@@ -277,7 +280,7 @@ function OverviewTab({
         />
         <KPICard
           icon={<Droplet size={13} />}
-          label={<>LPCD{latestLpcd != null && <span style={liveBadgeStyle}>LIVE</span>}</>}
+          label={<>LPCD{latestLpcd != null && <span style={periodBadgeStyle}>年度</span>}</>}
           value={latestLpcd != null ? Math.round(latestLpcd).toString() : "—"}
           unit="L"
           trend={
@@ -293,7 +296,7 @@ function OverviewTab({
         />
         <KPICard
           icon={<Recycle size={13} />}
-          label={<>接管率{latestSewage != null && <span style={liveBadgeStyle}>LIVE</span>}</>}
+          label={<>接管率{latestSewage != null && <span style={periodBadgeStyle}>年度</span>}</>}
           value={latestSewage != null ? latestSewage.toFixed(1) : "—"}
           unit="%"
           trend={{ delta: "—", direction: "flat", baseline: "最新年度", sentiment: "neutral" }}
@@ -365,11 +368,15 @@ function OverviewTab({
         <div className="section" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 20 }}>
           <div className="section-title" style={{ alignSelf: "flex-start", marginBottom: 12 }}>
             <span className="pre">RANK</span>
-            {county.name_zh} 全台 LPCD 排名
+            {county.name_zh} 人均用水量排名（高→低）
           </div>
           <Donut value={lpcdRank} total={22} size={110} tier={tier} />
           <div className="muted" style={{ fontSize: 12, textAlign: "center", marginTop: 14, lineHeight: 1.5 }}>
-            人均用水量在 22 縣市中排第 <b>{lpcdRank}</b>（{tier}）
+            人均用水量在 22 縣市中第 <b>{lpcdRank}</b> 高（用水量高→低排序）
+            <br />
+            <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
+              ※ 用水量高 ≠ 用水效率好；節水成效見「排名」分頁（越低越好）
+            </span>
           </div>
         </div>
       )}
@@ -1000,7 +1007,7 @@ function FloodTab({
             <div className="section-title">
               <span className="pre">FLOOD</span>
               {countyName} 淹水高潛勢
-              {countyFloodPct && <span style={liveBadgeStyle}>LIVE</span>}
+              {countyFloodPct && <span style={periodBadgeStyle}>靜態</span>}
             </div>
             <div className="section-subtitle">
               flood_hazard_pct_by_county MV · NLDCB 24hr 場景
@@ -1068,7 +1075,7 @@ function FloodTab({
             <div className="section-title">
               <span className="pre">DETENTION</span>
               {countyName} 滯洪池
-              {detentionRow && <span style={liveBadgeStyle}>LIVE</span>}
+              {detentionRow && <span style={periodBadgeStyle}>靜態</span>}
               {!hasDetentionCoverage && <span style={coverageWarningBadgeStyle}>資料未開放</span>}
             </div>
             <div className="section-subtitle">
@@ -1117,7 +1124,7 @@ function FloodTab({
             <div className="section-title">
               <span className="pre">STORM DRAIN</span>
               {countyName} 雨水下水道
-              {stormDrain && <span style={liveBadgeStyle}>LIVE</span>}
+              {stormDrain && <span style={periodBadgeStyle}>靜態</span>}
               {!hasStormDrainCoverage && <span style={coverageWarningBadgeStyle}>資料未開放</span>}
             </div>
             <div className="section-subtitle">
@@ -1444,7 +1451,7 @@ function RankingTab({
                     style={{ fontSize: 14, minWidth: 0, flex: "1 1 auto" }}
                   >
                     {m.label}
-                    <span style={liveBadgeStyle}>LIVE</span>
+                    <span style={periodBadgeStyle}>年度</span>
                   </div>
                   <span
                     style={{
@@ -1814,6 +1821,18 @@ const liveBadgeStyle: React.CSSProperties = {
   fontWeight: 700,
   color: "var(--positive)",
   background: "var(--positive-soft)",
+  padding: "1px 4px",
+  borderRadius: 3,
+  verticalAlign: "middle",
+};
+
+// W-2：年度/靜態資料的期別 badge（中性灰，非綠 LIVE）— LIVE 嚴守：只有 collector cron + 高頻上游才標 LIVE
+const periodBadgeStyle: React.CSSProperties = {
+  marginLeft: 6,
+  fontSize: 9,
+  fontWeight: 600,
+  color: "var(--text-tertiary)",
+  background: "var(--surface-3)",
   padding: "1px 4px",
   borderRadius: 3,
   verticalAlign: "middle",
