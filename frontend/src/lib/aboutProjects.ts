@@ -75,24 +75,4 @@ export const ABOUT_PROJECTS: AboutProject[] = [
     github: "https://github.com/ianlkl11234s/taiwan-weather-timelapse",
     tier: "app",
   },
-  // ── 生態系基礎建設（純後端 / 分析）──
-  {
-    name: "Ship GIS",
-    desc: "台灣海域 AIS 船舶動態 — deck.gl + MapLibre + Apache Arrow，軌跡／密度／六角網格／熱力五種模式 + 277 座港口。",
-    github: "https://github.com/ianlkl11234s/tw-ship-viz",
-    tier: "infra",
-  },
-  {
-    name: "Taipei GIS Analytics",
-    desc: "台灣七大城市地理空間資料整合分析 — 交通／POI／人口／不動產／氣象／觀光多源開放資料的聚類、時序、網格聚合。",
-    github: "https://github.com/ianlkl11234s/taipei-gis-analytics",
-    screenshot: "/about/analytics-youbike-umap.png",
-    tier: "infra",
-  },
-  {
-    name: "Data Collectors",
-    desc: "32 個台灣開放資料即時收集器（TDX／CWA／水利署／航港局…），Zeabur 24hr 自動採集歸檔 S3 + PostgreSQL，整個生態的資料後端。",
-    github: "https://github.com/ianlkl11234s/gis-data-collectors",
-    tier: "infra",
-  },
 ];

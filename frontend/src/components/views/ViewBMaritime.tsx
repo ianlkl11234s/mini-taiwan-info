@@ -22,7 +22,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  Anchor, Ship, Fish, Waves, Locate, Share2, Download,
+  Anchor, Ship, Fish, Waves, Locate,
   ChevronLeft, Lightbulb, ArrowLeftRight, AlertTriangle, Route,
 } from "lucide-react";
 import { fmt } from "@/lib/format";

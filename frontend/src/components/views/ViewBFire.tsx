@@ -22,8 +22,6 @@ import {
   TrendingUp,
   Droplet,
   HeartPulse,
-  Share2,
-  Download,
   Lightbulb,
   Scale,
   ChevronLeft,

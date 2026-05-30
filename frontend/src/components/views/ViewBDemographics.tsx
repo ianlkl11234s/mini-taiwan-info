@@ -24,7 +24,7 @@
 import { useMemo, useState } from "react";
 import {
   Users, Home, Scale, TrendingUp, Baby, AlertTriangle,
-  ArrowLeftRight, Lightbulb, Share2, Download, ChevronLeft,
+  ArrowLeftRight, Lightbulb, ChevronLeft,
   Locate, Triangle, type LucideIcon,
 } from "lucide-react";
 import { fmt } from "@/lib/format";

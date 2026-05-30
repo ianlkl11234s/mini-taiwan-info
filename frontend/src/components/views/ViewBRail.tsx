@@ -23,7 +23,7 @@
 import { useMemo, useState } from "react";
 import {
   Train, MapPin, Route, ArrowLeftRight, Lightbulb,
-  Plus, Share2, Download, ChevronLeft, Ship, Car, Award, Users,
+  Plus, ChevronLeft, Ship, Car, Award, Users,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { byCode3 } from "@/lib/counties";

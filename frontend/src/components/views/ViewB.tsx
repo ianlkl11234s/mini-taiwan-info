@@ -21,8 +21,6 @@ import {
   CloudRain,
   Globe,
   TrendingUp,
-  Share2,
-  Download,
   ChevronLeft,
   FlaskConical,
   Activity,

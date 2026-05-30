@@ -49,7 +49,6 @@ function ProjectCard({ p }: { p: AboutProject }) {
 
 export function AboutView({ onClose }: { onClose: () => void }) {
   const appProjects = ABOUT_PROJECTS.filter((p) => p.tier === "app");
-  const infraProjects = ABOUT_PROJECTS.filter((p) => p.tier === "infra");
 
   return (
     <div className="about-page">
@@ -78,21 +77,11 @@ export function AboutView({ onClose }: { onClose: () => void }) {
         {/* 一行生態系定位 */}
         <p className="about-eco">{ABOUT_ECOSYSTEM}</p>
 
-        {/* 作品集 · 應用前端 */}
+        {/* 作品集 */}
         <section className="about-gallery-section">
-          <h2 className="about-section-title">作品集 · 應用前端</h2>
+          <h2 className="about-section-title">作品集</h2>
           <div className="about-gallery">
             {appProjects.map((p) => (
-              <ProjectCard key={p.github} p={p} />
-            ))}
-          </div>
-        </section>
-
-        {/* 生態系基礎建設 · 後端與分析 */}
-        <section className="about-gallery-section">
-          <h2 className="about-section-title">生態系基礎建設 · 後端與分析</h2>
-          <div className="about-gallery">
-            {infraProjects.map((p) => (
               <ProjectCard key={p.github} p={p} />
             ))}
           </div>
