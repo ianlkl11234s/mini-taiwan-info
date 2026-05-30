@@ -678,3 +678,26 @@ User 一句話 task「依資料盤點結果，把可以換成真實資料的部�
 3. 後端 FastAPI 部署（B008）
 4. fire 3 placeholder 對接（B066-B068）/ 水主題 P0（B059-B061）
 5. road_events pulse 圖層 **push + browser 驗收**（feat/fire-rescue，096c1c5 未 push）
+
+---
+（S12）2026-05-30 — tmux+cmux spawn 協作工作流（本 session 核心，日後標準）
+
+**心法（已全文化進 `.claude/guidelines/spawn-orchestration-lessons.md`）**：
+- **Control plane / Execution plane 分離**：主 agent 只規劃+orchestrate+讀 board 摘要，重活全丟 fresh 獨立 claude session（無 token 限、有完整工具、能再開 subagent）。主 agent context 是稀缺資源。
+- **fresh session per task**：一個 session 只做一件事 → 自己 commit → 主 agent 關 → 開下一個。連跑多輪會 context 膨脹拖垮品質（實測 recon_demog 兩輪到 94k tokens）。
+- **artifacts-based 協作**：session 間透過實體檔交付（board 一人一檔免 race），主 agent 用 file-polling 監控（size 穩定+marker = done），不直接對話。
+- **/exit 釋放但留畫面**：任務完成送 `/exit`（非 kill）釋放記憶體、tmux 分頁畫面保留可回顧 + 可 `claude --resume`。前提：claude 跑在 shell 內（單 space new-window 模型），非 tmux session 主程序。
+
+**反覆應驗的鐵律「驗證 > 信任」**（本 session 至少 6 次）：
+- 稽核 Explore agent 會幻覺（maritime 漁權/燈塔「表已存在」實為不存在）→ 建表類一律 grep migrations。
+- 文件會 stale（demographics「需 expose」實際早 exposed；rail/maritime 同）→ schema 是否 exposed 用 anon REST 實測。
+- 我自己也會漏（移除分享/匯出時**只清 ViewB 漏了 ViewA 7 檔**，且 terminal 卡頓給我假的 grep「0」誤導）→ 改完用 grep count 復驗、typecheck 為準。
+- 量級 bug 藏在 ETL（出生死亡用 12 月單月當年度加總 = 1/10）→ 對官方值交叉驗證。
+
+**踩坑（細節見 lessons J/H/I/B）**：
+- ❌ **`pkill -f vite` 殺掉 user 的 gis-up(6001-6005)** → 只能殺自己的 scratch port(5173-5179)。
+- ❌ cmux 動態 new-surface/send 不可用（terminal lazy boot 無 tty）→ 改 per-session 命名 workspace（cmux_view_tabs.sh）或單 space tmux 分頁。
+- ❌ 本機 MCP（twinkle-hub/pencil…）**不載入 spawn session**（曾誤判會自動載）→ 只有 claude.ai connector 可用；SKILL/HOOK 才隨 cwd 載入。
+- terminal 輸出在長 session 會卡頓/交錯 → 關鍵指令輸出寫檔再用 Read 讀（可靠）。
+
+**下次預先檢核**：(1) 跨多檔移除/改動，grep count 復驗別漏(ViewA vs ViewB)；(2) 截圖檔名對齊引用(中文檔名改 ASCII 避免 URL 問題)；(3) 每個 spawn prompt 寫「只關自己 port、不 pkill vite」。
