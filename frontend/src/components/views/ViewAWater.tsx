@@ -9,7 +9,7 @@
  * 與 ViewA.tsx（manifest-driven）/ ViewAFire.tsx 並列為 per-theme view。
  */
 
-import { Droplet, Share2, Download } from "lucide-react";
+import { Droplet, Download } from "lucide-react";
 import { fmt } from "@/lib/format";
 import type { CountyCode3 } from "@/lib/types";
 import type { WaterKpisState } from "@/hooks/useWaterKpis";
@@ -102,14 +102,6 @@ export function ViewAWater({ water, river, selectedCounty, onCountyClick, onDril
                 · 資料：水利署 / 環境部 / 內政部 · 接通 {water.facts.length > 0 ? "真實" : "—"}
               </span>
             </p>
-          </div>
-          <div className="hero-actions">
-            <button className="btn ghost">
-              <Share2 size={14} /> 分享
-            </button>
-            <button className="btn">
-              <Download size={14} /> 匯出
-            </button>
           </div>
         </div>
       </div>

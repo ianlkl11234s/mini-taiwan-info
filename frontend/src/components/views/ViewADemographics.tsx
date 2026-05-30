@@ -11,7 +11,7 @@
 
 import {
   Users, Home, Scale, TrendingUp, Baby, AlertTriangle,
-  ArrowLeftRight, Lightbulb, Share2, Download,
+  ArrowLeftRight, Lightbulb, 
 } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { byCode3 } from "@/lib/counties";
@@ -596,10 +596,6 @@ export function ViewADemographics({ data, selectedCounty, onCountyClick }: Props
               )}
               。
             </p>
-          </div>
-          <div className="hero-actions">
-            <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            <button className="btn"><Download size={14} /> 匯出</button>
           </div>
         </div>
       </div>

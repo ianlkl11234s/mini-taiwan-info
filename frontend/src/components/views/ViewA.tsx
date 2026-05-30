@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react";
-import { Droplet, Waves, CloudRain, Recycle, AlertTriangle, Share2, Download } from "lucide-react";
+import { Droplet, Waves, CloudRain, Recycle, AlertTriangle, Download } from "lucide-react";
 import type { ThemeManifest, CountyCode3 } from "@/lib/types";
 import { COUNTIES, codeConvert } from "@/lib/counties";
 import { fmt } from "@/lib/format";
@@ -190,14 +190,6 @@ export function ViewA({
               <span className="small">· {theme.name}</span>
             </h1>
             <p className="hook">{hookText}</p>
-          </div>
-          <div className="hero-actions">
-            <button className="btn ghost">
-              <Share2 size={14} /> 分享
-            </button>
-            <button className="btn">
-              <Download size={14} /> 匯出
-            </button>
           </div>
         </div>
       </div>

@@ -10,7 +10,7 @@
  *   - mock（22 縣市 ranking、歷年趨勢、全球密度比較）→ mock-home.ts，待 ETL 補
  */
 
-import { Share2, Download, Layers, Waves, Droplet, Move } from "lucide-react";
+import { Layers, Waves, Droplet, Move } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { COUNTIES } from "@/lib/counties";
 import type { CountyCode3 } from "@/lib/types";
@@ -75,10 +75,6 @@ function Hero({ N }: { N: ViewModel }) {
             出生 <b>{N.birth_rate}</b>‰ ＜ 死亡 <b>{N.death_rate}</b>‰，
             自然增加 <b className="em">{fmt.signed(Number((N.birth_rate - N.death_rate).toFixed(2)), 2)}‰</b>（月度）。
           </p>
-        </div>
-        <div className="hero-actions">
-          <button className="btn ghost"><Share2 size={14} /> 分享</button>
-          <button className="btn"><Download size={14} /> 匯出</button>
         </div>
       </div>
     </div>

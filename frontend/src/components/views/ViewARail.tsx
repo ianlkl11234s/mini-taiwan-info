@@ -14,7 +14,7 @@
 import { useState, useMemo } from "react";
 import {
   MapPin, Route, Train, AlertTriangle, ArrowLeftRight,
-  Share2, Download, ChevronDown, ChevronUp, Lightbulb,
+  ChevronDown, ChevronUp, Lightbulb,
 } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { byIdMoi } from "@/lib/counties";
@@ -684,10 +684,6 @@ export function ViewARail({ data, selectedCounty, onCountyClick }: Props) {
               2024 年運量 <b className="em">{S.ridership24.toFixed(1)} 億人次</b>，
               離島 <b>{S.zeroStationCounties.length}</b> 縣 0 站。
             </p>
-          </div>
-          <div className="hero-actions">
-            <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            <button className="btn"><Download size={14} /> 匯出</button>
           </div>
         </div>
       </div>

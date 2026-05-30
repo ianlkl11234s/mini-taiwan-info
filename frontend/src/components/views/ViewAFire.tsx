@@ -10,7 +10,7 @@
  *           + Anthropic design bundle view-a-fire.jsx
  */
 
-import { Flame, Share2, Download } from "lucide-react";
+import { Flame, Download } from "lucide-react";
 import { fmt } from "@/lib/format";
 import type { CountyCode3 } from "@/lib/types";
 import type { FireDataState } from "@/hooks/useFireData";
@@ -81,14 +81,6 @@ export function ViewAFire({ data, selectedCounty, onCountyClick }: ViewAFireProp
                 · 資料：消防署 13764（{fmt.num(data.countyYear.reduce((s, r) => s + r.incident_count, 0))} 件 / 民111-113）
               </span>
             </p>
-          </div>
-          <div className="hero-actions">
-            <button className="btn ghost">
-              <Share2 size={14} /> 分享
-            </button>
-            <button className="btn">
-              <Download size={14} /> 匯出
-            </button>
           </div>
         </div>
       </div>

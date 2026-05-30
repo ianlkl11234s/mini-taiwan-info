@@ -9,7 +9,7 @@
 
 import {
   Anchor, Fish, Ship, AlertTriangle, Layers, Container, BarChart3,
-  TrendingUp, Waves, MapPin, Route, Share2, Download,
+  TrendingUp, Waves, MapPin, Route, 
 } from "lucide-react";
 import { fmt } from "@/lib/format";
 import { byCode3 } from "@/lib/counties";
@@ -537,10 +537,6 @@ export function ViewAMaritime({ data, selectedCounty, onCountyClick }: Props) {
                 獨吞全國 <b>{khhPort.share.toFixed(0)}%</b>。</>
               )}
             </p>
-          </div>
-          <div className="hero-actions">
-            <button className="btn ghost"><Share2 size={14} /> 分享</button>
-            <button className="btn"><Download size={14} /> 匯出</button>
           </div>
         </div>
       </div>
