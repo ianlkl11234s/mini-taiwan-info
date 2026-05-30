@@ -65,6 +65,28 @@
 - ⚠️ 代價：每 session 一個 workspace 會累積，cmux **無 close workspace cli** → 早上手動 GUI 關（Ctrl+⌘+] 切換，⌘W 關）。
 - `cmux_named_tab.sh`（動態加 tab）因上述限制**不可用**，保留檔案但勿用；改用 cmux_view_tabs.sh per session。
 
+### I. 觀景窗終極解：單 space + tmux 分頁 + /exit 釋放（2026-05-30 user 拍板）
+
+cmux 即時加 tab 不可用（見 H）→ 改用 **tmux 視窗當分頁**，全部塞進一個 cmux space：
+
+- **建一個固定 tmux session**（如 `gis_work`），開**一個** cmux space attach 它：
+  `cmux_view_tabs.sh "gis_work" tabs gis_work`
+- **每個任務 = 該 session 的一個 window**（非獨立 session）：
+  `tmux new-window -t gis_work -n "<任務名>" ` → 在該 window 內 `cd <cwd> && claude --dangerously-skip-permissions`
+- 切換分頁：cmux space 內，tmux 底部 window 列點選 / `Ctrl+b` + 數字。建議 `tmux set -t gis_work -g mouse on`。
+- **永遠只有一個 space**，所有任務是裡面的分頁（解決「一堆 space」）。代價：分頁列是 tmux 的（底部）非 cmux 原生（頂部）。
+
+**完成任務的關閉方式 = `/exit` 不是 kill（釋放記憶體但保留輸出）**：
+| 做法 | claude 記憶體 | 輸出可回顧 |
+|---|---|---|
+| `tmux kill-session/window` | 釋放 | ❌ 全沒 |
+| **送 `/exit`（或 Ctrl-D / Ctrl-C ×2）** | ✅ 釋放 | ✅ 分頁留 scrollback 可捲看 |
+| Ctrl-C ×1 | ❌ 只中斷不退出 | — |
+
+- 主 agent 偵測 board DONE → `tmux send-keys -t gis_work:<window> "/exit" Enter`（claude 退出釋放記憶體，window 留著靜止畫面）→ append WAVE_REPORT。
+- ⚠️ Ctrl-C 按一次只中斷當前動作**不會關閉**；要退出得 `/exit` / Ctrl-D / Ctrl-C 連按兩次。
+- 監控仍走 board 檔（不靠 TUI），所以 /exit 後不影響已完成的產物。
+
 ## 復用 checklist（下次直接照跑）
 1. 盤點本專案缺口（grep theme manifest 待補/mock/placeholder）
 2. spawn recon session（read-only 盤點）→ 人工 gate
