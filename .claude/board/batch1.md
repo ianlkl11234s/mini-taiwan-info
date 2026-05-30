@@ -109,7 +109,7 @@
 ## commit
 - 一個 atomic commit，僅 `git add` 18 個 frontend 檔 + 本 board（未 `-A`，未含 AUDIT_MASTER_PLAN.md / WAVE_REPORT.md / untracked）。
 - message：`fix(audit-batch1): 純前端修15項(著色/燈塔漁權接線/LIVE誤標/魔術係數/排名…)`
-- hash：見下方 commit 後補。
+- hash：**2650d3e**（18 files changed, +487 −82）。
 - **未 push**。
 
 ## 未能於 headless 驗證（需正常 WebGL 環境複驗）

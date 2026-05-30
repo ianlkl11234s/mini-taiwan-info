@@ -13,7 +13,7 @@
 | # | 主題 | 問題 | 分類 | 位置 |
 |---|---|---|---|---|
 | X-1 | rail+maritime | **22 縣市 choropleth 著色完全無效（永遠灰底）**＝產品核心「選主題→著色」壞掉 | (a) | App.tsx:197-291 只實作 water/fire/demo；rail/maritime 無分支 → null |
-| D-1 | demographics | **出生/死亡絕對值錯一個數量級**（全國12,496/17,445、新北1,573、連江10/3，約真實1/10，疑 ETL 存單月當年度）且標「(實)/戶政司年度」偽裝真 | (b)+(a) | spatial.national_population_trend；ViewA S3+ViewB 動態 全縣市 |
+| D-1 | demographics | **出生/死亡絕對值錯一個數量級**（全國12,496/17,445、新北1,573、連江10/3，約真實1/10，疑 ETL 存單月當年度）且標「(實)/戶政司年度」偽裝真。**併**：`national_population_trend` 只到民國113(2024)→ 頭部「老化/自然增加」整行落後一年（user 2026-05-30 回報），Batch3 一併補**民國114(2025)** row | (b)+(a) | spatial.national_population_trend + village_demographics_yearly；ViewA 頭部 hook + S3 + ViewB 動態 全縣市 |
 | H-1 | home-basics | **mock per-county 人口/性別/年齡掛「月度·2026-04」+ badgeTone=live 綠 LIVE**，偽裝成真 | (a)+(b) | ViewBHomeBasics:386,480；county-stats:59-67 |
 | H-2 | home-basics | 全國自然增加率**假等式 4.26−8.36=−2.87**（實−4.10，月度/年度混用） | (a)+(c) | ViewAHome:530；national-basics:104 |
 | H-3 | home-basics | 縣市總人口 mock(13,000) vs 真實鄉鎮加總(13,621) 矛盾（離島最明顯） | (c)+(b) | ViewB；對 township_rank |

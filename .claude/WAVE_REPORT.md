@@ -198,4 +198,21 @@
 **前端**：不用動，isCableBackfill 變無害安全網（MK 已不存在，永遠匹配不到）
 
 ---
-<!-- 後續 Wave 在此 append -->
+## ✅ Wave 5 — 移除比較模式 + 新增 about 分頁（session front_compare_about）
+
+- 移除比較模式半成品（TopBar鈕/各ViewB「加入比較」鈕/comparing state/view D；themes yaml compare 區塊保留不讀）
+- about overlay：ThemeSwitcher 最左「關於」pill → AboutView（Migu profile + 8 專案作品集卡片）；aboutProjects.ts SSOT
+- 誠實處置：Pulse 無公開 URL 不編造（只放 GitHub）、無截圖用字母 fallback；4 張圖複製到 frontend/public/about
+- **commit**（未 push）：mini `57a3f1c`（18 檔 +518/-80）
+- ⚠️ backlog：Flight Arc 截圖 3.3MB 待壓 WebP；補其餘專案真實截圖；repo-root public/ 殘留(untracked)待清
+
+---
+## 🔧 Batch 修復（依 AUDIT_MASTER_PLAN）
+### ✅ Batch 1 — 純前端 15 項（session batch1，已 /exit）commit `2650d3e`
+- X-1 rail/maritime 22縣市著色（App.tsx 加兩主題 metric 分支）⚠️ **著色需真實瀏覽器複驗**(headless WebGL 測不到)
+- M-1 燈塔36/漁權19(2823km²) 前端接線 · M-2(a) (CMA)航商名防衛 · M-4 內陸copy · M-5 coverage badge
+- R-1 排名 0.00→「—」 · F-3 移除魔術係數0.7/0.4 · F-5 救護標「僅台南」 · F-6 跨tab badge
+- W-1 LPCD排名語意 · W-2 LIVE誤標6處改中性badge · H-2 自然增加假等式改月度−4.10 · H-1(a) mock去LIVE綠tone · D-2 mojibake文案 · D-3 Top5只列正值
+- typecheck ✅ + agent-browser DOM 抽驗多項 ✅
+
+<!-- Batch 進度在此 append -->
