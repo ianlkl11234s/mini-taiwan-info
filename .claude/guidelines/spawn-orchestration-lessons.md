@@ -92,6 +92,13 @@ cmux 即時加 tab 不可用（見 H）→ 改用 **tmux 視窗當分頁**，全
 - ✅ 實測（2026-05-30 front_demog114）：單 space new-window 模型 /exit 後**分頁保留**，畫面尾還印
   `Resume this session with: claude --resume <uuid>` → 需要時可在該分頁原地 resume 同一 session（context 還在）。
 
+### J. ⛔ 禁殺 user 的 gis-up dev server（2026-05-30 踩到）
+- user 用 **`gis-up`** 啟動長駐 dev server 看網頁，佔 **port 6001-6005**（mini=6001 / pulse=6002 / gis-platform-portal=6003 / plan-art=6004 / satellite-art=6005）。
+- ❌ **絕不用 `pkill -f vite`**（無 port 限定）→ 會連 user 的 6001-6005 一起殺，害他網頁一直被關。
+- ✅ spawn session 的 agent-browser 自己的 dev server 用 **5173-5179** scratch port；清理只 `pkill -f "vite.*517x"` 或對特定 PID kill，**6001-6005 視為禁區**。
+- session prompt 也要寫「dev server 用完只關自己的 port，勿 pkill vite」。
+- user 的 server 掛了 → 請他 `gis-up`（只重啟掛掉的，活的跳過）。
+
 ## 復用 checklist（下次直接照跑）
 1. 盤點本專案缺口（grep theme manifest 待補/mock/placeholder）
 2. spawn recon session（read-only 盤點）→ 人工 gate
