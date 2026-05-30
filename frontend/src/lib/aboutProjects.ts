@@ -33,7 +33,7 @@ export const ABOUT_PROFILE = {
 
 /** 一行生態系定位（資料收集 → 分析 → 應用前端） */
 export const ABOUT_ECOSYSTEM =
-  "資料收集 → 分析 → 應用前端：從開放資料管線到互動視覺化，一個人從後端到地圖全包的台灣 GIS 生態系。";
+  "資料收集 → 分析 → 應用前端：從開放資料管線到互動視覺化，台灣 GIS 與開放資料的探索者。";
 
 export const ABOUT_PROJECTS: AboutProject[] = [
   // ── 應用前端（有線上版的排前面）──
