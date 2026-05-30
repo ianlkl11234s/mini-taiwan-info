@@ -185,4 +185,17 @@
 **gis_work 平行雙任務(4a人口2025 + 4b rail修)皆完成並 /exit，分頁畫面保留可回顧。**
 
 ---
+## ✅ Wave 4c — 貓纜班次污染後端根治（session etl_cable_fix，已 /exit）
+
+**做了什麼**（rail bug 4 的後端根治，前端止血升級為根治）
+- `07_derive_station_daily_trips.py` 加 `if trtc & MK線: continue` → 貓纜移出 station_daily_trips（528→524 列）
+- **關鍵**：明確 DELETE Supabase 既有 4 筆 MK stale rows（rowcount=4，UPSERT 不會刪）
+- migration 137（冪等 DELETE）+ catalog/registry/inventory 同步 528→524
+- rail.stations 保留 139 站含 MK（實體車站存在，僅班次不計索道）
+
+**驗證**：主 agent 獨立 REST（line_id=MK → 0 筆；全國 TOP1 = 北投 748，無 962）✅
+**commit**（未 push）：analytics `1d563c5` + gis-platform `fe30294`
+**前端**：不用動，isCableBackfill 變無害安全網（MK 已不存在，永遠匹配不到）
+
+---
 <!-- 後續 Wave 在此 append -->
