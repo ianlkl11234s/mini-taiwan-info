@@ -372,3 +372,9 @@ Reference: 2026-05-26 上線前盤點，實測 `curl --compressed`；坑見 INCI
 - redeploy SOP + 實際 project/service ID 見 `DEPLOYMENT.md`。
 
 Reference: Session 10 部署上線；坑見 INCIDENTS 2026-05-29「Zeabur direct deploy 不 build Dockerfile」。已同步全域 memory。
+
+---
+（S12）2026-05-30
+
+- **專案鐵則 4 條**（已寫進 root CLAUDE.md「🔒 專案鐵則」顯眼處，全主題一致）：① 禁 mock 偽裝成真（要嘛明顯標示、要嘛 spawn session 去搜集）② SSOT 同指標單一來源、數值一致、口徑年份標清 ③ 有最新資料用最新 + 標期別 ④ 響應式 4 寬度必測 + fluid 欄寬。
+- **spawn vs Task agent**：跨 repo / 需該 repo skill / 需多輪 / 量大 → spawn 獨立 claude session（PB-19）；單純讀本 repo → Task agent。spawn 勝在無 token 限、能再開 subagent、隨 cwd 載 skill/hook；但**本機 MCP 不載入** spawn session。
