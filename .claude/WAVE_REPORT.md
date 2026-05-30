@@ -141,4 +141,48 @@
 **前端待接（早上/下輪）**：water.yaml lpcd/sewage_coverage KPI → 兩 RPC（取代 mock-data.ts WATER_NATIONAL_MOCK isReal:false）
 
 ---
+## ✅ Wave 3 — SEGIS 民國114(2025) 人口更新（session etl_demog_114，已 /exit）
+
+**做了什麼**（user 從 SEGIS 下載 3 份 114年12月資料 → 更新三表到 2025）
+- `population_by_age_sex_county` → 加 **stat_year=2025（21 完整 5 歲組）**，2024 仍 19 組並存（mig135 放寬 CHECK）
+- `population_by_township_monthly` → 加 **2025-12**（township_rank VIEW 自動切最新：板橋 549,762）
+- **新表** `county_indicators_yearly`（mig136）→ 2025 逐縣市 老化/扶養/密度/性比/戶量（嘉義縣 Q 老化291.69）
+- 2025 全國總人口 23,299,132（兩源吻合）；無 401（GRANT/RLS/NOTIFY 都做）
+
+**驗證**：主 agent 獨立 REST 200（2024=19組/2025=21組、鄉鎮2025-12、新表2025）✅
+**commit**（未 push）：gis-platform `536821c` + analytics `bb8e05f`
+**⚠️ 前端必看**：金字塔 age_band **混粒度**（2024=19組含0-14合計 / 2025=21組細）→ 前端要 **依 stat_year 篩選後再畫**，預設 2025(21組)，別寫死 0-14 band
+**前端待接**：人口分頁顯示 2025 + 標期別（下個任務）
+
+---
+## ✅ Wave 4a — 人口分頁接通 2025 + 標期別（session front_demog114，已 /exit 保留分頁）
+
+**做了什麼**（gis_work 單 space 模型首發）
+- 接 2025：金字塔(21組,「2025年度」)、鄉鎮排名(2025-12)、新表 county_indicators_yearly(台北老化202.1 官方值)
+- **修嚴重 bug**：原 `fetchPopulationByAgeSex` 抓全部年份跨年加總 → **全國人口翻倍(~46M)** → 加 statYear 篩選修正 = 23,299,132
+- 混粒度：不寫死 band/組數，依各年實際 age_band 動態 bucket（2024=19組/2025=21組皆可畫）
+- 期別標註齊全；遵守 LIVE 規則（年度資料 badge 改 historical）
+
+**驗證**：typecheck ✅；agent-browser 9 項全過（全國 23,299,132 不翻倍、金字塔21組2025、台北老化202.1、窄寬無爆版）
+**commit**（未 push）：mini `1785bfa`（6 檔 +176/-65）
+**機制驗證**：首次用 gis_work 單 space new-window 模型 + `/exit` → 記憶體釋放、**分頁畫面保留**（還可 `claude --resume`）
+**備註**：基礎統計(首頁)主題台北人口章節仍月度 MOCK 口徑（與人口主題年度口徑不同，刻意未動）
+
+---
+## ✅ Wave 4b — rail 班次與車種 4 bug 修復（session front_rail_fix，已 /exit，與 4a 平行跑）
+
+**user 回報的 4 bug 全修**
+- 24hr 分布：原線性縮放 → 改 systemFilter **重算**（證明非縮放：高鐵尖峰103≠縮放預測113）
+- 車種組成：單一非台鐵系統 → 顯示該系統 **100% 單條**（台鐵維持多車種細分）
+- TOP10：加 systemFilter → 選高鐵全 THSR、不再出貓纜站
+- 貓纜 962 假資料：**排除**（是全國 TOP1-4 會擠掉真站）；**多抓潛在 bug**：舊邏輯用站名 match「動物園」誤標到真實文湖線 BR01 → 改 line_id=='MK' 精準辨識
+
+**驗證**：typecheck ✅；agent-browser 全部/台鐵/高鐵/捷運 四分類實測（24hr 形狀各異、高鐵車種100%、TOP10 per-system）
+**commit**（未 push）：mini `0a06b33`（3 檔 +81/-36）
+**⚠️ 後端 follow-up**：貓纜 962 根治在後端（analytics 07_derive_station_daily_trips.py 加 `if MK line: continue`，或加 transport_type='gondola' 欄）——本輪只前端止血，根治待後續 ETL session
+
+---
+**gis_work 平行雙任務(4a人口2025 + 4b rail修)皆完成並 /exit，分頁畫面保留可回顧。**
+
+---
 <!-- 後續 Wave 在此 append -->

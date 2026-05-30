@@ -86,6 +86,11 @@ cmux 即時加 tab 不可用（見 H）→ 改用 **tmux 視窗當分頁**，全
 - 主 agent 偵測 board DONE → `tmux send-keys -t gis_work:<window> "/exit" Enter`（claude 退出釋放記憶體，window 留著靜止畫面）→ append WAVE_REPORT。
 - ⚠️ Ctrl-C 按一次只中斷當前動作**不會關閉**；要退出得 `/exit` / Ctrl-D / Ctrl-C 連按兩次。
 - 監控仍走 board 檔（不靠 TUI），所以 /exit 後不影響已完成的產物。
+- ⚠️ **/exit 保留畫面的前提：claude 必須跑在 shell 裡**（單 space 模型 `tmux new-window` 後 send `cd && claude`）。
+  舊 `spawn_tmux_claude.sh` 把 claude 當 tmux session 主程序（`new-session "claude ..."`），/exit → 程序結束 → **整個 session/window 一起關，畫面沒留住**。實測 etl_demog_114(舊法) /exit 後 window 直接消失。
+  → 要「釋放記憶體+留畫面回顧」務必用**單 space new-window 模型**。
+- ✅ 實測（2026-05-30 front_demog114）：單 space new-window 模型 /exit 後**分頁保留**，畫面尾還印
+  `Resume this session with: claude --resume <uuid>` → 需要時可在該分頁原地 resume 同一 session（context 還在）。
 
 ## 復用 checklist（下次直接照跑）
 1. 盤點本專案缺口（grep theme manifest 待補/mock/placeholder）
