@@ -231,3 +231,8 @@
 - M-2(b) port_traffic刪7筆(CMA)航商假港名 · W-3 滯洪池容量=NULL非0(查證,前端改「—」)
 - 主agent獨立REST驗證 D-1/F-1/F-2 全✅
 - ⚠️ **前端跟進清單**(後端好了前端要接):F-1加year filter/F-2 per-county顯示/W-3 NULL→「—」/D-1移除存疑badge+ViewB縣市出生死亡標單月(縣市年度源不可得🔴)
+
+### ✅ Batch 3b — 前端接上後端根治 4 項（session batch3b，已 /exit）commit `24ac246`
+- F-1 火災加 year filter（台北月度 1,137 單年，原三年 3,957）· F-2 消防栓 per-county（台北21,848/高雄39,392,移除「全台SUM當高雄」）
+- W-3 滯洪池容量 NULL→「—（容量待補）」座數照常 · D-1 自然增加 -92,456(民114)、ViewB縣市出生死亡明標「12月單月」不偽裝、老化113→114口徑斷崖加註
+- typecheck ✅ + agent-browser 多寬度;**session 遵守禁殺規則(用5180沒碰gis-up)**
