@@ -23,9 +23,9 @@ import { byCode3 } from "@/lib/counties";
 import type { CountyCode3, County } from "@/lib/types";
 import { useNationalBasics } from "@/hooks/useNationalBasics";
 import { useTownshipData } from "@/hooks/useTownshipData";
+import { useHomeBasics } from "@/hooks/useHomeBasics";
 import type { TownshipRankRow } from "@/lib/queries/demographics";
 import {
-  HOME_BY_COUNTY,
   MUNI_INFO,
   COASTAL_COUNTIES,
   type HomeCountyDemographic,
@@ -39,6 +39,8 @@ import {
 } from "@/lib/county-stats";
 import { WaterCatHeader as CatHeader } from "@/components/water/WaterCatHeader";
 import { PendingDataCard } from "@/components/common/PendingDataCard";
+import { HistorySparkline, DualHistorySparkline } from "@/components/common/HistorySparkline";
+import type { AgingHistoryPoint, BirthDeathHistoryPoint } from "@/lib/queries/home-basics";
 
 type ViewModel = ReturnType<typeof useNationalBasics>["data"];
 
@@ -56,6 +58,8 @@ const PROVINCIAL_CITIES = new Set(["HSH", "CYC", "KLC"]);
 
 export function ViewBHomeBasics({ county, onBack, onCityClick }: Props) {
   const c = byCode3[county];
+  const homeBasics = useHomeBasics();
+  const HOME_BY_COUNTY = homeBasics.homeByCounty;
   const hd = HOME_BY_COUNTY[county];
   const { data: nat } = useNationalBasics();
   const township = useTownshipData();
@@ -134,15 +138,18 @@ export function ViewBHomeBasics({ county, onBack, onCityClick }: Props) {
       />
       <H2Geography c={c} nat={nat} onCityClick={onCityClick} />
       <H3Population c={c} s={s} nat={nat} popRank={popRank} densityRank={densityRank} rankPeriod={rankPeriod} />
-      <H4Age c={c} hd={hd} s={s} nat={nat} agingRank={agingRank} />
-      <H5Dynamics c={c} hd={hd} nat={nat} />
+      <H4Age c={c} hd={hd} s={s} nat={nat} agingRank={agingRank}
+        agingHistory={homeBasics.agingHistory} historyIsFallback={homeBasics.isFallback} />
+      <H5Dynamics c={c} hd={hd} nat={nat}
+        birthDeathHistory={homeBasics.birthDeathHistory} historyIsFallback={homeBasics.isFallback} />
 
       <div style={{ marginTop: 16, padding: "12px 16px", borderTop: "1px dashed var(--border)", fontSize: 11.5, color: "var(--text-tertiary)", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <span>資料來源：內政部戶政司 · 內政部統計處 · SEGIS</span>
         <span>·</span>
         <span>全國基準月度 {nat.as_of_month}</span>
         {!nat.is_fallback && <span style={{ color: "#059669", fontWeight: 600 }}>· 全國 LIVE Supabase</span>}
-        <span style={{ marginLeft: "auto", color: "#9A6E00" }}>· 縣市人口/戶數=鄉鎮加總(真實) · 年齡/性別/老化/動態仍推估，待 per-county ETL</span>
+        {!homeBasics.isFallback && <span style={{ color: "#059669", fontWeight: 600 }}>· 縣市/歷年 LIVE</span>}
+        <span style={{ marginLeft: "auto", color: "#9A6E00" }}>· 縣市人口/戶數=鄉鎮加總(真實) · 年齡/性別仍推估</span>
       </div>
     </div>
   );
@@ -470,9 +477,10 @@ function H3Population({
    H4 · 年齡結構（主視覺）
 ─────────────────────────────────────────────── */
 function H4Age({
-  c, hd, s, nat, agingRank,
+  c, hd, s, nat, agingRank, agingHistory, historyIsFallback,
 }: {
   c: County; hd: HomeCountyDemographic; s: HomeCountyStats; nat: ViewModel; agingRank: number;
+  agingHistory: AgingHistoryPoint[]; historyIsFallback: boolean;
 }) {
   const max = Math.max(s.pct014, s.pct1564, s.pct65, nat.pct_15_64);
   const aboveThreshold = s.pct65 >= 20;
@@ -537,15 +545,22 @@ function H4Age({
           <div>
             <div className="section-title">
               <span className="pre">TREND</span>
-              老化指數歷年
+              全國老化指數歷年
             </div>
-            <div className="section-subtitle">{c.name_zh} vs 全國比較</div>
+            <div className="section-subtitle">
+              {agingHistory.length} 年趨勢
+              {historyIsFallback ? "（fallback mock）" : "（戶政司年報 LIVE）"}
+              {` · ${c.name_zh}最新 ${hd.agingIndex.toFixed(1)} vs 全國`}
+            </div>
           </div>
         </div>
-        <PendingDataCard
-          compact
-          label={`${c.name_zh} 老化指數逐年趨勢`}
-          note="縣市別逐年老化指數序列待戶政司 ETL 接通；全國歷年見「人口」主題。"
+        <HistorySparkline
+          data={agingHistory}
+          color="#B91C1C"
+          height={140}
+          refValue={hd.agingIndex}
+          refLabel={`${c.name_zh} ${hd.agingIndex.toFixed(0)}`}
+          caption={`資料：reference.national_basics_yearly · 1994 ${agingHistory[0]?.value.toFixed(1)} → 2025 ${agingHistory[agingHistory.length - 1]?.value.toFixed(1)}（${c.name_zh}虛線為當期值）`}
         />
       </div>
     </div>
@@ -585,8 +600,11 @@ function AgePyramidRow({
    H5 · 人口動態
 ─────────────────────────────────────────────── */
 function H5Dynamics({
-  c, hd, nat,
-}: { c: County; hd: HomeCountyDemographic; nat: ViewModel }) {
+  c, hd, nat, birthDeathHistory, historyIsFallback,
+}: {
+  c: County; hd: HomeCountyDemographic; nat: ViewModel;
+  birthDeathHistory: BirthDeathHistoryPoint[]; historyIsFallback: boolean;
+}) {
   const maxRate = Math.max(hd.birthRate, hd.deathRate, nat.birth_rate, nat.death_rate) * 1.2;
   const birthDelta = hd.birthRate - nat.birth_rate;
   const deathDelta = hd.deathRate - nat.death_rate;
@@ -664,21 +682,25 @@ function H5Dynamics({
         </div>
       </div>
 
-      {/* 縣市歷年雙線 */}
+      {/* 全國歷年雙線（縣市別歷年待 per-county multi-year ETL） */}
       <div className="section" style={{ marginTop: 14, marginBottom: 0 }}>
         <div className="section-head">
           <div>
             <div className="section-title">
               <span className="pre">TREND</span>
-              {c.name_zh} · 出生 vs 死亡歷年
+              全國 · 出生 vs 死亡歷年
             </div>
-            <div className="section-subtitle">該縣市出生與死亡率雙線軌跡</div>
+            <div className="section-subtitle">
+              {birthDeathHistory.length} 年趨勢
+              {historyIsFallback ? "（fallback mock）" : "（戶政司年報 LIVE）"}
+              {` · ${c.name_zh} 當期 ${hd.birthRate.toFixed(2)}‰ / ${hd.deathRate.toFixed(2)}‰`}
+            </div>
           </div>
         </div>
-        <PendingDataCard
-          compact
-          label={`${c.name_zh} 出生／死亡逐年趨勢`}
-          note="縣市別逐年出生死亡序列待戶政司 ETL 接通；上方為最新月度粗率。"
+        <DualHistorySparkline
+          data={birthDeathHistory}
+          height={160}
+          caption="資料：reference.national_basics_yearly · 2020 死亡交叉首年（自然增加首度轉負）"
         />
       </div>
     </div>
