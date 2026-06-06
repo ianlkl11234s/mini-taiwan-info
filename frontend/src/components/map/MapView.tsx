@@ -64,6 +64,16 @@ export interface RailStationPointFeature {
   lng: number;
 }
 
+export interface MedicalPointFeature {
+  id: string;
+  name: string;
+  layer: "emergency_hospital" | "aed" | "ltc";
+  county?: string;
+  extra?: string;
+  lat: number;
+  lng: number;
+}
+
 interface MapViewProps {
   metric: string;
   rampName: string;
@@ -101,6 +111,11 @@ interface MapViewProps {
   /** 軌道主題：車站點位 */
   railStationPoints?: RailStationPointFeature[];
   showRailStations?: boolean;
+  /** 醫療主題：3 種點位（急救醫院/AED/長照） */
+  medicalPoints?: MedicalPointFeature[];
+  showMedicalEmergency?: boolean;
+  showMedicalAed?: boolean;
+  showMedicalLtc?: boolean;
 }
 
 const TW_COUNTIES_URL = "/data/tw-counties.geo.json";
@@ -135,6 +150,10 @@ export function MapView({
   showPorts = false,
   railStationPoints = [],
   showRailStations = false,
+  medicalPoints = [],
+  showMedicalEmergency = false,
+  showMedicalAed = false,
+  showMedicalLtc = false,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
@@ -480,6 +499,68 @@ export function MapView({
             "text-allow-overlap": false,
           },
           paint: { "text-color": "#312E81", "text-halo-color": "#FFFFFF", "text-halo-width": 1.4 },
+        });
+
+        // 醫療主題：3 類點位（急救醫院/AED/長照）
+        map.addSource("medical-pts", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer({
+          id: "medical-emergency-pt",
+          type: "circle",
+          source: "medical-pts",
+          filter: ["==", ["get", "layer"], "emergency_hospital"],
+          layout: { visibility: "none" },
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 8, 6, 11, 9],
+            "circle-color": "#DC2626",
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": 1.5,
+            "circle-opacity": 0.9,
+          },
+        });
+        map.addLayer({
+          id: "medical-aed-pt",
+          type: "circle",
+          source: "medical-pts",
+          filter: ["==", ["get", "layer"], "aed"],
+          layout: { visibility: "none" },
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 1.5, 8, 3, 11, 5],
+            "circle-color": "#F59E0B",
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": 0.8,
+            "circle-opacity": 0.8,
+          },
+        });
+        map.addLayer({
+          id: "medical-ltc-pt",
+          type: "circle",
+          source: "medical-pts",
+          filter: ["==", ["get", "layer"], "ltc"],
+          layout: { visibility: "none" },
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 1.5, 8, 3, 11, 5],
+            "circle-color": "#7C3AED",
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": 0.8,
+            "circle-opacity": 0.75,
+          },
+        });
+        map.addLayer({
+          id: "medical-emergency-label",
+          type: "symbol",
+          source: "medical-pts",
+          filter: ["==", ["get", "layer"], "emergency_hospital"],
+          minzoom: 10,
+          layout: {
+            visibility: "none",
+            "text-field": ["get", "name"],
+            "text-size": 10,
+            "text-anchor": "top",
+            "text-offset": [0, 0.85],
+            "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+            "text-allow-overlap": false,
+          },
+          paint: { "text-color": "#991B1B", "text-halo-color": "#FFFFFF", "text-halo-width": 1.4 },
         });
 
         // 消防分隊 hover tooltip（mock 過渡期不顯示數值，標 "Sprint 2 待ETL"）
@@ -888,6 +969,37 @@ export function MapView({
         })),
     });
   }, [ready, railStationPoints]);
+
+  // 醫療點位 visibility toggles
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    for (const [id, vis] of [
+      ["medical-emergency-pt", showMedicalEmergency],
+      ["medical-emergency-label", showMedicalEmergency],
+      ["medical-aed-pt", showMedicalAed],
+      ["medical-ltc-pt", showMedicalLtc],
+    ] as const) {
+      if (map.getLayer(id)) try { map.setLayoutProperty(id, "visibility", vis ? "visible" : "none"); } catch (_) { /* */ }
+    }
+  }, [ready, showMedicalEmergency, showMedicalAed, showMedicalLtc]);
+
+  // 醫療點位 source data sync
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const src = mapRef.current.getSource("medical-pts") as mapboxgl.GeoJSONSource | undefined;
+    if (!src) return;
+    src.setData({
+      type: "FeatureCollection",
+      features: medicalPoints
+        .filter((p) => p.lat != null && p.lng != null)
+        .map((p) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
+          properties: { id: p.id, name: p.name, layer: p.layer, county: p.county ?? "", extra: p.extra ?? "" },
+        })),
+    });
+  }, [ready, medicalPoints]);
 
   // Zoom on drill
   useEffect(() => {

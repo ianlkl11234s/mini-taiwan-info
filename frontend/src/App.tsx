@@ -11,7 +11,7 @@ import type { AppView, CountyCode3, ThemeManifest } from "@/lib/types";
 import { TopBar } from "@/components/chrome/TopBar";
 import { ThemeSwitcher } from "@/components/chrome/ThemeSwitcher";
 import type { CrumbItem } from "@/components/chrome/Breadcrumb";
-import { MapView, type PortPointFeature, type RailStationPointFeature } from "@/components/map/MapView";
+import { MapView, type PortPointFeature, type RailStationPointFeature, type MedicalPointFeature } from "@/components/map/MapView";
 import { MapLegend } from "@/components/map/MapLegend";
 import { COLOR_RAMPS } from "@/lib/mapbox";
 import { TwoSectionLayers, type PointLayerToggle, METRIC_NONE } from "@/components/map/TwoSectionLayers";
@@ -38,6 +38,9 @@ import { ViewAMaritime } from "@/components/views/ViewAMaritime";
 import { ViewBDemographics } from "@/components/views/ViewBDemographics";
 import { ViewBRail } from "@/components/views/ViewBRail";
 import { ViewBMaritime } from "@/components/views/ViewBMaritime";
+import { ViewAMedical } from "@/components/views/ViewAMedical";
+import { ViewBMedical } from "@/components/views/ViewBMedical";
+import { useMedicalData } from "@/hooks/useMedicalData";
 import { codeConvert, normalizeCountyName, COUNTIES, byCode3, byIdMoi } from "@/lib/counties";
 import { getNearestCounty } from "@/lib/reverseGeocode";
 import { FIRE_MOCK_BY_COUNTY } from "@/lib/mock-fire";
@@ -52,6 +55,7 @@ const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: st
   demographics:  { accent: "#7C3AED", deep: "#5B21B6", soft: "#F3E8FF" },
   rail:          { accent: "#4F46E5", deep: "#3730A3", soft: "#E0E7FF" },
   maritime:      { accent: "#0D9488", deep: "#115E59", soft: "#CCFBF1" },
+  medical:       { accent: "#10B981", deep: "#047857", soft: "#D1FAE5" },
 };
 
 // Phase 0b+ A-2: 水主題點位圖層定義（reservoir 已 LIVE，其他 Phase 1+ 規劃）
@@ -159,6 +163,7 @@ export default function App() {
   const demographics = useDemographicsData({ enabled: theme === "demographics" || theme === "home-basics" });
   const rail = useRailData({ enabled: theme === "rail" });
   const maritime = useMaritimeData({ enabled: theme === "maritime" });
+  const medical = useMedicalData({ enabled: theme === "medical" });
 
   // 把雨量站（中文 county）聚合成 22 縣市平均 24hr 雨量 → code3
   const rain24ByCode3 = useMemo(() => {
@@ -321,13 +326,26 @@ export default function App() {
             value = agg.shipTraffic > 0 ? agg.shipTraffic : null;      // 僅商港縣市有 → 缺值 null
         }
       }
+      // medical — real choropleth from useMedicalData
+      if (value == null && theme === "medical" && medical.countyAggregates.length > 0) {
+        const ma = medical.countyAggregates.find((a) => a.code3 === code);
+        if (ma) {
+          const c = byCode3[code];
+          const pop = c?.pop_2024_wan ?? 1;
+          if (metric === "med_hosp_per_wan") value = +(ma.hosp / pop).toFixed(3);
+          else if (metric === "med_aed") value = ma.aed;
+          else if (metric === "med_ltc") value = ma.ltc;
+          else if (metric === "med_desert") value = null; // 等時圈計算待跑
+          else if (metric === "med_flu") value = ma.flu;
+        }
+      }
       // fallback to mock（僅 water 有 mock；fire/demo/rail/maritime 無資料保持 null）
-      if (value == null && !useFireRealData && !useDemoRealData && !useRailRealData && !useMaritimeRealData)
+      if (value == null && !useFireRealData && !useDemoRealData && !useRailRealData && !useMaritimeRealData && theme !== "medical")
         value = getMockMetricValue(metric, code);
       out[code] = value;
     }
     return out;
-  }, [metric, neutralChoropleth, useRealData, useFireRealData, useDemoRealData, useRailRealData, useMaritimeRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates, demoAggByCode3, railAggByCode3, maritimeAggByCode3]);
+  }, [metric, neutralChoropleth, useRealData, useFireRealData, useDemoRealData, useRailRealData, useMaritimeRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates, demoAggByCode3, railAggByCode3, maritimeAggByCode3, theme, medical.countyAggregates]);
 
   // Phase 0b+ A-2: 點位圖層 toggle state（目前只 reservoir 有資料，其他 placeholder）
   const [pointLayersOn, setPointLayersOn] = useState<Record<string, boolean>>({
@@ -359,6 +377,12 @@ export default function App() {
   const [pointLayersOnRail, setPointLayersOnRail] = useState<Record<string, boolean>>({ stations: true });
   const togglePointLayerRail = (id: string) =>
     setPointLayersOnRail((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const [pointLayersOnMedical, setPointLayersOnMedical] = useState<Record<string, boolean>>({
+    emergency: true, aed: true, ltc: false,
+  });
+  const togglePointLayerMedical = (id: string) =>
+    setPointLayersOnMedical((prev) => ({ ...prev, [id]: !prev[id] }));
 
   // 40 水庫真實點位（給 MapView）
   // View A: 全部 37 座；View B/C: 只顯示該縣市 + 鄰縣（聚焦上下文）
@@ -473,6 +497,22 @@ export default function App() {
       }));
   }, [theme, rail.stations, view, county]);
 
+  // 醫療主題：3 種點位合併給 MapView
+  const medicalPointsForMap = useMemo((): MedicalPointFeature[] => {
+    if (theme !== "medical") return [];
+    const pts: MedicalPointFeature[] = [];
+    for (const p of medical.emergencyHospitalPoints) {
+      pts.push({ id: p.hospital_id, name: p.name, layer: "emergency_hospital", county: p.county_id, extra: p.level, lat: Number(p.lat), lng: Number(p.lng) });
+    }
+    for (const p of medical.aedPoints) {
+      pts.push({ id: p.place_id, name: p.place_name, layer: "aed", county: p.county, lat: Number(p.lat), lng: Number(p.lng) });
+    }
+    for (const p of medical.ltcPoints) {
+      pts.push({ id: p.org_code, name: p.name, layer: "ltc", county: p.county, extra: p.abc_type, lat: Number(p.lat), lng: Number(p.lng) });
+    }
+    return pts;
+  }, [theme, medical.emergencyHospitalPoints, medical.aedPoints, medical.ltcPoints]);
+
   // Breadcrumb
   const breadcrumb: CrumbItem[] = useMemo(() => {
     const items: CrumbItem[] = [
@@ -567,6 +607,10 @@ export default function App() {
               showPorts={theme === "maritime" && view === "A" && pointLayersOnMaritime.ports}
               railStationPoints={railStationPointsForMap}
               showRailStations={theme === "rail" && (view === "A" ? pointLayersOnRail.stations : view === "B" || view === "C")}
+              medicalPoints={medicalPointsForMap}
+              showMedicalEmergency={theme === "medical" && pointLayersOnMedical.emergency}
+              showMedicalAed={theme === "medical" && pointLayersOnMedical.aed}
+              showMedicalLtc={theme === "medical" && pointLayersOnMedical.ltc}
             />
           </ErrorBoundary>
 
@@ -600,12 +644,19 @@ export default function App() {
                         color: "#4F46E5", shape: "dot" as const, enabled: true,
                         on: pointLayersOnRail.stations,
                       }]
+                  : theme === "medical"
+                    ? [
+                        { id: "emergency", label: "急救醫院", count: medical.emergencyHospitalPoints.length, color: "#DC2626", shape: "dot" as const, enabled: true, on: pointLayersOnMedical.emergency },
+                        { id: "aed", label: "AED", count: medical.aedPoints.length, color: "#F59E0B", shape: "ring" as const, enabled: true, on: pointLayersOnMedical.aed },
+                        { id: "ltc", label: "長照據點", count: medical.ltcPoints.length, color: "#7C3AED", shape: "small" as const, enabled: true, on: pointLayersOnMedical.ltc },
+                      ]
                   : []
               }
               onTogglePoint={
                 theme === "fire" ? togglePointLayerFire
                 : theme === "maritime" ? togglePointLayerMaritime
                 : theme === "rail" ? togglePointLayerRail
+                : theme === "medical" ? togglePointLayerMedical
                 : togglePointLayer
               }
             />
@@ -671,6 +722,12 @@ export default function App() {
                   selectedCounty={county}
                   onCountyClick={goCity}
                 />
+              ) : theme === "medical" ? (
+                <ViewAMedical
+                  data={medical}
+                  selectedCounty={county}
+                  onCountyClick={goCity}
+                />
               ) : (
                 <ViewA
                   manifest={manifest}
@@ -723,6 +780,12 @@ export default function App() {
               ) : theme === "maritime" ? (
                 <ViewBMaritime
                   data={maritime}
+                  county={county}
+                  onBack={goHome}
+                />
+              ) : theme === "medical" ? (
+                <ViewBMedical
+                  data={medical}
                   county={county}
                   onBack={goHome}
                 />

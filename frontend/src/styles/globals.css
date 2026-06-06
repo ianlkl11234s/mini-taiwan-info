@@ -5659,3 +5659,160 @@ button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   .about-profile { flex-direction: column; align-items: flex-start; }
   .about-gallery { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Medical theme — ER quality, LTC stacked, radar, class bars
+   ============================================================ */
+.med-quality-list { display: grid; gap: 10px; }
+.med-q-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 60px;
+  gap: 10px;
+  align-items: center;
+  font-size: 12.5px;
+}
+.med-q-lbl { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.med-q-track {
+  position: relative;
+  height: 18px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: visible;
+}
+.med-q-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.med-q-target {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.med-q-target .t-tick {
+  width: 2px;
+  height: 100%;
+  background: var(--text-tertiary);
+  opacity: 0.5;
+}
+.med-q-target .t-lbl {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.med-q-val {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* LTC stacked bar */
+.med-ltc-stacked { margin-top: 8px; }
+.med-ltc-bar {
+  display: flex;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.med-ltc-bar .seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+}
+.med-ltc-bar .seg-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.25);
+}
+.med-ltc-legend { display: grid; gap: 6px; }
+.mll-row {
+  display: grid;
+  grid-template-columns: 12px 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.mll-row .sw { width: 10px; height: 10px; border-radius: 2px; }
+.mll-row .lbl { color: var(--text); }
+.mll-row .cnt { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mll-row .pct { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.mll-row .note { font-size: 11px; }
+
+/* Radar / VS NAT list */
+.med-radar-list { display: grid; gap: 8px; }
+.med-rd-row {
+  display: grid;
+  grid-template-columns: 100px 60px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.med-rd-lbl { font-weight: 600; }
+.med-rd-good { font-size: 10.5px; }
+.med-rd-track {
+  position: relative;
+  height: 14px;
+  background: var(--surface-2);
+  border-radius: 3px;
+}
+.med-rd-bar {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.4s;
+}
+.med-rd-avg {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--text-tertiary);
+  opacity: 0.4;
+}
+.med-rd-val { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 50px; text-align: right; }
+.med-rd-cmp { font-size: 11px; min-width: 110px; }
+.med-rd-row.better .med-rd-bar { background: var(--accent); }
+.med-rd-row.worse .med-rd-bar { background: #F87171; }
+
+/* Hospital tier class bars */
+.med-class-bars { display: grid; gap: 6px; }
+.mcb-row {
+  display: grid;
+  grid-template-columns: 12px 80px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.mcb-sw { width: 10px; height: 10px; border-radius: 2px; }
+.mcb-lbl { color: var(--text-secondary); }
+.mcb-bar {
+  height: 16px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mcb-bar > div { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.mcb-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mcb-pct { font-size: 11px; }
+
+/* Trend legend */
+.med-trend-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+/* Responsive: medical quality row narrower */
+@media (max-width: 900px) {
+  .med-q-row { grid-template-columns: 120px 1fr 50px; }
+  .med-rd-row { grid-template-columns: 80px 50px 1fr auto auto; }
+}

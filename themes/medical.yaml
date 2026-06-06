@@ -1,0 +1,98 @@
+theme:
+  id: medical
+  name: 醫療
+  name_en: Medical
+  emoji: "⚕"
+  color_accent: "#10B981"
+  color_ramp: greens
+  description: 全國醫療資源分布、急救安全網、長照量能與公衛監測
+  tagline: 島嶼的醫療帳本，四章看完
+  priority: 7
+  status: beta
+
+overview:
+  default_choropleth_metric: med_hosp_per_wan
+  color_metrics:
+    - id: med_hosp_per_wan
+      label: 每萬人醫院
+      unit: "/萬人"
+      domain: [0, 1.5]
+      ramp_direction: default
+    - id: med_aed
+      label: AED 數
+      unit: 台
+      domain: [0, 3200]
+      ramp_direction: default
+    - id: med_ltc
+      label: 長照據點
+      unit: 處
+      domain: [0, 3500]
+      ramp_direction: default
+    - id: med_desert
+      label: 醫療沙漠比例
+      unit: "%"
+      domain: [0, 45]
+      ramp_direction: reversed
+      coverage_note: "估算值 · 等時圈計算待跑"
+    - id: med_flu
+      label: 類流感急診
+      unit: 人次
+      domain: [0, 15000]
+      ramp_direction: default
+  kpis:
+    - id: hospitals
+      label: 醫院
+      unit: 家
+      source: nhi
+    - id: clinics
+      label: 診所
+      unit: 家
+      source: nhi
+    - id: pharmacies
+      label: 健保藥局
+      unit: 家
+      source: nhi
+    - id: aed
+      label: 公共 AED
+      unit: 台
+      source: mohw
+    - id: ltc_sites
+      label: 長照據點
+      unit: 處
+      source: mohw
+    - id: nursing_beds
+      label: 護理床數
+      unit: 床
+      source: mohw
+
+county_dashboard:
+  tabs:
+    - id: overview
+      label: 概覽
+      type: charts
+    - id: capacity
+      label: 量能
+      type: charts
+    - id: emergency
+      label: 急救
+      type: charts
+    - id: ltc
+      label: 長照
+      type: charts
+    - id: epidemic
+      label: 公衛
+      type: charts
+
+data_sources:
+  - id: nhi
+    name: 健保署 NHI
+    url: https://data.nhi.gov.tw
+  - id: mohw
+    name: 衛福部
+    url: https://data.mohw.gov.tw
+  - id: cdc
+    name: 疾管署
+    url: https://nidss.cdc.gov.tw
+  - id: moifd
+    name: 內政部消防署
+    url: https://data.moi.gov.tw
