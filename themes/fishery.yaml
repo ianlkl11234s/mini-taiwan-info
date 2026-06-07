@@ -1,0 +1,222 @@
+# Mini Taiwan Info · Fishery Theme Manifest
+# v0.1 (2026-06-07) — draft，夜跑 ingest 後骨架，待 Sprint 0 對接 KPI / RPC
+# 定位：陸上養殖 + 海上漁業 + 漁港/保育 的靜態 GIS 帳
+# 資料盤點 SSOT: taipei-gis-analytics/data/processed/fishery/ + agriculture/aquaculture_production_zone/
+#               9 個 spatial polygon/point/line + 1 個縣市×魚種統計
+
+theme:
+  id: fishery
+  name: 漁業
+  name_en: Fishery
+  emoji: 🐟
+  icon: fish
+  color_accent: "#0891B2"          # cyan-600
+  color_ramp: cyan
+  description: 養殖漁業生產區、海上箱網、漁港、漁業權、保育區 — 西部沿海與宜蘭的養殖海岸帶
+  tagline: 從魚塭到箱網的全島漁業空間
+  priority: 7
+  status: ingesting
+
+# ─────────────────────────────────────────────────
+# overview：View A 全國概覽
+#   主軸 1 養殖空間（生產區 polygon + 箱網 polygon + G70 縣市×魚種）
+#   主軸 2 漁港 + 垂釣區
+#   主軸 3 漁業權 + 保育/禁漁
+# ─────────────────────────────────────────────────
+overview:
+  default_choropleth_metric: aquaculture_area_ha
+
+  color_metrics:
+    - id: aquaculture_area_ha
+      label: 養殖漁業面積
+      unit: 公頃
+      ramp_direction: default
+      domain: [0, 10000]
+      coverage_note: "G70 縣市別，已 ETL"
+    - id: aquaculture_zone_count
+      label: 養殖生產區數
+      unit: 區
+      ramp_direction: default
+      domain: [0, 15]
+      coverage_note: "aquaculture_production_zone 62 區劃定"
+    - id: aquaculture_household
+      label: 養殖戶數
+      unit: 戶
+      ramp_direction: default
+      domain: [0, 3000]
+      coverage_note: "G70 養殖戶數-小計"
+    - id: release_amount
+      label: 放養量（在池）
+      unit: 尾/隻
+      ramp_direction: default
+      domain: [0, 100000000]
+      coverage_note: "G70 放養量-在池"
+
+  kpis:
+    # ───── 主軸 1 養殖 ─────
+    - id: aquaculture_total_area
+      label: 養殖總面積
+      unit: 公頃
+      source: aquaculture_release_survey_G70
+      query: fishery_aquaculture_area_total
+      group: structural
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
+      response_shape: { value: number }
+      explode:
+        - mode: dimension
+          by: species              # 9 魚種 donut
+          default: true
+        - mode: dimension
+          by: county
+
+    - id: aquaculture_production_zones
+      label: 法定養殖生產區數
+      unit: 區
+      source: aquaculture_production_zone
+      group: structural
+      format: { precision: 0 }
+      response_shape: { value: number }
+
+    - id: cage_net_zones
+      label: 海上箱網區
+      unit: 區
+      source: aquaculture_cage_net
+      group: structural
+      format: { precision: 0 }
+      response_shape: { value: number }
+
+    # ───── 主軸 2 漁港 ─────
+    - id: fishery_port_count
+      label: 漁港數
+      unit: 處
+      source: fishery_ports
+      group: structural
+      format: { precision: 0 }
+      response_shape: { value: number }
+
+    - id: fishery_port_zones_count
+      label: 漁港區域面
+      unit: 處
+      source: fishery_port_zones
+      group: structural
+      format: { precision: 0 }
+
+    # ───── 主軸 3 漁業權 / 保育 ─────
+    - id: exclusive_fishery_rights_count
+      label: 專用漁業權數
+      unit: 件
+      source: exclusive_fishery_rights
+      group: structural
+
+    - id: conservation_zone_count
+      label: 漁業資源保育區
+      unit: 區
+      source: fishery_conservation_zones
+      group: structural
+
+    - id: restricted_zone_count
+      label: 禁漁區
+      unit: 區
+      source: fishery_restricted_zones
+      group: structural
+
+# ─────────────────────────────────────────────────
+# datasets：GeoJSON 圖層（前端疊圖用）
+# ─────────────────────────────────────────────────
+datasets:
+  # Polygon — 養殖空間
+  - id: aquaculture_production_zone
+    label: 養殖漁業生產區
+    type: polygon
+    file: /data/fishery/aquaculture_production_zone.geojson
+    records: 62
+    coverage: national
+    notes: 法定劃設陸上魚塭分區 18,676.7 公頃，11 縣市
+    style: { fillColor: "#0891B2", fillOpacity: 0.35, color: "#0E7490" }
+
+  - id: aquaculture_cage_net
+    label: 臺灣箱網範圍（海上）
+    type: polygon
+    file: /data/fishery/aquaculture_cage_net.geojson
+    records: 239
+    coverage: national
+    notes: 海上箱網養殖區位（與生產區互補）
+    style: { fillColor: "#06B6D4", fillOpacity: 0.4, color: "#0891B2" }
+
+  - id: fishery_port_fishing_zones_class1
+    label: 第一類漁港開放垂釣區
+    type: polygon
+    file: /data/fishery/fishery_port_fishing_zones_class1.geojson
+    records: 6
+    coverage: national
+    notes: 從 4 角點 X1-X4 POS 構成 polygon
+
+  - id: white_dolphin_habitat
+    label: 中華白海豚野生動物重要棲息環境
+    type: polygon
+    file: /data/fishery/white_dolphin_habitat.geojson
+    records: 6
+    coverage: national
+    notes: 對箱網/漁業權劃設有影響
+    style: { fillColor: "#A78BFA", fillOpacity: 0.3, color: "#7C3AED" }
+
+  # Point — 漁港
+  - id: fishery_ports
+    label: 全台漁港
+    type: point
+    file: /data/fishery/fishery_ports.geojson
+    coverage: national
+
+  - id: fishery_port_zones
+    label: 漁港區域電子圖資
+    type: polygon
+    file: /data/fishery/fishery_port_zones.geojson
+    notes: 待 polygon 化（目前為 wrapper JSON）
+
+  # Stats reshape → point (county centroid)
+  - id: aquaculture_release_survey_G70
+    label: 養殖放養量（縣市×魚種）
+    type: stats_point
+    file: /data/fishery/aquaculture_release_survey_G70.geojson
+    records: 79
+    notes: 9 魚種 × 13 縣市，含魚塭面積/口數/放養量/養殖戶 = choropleth + bubble dual-mode
+
+  # 保育/限制 — 從文字提縣市 centroid（粗略）
+  - id: fishery_restricted_zones
+    label: 禁漁區
+    type: stats_point
+    file: /data/fishery/fishery_restricted_zones.geojson
+    records: 29
+    accuracy: county_centroid_only
+    notes: 原資料無座標，從文字描述提縣市
+
+  - id: fishery_conservation_zones
+    label: 漁業資源保育區
+    type: stats_point
+    file: /data/fishery/fishery_conservation_zones.geojson
+    records: 4
+    accuracy: county_centroid_only
+
+  - id: exclusive_fishery_rights
+    label: 專用漁業權
+    type: stats_point
+    file: /data/fishery/exclusive_fishery_rights.geojson
+    records: 17
+    accuracy: county_centroid_only
+
+# ─────────────────────────────────────────────────
+# data_sources：來源憑證
+# ─────────────────────────────────────────────────
+data_sources:
+  - id: moa_data_platform
+    name: 農業部資料開放平臺
+    url: https://data.moa.gov.tw
+    note: A 套 UnitId + B 套 /api/v1，無金鑰；參見 docs/api-platforms/moa/
+  - id: datagov
+    name: 政府資料開放平臺
+    url: https://data.gov.tw
+    note: 漁業署/林務署 SHP/JSON 主要中繼
+  - id: oca
+    name: 海委會 iOcean datahub
+    url: https://iocean.oca.gov.tw
+    note: 白海豚棲息環境 GeoJSON 來源

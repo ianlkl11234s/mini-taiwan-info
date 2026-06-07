@@ -1,0 +1,254 @@
+# Mini Taiwan Info · Forestry Theme Manifest
+# v0.1 (2026-06-07) — draft，夜跑 ingest 後骨架
+# 定位：保安林 + 森林遊樂 + 林道 + 林業 POI 的全島林業帳
+# 資料盤點 SSOT: taipei-gis-analytics/data/processed/forestry/
+#               13 個 spatial polygon/line/point
+
+theme:
+  id: forestry
+  name: 林業
+  name_en: Forestry
+  emoji: 🌲
+  icon: tree
+  color_accent: "#16A34A"          # green-600
+  color_ramp: green
+  description: 保安林、森林遊樂區、林道、野生動物分布、自然教育中心 — 全島林業基礎設施
+  tagline: 山林裡的法定線、面、點
+  priority: 8
+  status: ingesting
+
+overview:
+  default_choropleth_metric: forest_reserve_area_ha
+
+  color_metrics:
+    - id: forest_reserve_area_ha
+      label: 保安林面積
+      unit: 公頃
+      ramp_direction: default
+      domain: [0, 50000]
+      coverage_note: "1151 版（2025）"
+    - id: forest_recreation_count
+      label: 森林遊樂區數
+      unit: 處
+      ramp_direction: default
+      domain: [0, 5]
+    - id: forest_road_km
+      label: 林道里程
+      unit: 公里
+      ramp_direction: default
+      domain: [0, 200]
+    - id: treatment_work_count
+      label: 林業治理工程點
+      unit: 件
+      ramp_direction: default
+      domain: [0, 1000]
+
+  kpis:
+    # 面
+    - id: forest_reserve_total
+      label: 保安林筆數
+      unit: 筆
+      source: forest_reserve
+      query: forestry_reserve_count
+      group: structural
+      format: { precision: 0 }
+      response_shape: { value: number }
+      explode:
+        - mode: dimension
+          by: county
+          response_shape:
+            items: [{ id: string, name: string, value: number }]
+
+    - id: forest_recreation_total
+      label: 森林遊樂區數
+      unit: 處
+      source: forest_recreation_areas
+      group: structural
+
+    - id: flat_forest_park_count
+      label: 平地森林園區
+      unit: 處
+      source: flat_forest_parks
+      group: structural
+
+    - id: dam_lake_count
+      label: 國有林堰塞湖
+      unit: 處
+      source: dam_lakes_in_forest
+      group: structural
+
+    # 線
+    - id: forest_road_total
+      label: 林道條數
+      unit: 條
+      source: forest_roads
+      group: structural
+
+    # 點
+    - id: treatment_work_count
+      label: 林業治理工程點位
+      unit: 件
+      source: forestry_treatment_works
+      group: structural
+
+    - id: mountain_signal_count
+      label: 山區手機可通訊點
+      unit: 點
+      source: mountain_signal_points
+      group: safety
+
+    - id: mountain_trail_sign_count
+      label: 步道山徑路標
+      unit: 個
+      source: mountain_trail_signs
+      group: safety
+
+    - id: education_center_count
+      label: 自然教育中心
+      unit: 處
+      source: forest_education_centers
+      group: structural
+
+    - id: wildlife_record_count
+      label: 野生動物分布記錄
+      unit: 筆
+      source: wildlife_distribution_3rd
+      group: ecology
+      notes: 第三次森林資源調查
+
+datasets:
+  # Polygon — 林業骨幹
+  - id: national_forest_compartments
+    label: 國有林事業區林班圖
+    type: polygon
+    file: /data/forestry/national_forest_compartments.geojson
+    records: 3700
+    coverage: national
+    area_ha: 1531854.9
+    notes: 1141 版（2025）— 8 分署、37 事業區、佔台灣陸地 42%
+    file_size_mb: 219
+    optimization: pmtiles_required
+    style: { fillColor: "#15803D", fillOpacity: 0.35, color: "#166534" }
+
+  - id: forest_reserve
+    label: 全臺保安林分布
+    type: polygon
+    file: /data/forestry/forest_reserve.geojson
+    records: 522
+    coverage: national
+    notes: 1151 版（2025），含 306 MultiPolygon + 216 Polygon
+    file_size_mb: 45
+    optimization: pmtiles_recommended
+    style: { fillColor: "#16A34A", fillOpacity: 0.3, color: "#15803D" }
+
+  - id: forest_recreation_areas
+    label: 森林遊樂區範圍
+    type: polygon
+    file: /data/forestry/forest_recreation_areas.geojson
+    records: 23
+    coverage: national
+    style: { fillColor: "#65A30D", fillOpacity: 0.4, color: "#4D7C0F" }
+
+  - id: dam_lakes_in_forest
+    label: 國有林堰塞湖
+    type: point
+    file: /data/forestry/dam_lakes_in_forest.geojson
+    records: 32
+    coverage: national
+
+  - id: flat_forest_parks
+    label: 林業署平地森林園區
+    type: point
+    file: /data/forestry/flat_forest_parks.geojson
+    records: 3
+    accuracy: county_centroid_only
+    notes: 原資料無座標，地址 lookup 縣市 centroid
+
+  # Line
+  - id: forest_roads
+    label: 林道分布
+    type: line
+    file: /data/forestry/forest_roads.geojson
+    records: 107
+    coverage: national
+    file_size_mb: 16
+    optimization: simplify_recommended
+    style: { color: "#A16207", weight: 1.5 }
+
+  # Point
+  - id: forestry_treatment_works
+    label: 林業保育署治理工程點位
+    type: point
+    file: /data/forestry/forestry_treatment_works.geojson
+    records: 6275
+    coverage: national
+    file_size_mb: 2
+    style: { radius: 3, fillColor: "#F59E0B" }
+
+  - id: mountain_signal_points
+    label: 山區手機可通訊點
+    type: point
+    file: /data/forestry/mountain_signal_points.geojson
+    records: 1416
+    coverage: national
+    notes: 1151 版（2026 最新）
+    style: { radius: 2, fillColor: "#22C55E" }
+
+  - id: mountain_trail_signs
+    label: 林業署轄區步道山徑路標
+    type: point
+    file: /data/forestry/mountain_trail_signs.geojson
+    records: 3407
+    coverage: national
+    file_size_mb: 1.3
+
+  - id: forest_education_centers
+    label: 林業署自然教育中心
+    type: point
+    file: /data/forestry/forest_education_centers.geojson
+    records: 8
+    accuracy: county_centroid_only
+
+  - id: wildlife_distribution_3rd
+    label: 第三次森林資源調查野生動物分佈
+    type: point
+    file: /data/forestry/wildlife_distribution_3rd.geojson
+    records: 1241
+    coverage: national
+
+  - id: wildlife_distribution_3rd_alt
+    label: 阿里山林業鐵路車站
+    type: point
+    file: /data/forestry/wildlife_distribution_3rd_alt.geojson
+    records: 25
+    notes: 原 master_catalog 誤標為野生動物分佈 SHP；實為車站清單
+
+data_sources:
+  - id: moa_data_platform
+    name: 農業部資料開放平臺
+    url: https://data.moa.gov.tw
+    note: 林務署/林業及自然保育署 SHP 主源
+  - id: datagov
+    name: 政府資料開放平臺
+    url: https://data.gov.tw
+    note: 多版本 SHP 索引（如保安林從 102→1151 共 9 版）
+
+known_gaps:
+  - id: forest_resource_4th_survey_E31
+    name: 第四次森林資源調查全島森林林型分布圖
+    moa_id: E31
+    status: blocked
+    reason: HTTP 403 — MOA wrapper blocked，需從 data.gov.tw 直連找新 RID
+    next_step: agent-browser 抓 dataset 頁面的 SHP URL，重跑 night_run recover
+
+  # national_forest_compartments_E30 已解決 — 用戶手動下載 1141 版（見 datasets 段）
+
+  - id: illegal_logging_hotspots
+    name: 國有林盜伐高風險地點
+    status: stats_only
+    reason: wrapper 只有 CSV 無 SHP，原資料無座標
+
+  - id: forest_dynamic_plots
+    name: 森林動態樣區調查資料
+    status: stats_only
+    reason: 樣區內物種統計，非空間 POI
