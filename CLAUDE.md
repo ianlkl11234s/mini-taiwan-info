@@ -1,3 +1,73 @@
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+---
+
+> **與上方 Karpathy 4 條的優先級**：以下為本專案具體化規則。遇衝突時，下方規則 override 上方通則（特別是 §2 Simplicity 對「鐵則 4 條 + 多寬度驗收」、§3 Surgical 對「grep MapView 找寫死層」的例外）。不確定算不算違反專案鐵則時，先問用戶。
+
 # Mini Taiwan Info · Claude 專案指引
 
 ## 專案定位
@@ -16,6 +86,20 @@
   2. **保留區塊但標 placeholder**：版位留著、清楚標註資料缺口。
   3. **去搜集真資料**：啟動 tmux spawn 一個 session 到 `taipei-gis-analytics`，走 `/gis-data-onboard` + `.claude/guidelines/cross-repo-data-onboard-spawn.md` SOP **盤點 → 搜集 → 清理** 資料，接通真實 RPC/表。
 - 任何 mock/估計值**一律可辨識**（badge/灰字/口徑標註），使用者不可能誤以為是真實官方數字。
+- **`PendingDataCard` 是專案既有元件**，直接用，不算 Karpathy §2 over-engineering。
+
+### 鐵則 1a — 「LIVE」用詞嚴守（2026-05-14 拍板，違反即錯）
+
+**LIVE** 只能形容「**data collector 設 cron 自動持續抓 + 上游 realtime/高頻**」的資料，**雙條件都符合**才能用。
+
+| ❌ 禁止 | ✅ 替代 |
+|---|---|
+| 「LIVE 接好」「KPI 全 LIVE」「跑完自動 LIVE」「接通 LIVE」 | 「接通真實資料」「接通真實 RPC」「接通 DB」「從 mock 改 DB」 |
+| 任何「實作進度 / 從 mock 改 DB / 從 placeholder 變有東西」場景用 LIVE | |
+
+✅ 仍可用 LIVE 的場景：描述「資料本身是 LIVE 的」（蓄水率 / 雨量 / 河川水位 — collector cron 真跑）；UI 上 `<DataAgeBadge>` 僅 cron 持續抓的標綠 LIVE。
+
+**為什麼**：mini-taiwan-info 是公開縣市儀錶板，標 LIVE 等於對外承諾即時性。LPCD（年度）/ 水質（月度）/ 淹水（靜態）標 LIVE 名實不符會傷對外信任。詳見 `.claude/memory/PRINCIPLES.md`。
 
 ### 鐵則 2 — 遵循 SSOT，資料不能不同
 - 同一指標**只能有一個權威來源**。多處顯示同一指標必須來自同一表/RPC、數值一致。
@@ -33,20 +117,7 @@
 
 ## GIS 三部曲（跨 repo 強綁定）
 
-本專案是 GIS 基礎設施的**應用層 / 展示層**：
-
-```
-taipei-gis-analytics  →  gis-platform  ←  mini-taiwan-info（本專案）
-  探索 & 開發 pipeline   儲存 & RPC       前端展示
-```
-
-| Repo | 路徑 | 職責 |
-|---|---|---|
-| **mini-taiwan-info**（本專案） | `.` | 主題 manifest + frontend SPA + designs SSOT |
-| **gis-platform** | `../gis-platform/` | Supabase 表、migrations、PostGIS、RPC |
-| **taipei-gis-analytics** | `../taipei-gis-analytics/` | ETL pipelines（datagov 8316/26815 等）+ data-catalog |
-
-跨 repo 變動規則見 `.claude/memory/CROSS_REPO.md`。
+本專案是 GIS 基礎設施的**應用層 / 展示層**（taipei-gis-analytics 探索 → gis-platform 儲存/RPC → 本專案展示）。跨 repo 變動規則見 `.claude/memory/CROSS_REPO.md`。
 
 ## 技術棧
 
@@ -62,41 +133,30 @@ taipei-gis-analytics  →  gis-platform  ←  mini-taiwan-info（本專案）
 
 **重要**：不引入 Tailwind / shadcn（CSS 變數已足夠；prototype CSS verbatim 移植）。
 
+## 環境 / 啟動
+
+- **套件管理**：強制 `pnpm`，**禁用 npm**（避免 lock 衝突）
+- **啟動**：`cd frontend/ && pnpm install && pnpm dev`
+- **驗證**：`pnpm typecheck`（PostToolUse hook 已自動跑）
+- **Supabase URL / anon key**：`frontend/.env.local`（範本見 `.env.example`）
+- **Mapbox token**：同上 `.env.local`，`VITE_MAPBOX_TOKEN`
+- **Python pipelines**：用 `python3` / `pip3`
+
 ## 目錄結構
+
+Top-level（frontend/src/ 細節見 `README.md`）：
 
 ```
 mini-taiwan-info/
-├── README.md                 專案說明
-├── HANDOFF.md                跨團隊銜接書（設計→實作的 handoff）
-├── _STATUS.md                ⭐ 進度追蹤 living doc（user-facing）
-├── CLAUDE.md                 本檔（Claude 規則）
-├── .claude/                  Claude memory + skills
-│   ├── FRAMEWORK.md          可移植 framework 說明
-│   ├── memory/               9 個檔的狀態層（見 .claude/memory/README.md）
-│   ├── skills/wrap-up/       /wrap-up 收尾 skill
-│   └── pitfalls/             長篇 incident archive
-├── data/
-│   └── counties.yaml         ⭐ 22 縣市 SSOT
-├── docs/                     規劃 SSOT（00-10 + themes + wireframes）
-├── themes/                   主題 manifest YAML（_template + water + ...）
-├── samples/                  範例資料（給設計師看 shape）
-├── designs/                  ⭐ 設計師 mockup 入庫區
-│   └── v02-claude-design-2026-05-14/   prototype HTML/CSS/JSX
-└── frontend/                 Vite SPA
-    ├── src/
-    │   ├── App.tsx           state machine (view/theme/county/compare)
-    │   ├── lib/              types, counties, supabase, mapbox, format, themes, queries
-    │   ├── hooks/            useWaterKpis / useCountyData / useReservoirDetail
-    │   ├── components/
-    │   │   ├── chrome/       TopBar / Breadcrumb / ThemeSwitcher
-    │   │   ├── kpi/          KPICard
-    │   │   ├── charts/       Sparkline / TrendChart / Donut
-    │   │   ├── map/          MapView / MapLegend / TwoSectionLayers
-    │   │   ├── point-profile/ PointProfile
-    │   │   └── views/        ViewA / ViewB / ViewC
-    │   └── styles/globals.css   prototype 1504 行 verbatim
-    ├── public/data/tw-counties.geo.json    460KB 簡化邊界
-    └── package.json
+├── _STATUS.md         ⭐ 進度追蹤 living doc（Phase / Backlog / Decision Log）
+├── HANDOFF.md         跨團隊銜接書（設計→實作）
+├── data/counties.yaml ⭐ 22 縣市 SSOT（id_moi / code3 / slug 三軌）
+├── themes/            ⭐ 主題 manifest YAML（_template + water + ...）
+├── designs/           ⭐ 設計師 mockup 入庫區（prototype HTML/CSS/JSX）
+├── docs/              規劃 SSOT（00-10 + themes + wireframes）
+├── samples/           範例資料（給設計師看 shape）
+├── .claude/           memory（9 檔） + skills + pitfalls
+└── frontend/          Vite SPA — App.tsx state machine / lib / hooks / components / styles
 ```
 
 ## 核心設計決策（不用再溝通）
@@ -107,7 +167,7 @@ mini-taiwan-info/
 2. **縣市代碼三軌**：`id_moi`（A-Z，內政部 / Supabase PK）+ `code3`（TPE/KHH，前端 state）+ `slug`（taipei，URL）。SSOT 在 `data/counties.yaml`
 3. **資料取用**：前端直連 Supabase anon key（RLS 已 anon SELECT），TGOS 走後端 wrapper
 4. **回應語言**：繁體中文（技術詞可留英）
-5. **真實資料優先**：所有可接 Supabase 的 KPI 都接，fallback 才 mock；用 `LIVE` badge 標記
+5. **真實資料優先**：所有可接 Supabase 的 KPI 都接，fallback 才 mock（標示準則見鐵則 1 / 1a）
 
 ## 開發 must-check（Session 5 學到的牆，避免再撞）
 
@@ -117,9 +177,9 @@ mini-taiwan-info/
 3. **新主題加進 ViewA 前**：grep `MapView.tsx` 找所有 `map.addLayer` / `map.addSource`，列出水主題寫死層（如 `river-basins-line` / `river-lines-line`），加 `showXxxBaseLayers` prop 避免污染他主題。
 
 **改完前**：
-4. **任何 dashboard pane 內 KPI / grid 改動**：拖視窗測 4 寬度（>1500 / 1100-1500 / 900-1100 / <900）。Pane = viewport × 40%，1500px 是 cols-4 → 2x2 斷點（見 `.claude/memory/PRINCIPLES.md` KPI grid 響應式條）。
-5. **pane 內 grid 永遠用 fluid 欄寬**（`1fr` / `1fr 1fr`），不用固定 px（如 `1fr 320px`）— 窄 pane 會擠垮 1fr。
-6. **大改動完成**：派 codex review 抓 critical bug（PB-08 driver 已驗證有效）。
+4. **大改動完成**：派 codex review 抓 critical bug（PB-08 driver 已驗證有效）。
+
+（4 寬度響應式 / fluid 欄寬細節 → 鐵則 4。）
 
 ---
 
@@ -127,18 +187,20 @@ mini-taiwan-info/
 
 ### 開新 view / theme / KPI 流程（建議走 `/theme-loop` skill 自動跑）
 
+每步附 verify（對齊 Karpathy §4 Goal-Driven）：
+
 ```
-1. 改 themes/{theme}.yaml         加 manifest 定義 + response_shape
-2. 改 docs/themes/{theme}.md      （可選）詳規
-3. 確認 schema 已 expose          PostgREST 限制，新 schema 要 wrapper migration
-4. 改 gis-platform/migrations/   wrapper views/RPCs（若 schema 非 public）
-5. 改 frontend/src/lib/queries/   加 Supabase query
-6. 改 frontend/src/hooks/         加 hook
-7. 改 components/views/           接 hook
-8. pnpm typecheck                 confirm（PostToolUse hook 已自動跑）
-9. agent-browser 截圖驗證         多寬度（>1500/1100-1500/900-1100/<900）
-10. codex review                  大改動必派
-11. atomic commit                 feat(scope): xxx
+1. 改 themes/{theme}.yaml        → verify: yaml lint 過 + manifest schema 符合
+2. 改 docs/themes/{theme}.md     → verify:（可選詳規，無 verify）
+3. 確認 schema 已 expose         → verify: /check-schema-exposed 不報錯
+4. 改 gis-platform/migrations/  → verify: supabase db push + select pg_get_function_result 簽名對
+5. 改 frontend/src/lib/queries/  → verify: dev server fetch 200 + 回值 shape 符合 yaml
+6. 改 frontend/src/hooks/        → verify: 在 view 內 console.log 看 data 非 undefined
+7. 改 components/views/          → verify: 畫面有渲染、loading state 正常
+8. pnpm typecheck                → verify: 0 error（PostToolUse hook 已自動跑）
+9. agent-browser 截圖驗證        → verify: 4 寬度（>1500/1100-1500/900-1100/<900）皆不爆版
+10. codex review                 → verify: 0 critical bug
+11. atomic commit                → verify: feat(scope): xxx + secret scanning 過
 ```
 
 ### Phase 進度看哪邊
@@ -187,38 +249,6 @@ mini-taiwan-info/
 5. **gitignore exception**：`data/*.yaml` 是 SSOT 要 commit（其他 `data/` 內容 ignore）
 6. **Supabase**：anon key 可公開；service_role 只在後端（pipeline）使用
 7. **agent-browser**：截圖驗證視覺改動，特別是 layout / overlap 類問題
-
-## 「LIVE」用詞嚴守（2026-05-14 拍板，違反即錯）
-
-**LIVE** 只能形容「**data collector 設 cron 自動持續抓 + 上游 realtime/高頻**」的資料，雙條件都符合才能用。
-
-❌ 禁止用法：
-- 「LIVE 接好」「KPI 全 LIVE」「跑完自動 LIVE」「接通 LIVE」
-- 任何「實作進度 / 從 mock 改 DB / 從 placeholder 變有東西」場景用 LIVE
-
-✅ 替代用詞：「**接通真實資料**」「**接通真實 RPC**」「**接通 DB**」「**從 mock 改 DB**」
-
-✅ 仍可用 LIVE 的場景：
-- 描述「資料本身是 LIVE 的」（蓄水率 / 雨量 / 河川水位 / 地下水位 — collector cron 真跑）
-- UI 上 `<DataAgeBadge>` 自動分類，僅 cron 持續抓的標綠 LIVE，其他標「採樣 X 天前」橘 / 灰
-
-**為什麼**：mini-taiwan-info 是公開縣市儀錶板，標 LIVE 等於對外承諾即時性。LPCD（年度）/ 水質（月度）/ 淹水（靜態）標 LIVE 名實不符會傷對外信任。詳見 `.claude/memory/PRINCIPLES.md`。
-
-## Phase 0 已完成（2026-05-14）
-
-| Phase | 內容 |
-|---|---|
-| 0a | data SSOT + manifest spec v2 + water.yaml v1.1 + reference.counties migration |
-| 0b | Vite SPA scaffold（27 檔，~2,250 行 TS + 1,504 行 CSS） |
-| 0c | 6/6 KPI LIVE（蓄水率 / 雨量 / 警戒 / 淹水 / LPCD / 接管率） |
-| 0c-C | 22 縣市 ranking + choropleth + explode 全 LIVE |
-| 0d | flood_hazard_pct_by_county MV |
-| 0b+ A-1 | PointProfile 三模式（bucket / region / scatter） |
-| 0b+ A-2 | TwoSectionLayers 收合控制 |
-| 0b+ A-3 | View B 縣市儀錶板 7 tabs |
-| 0b+ A-4 | View C 水庫詳情頁（1 年 trend） |
-
-剩餘：A-5 View D 比較模式（使用者要求延後）、月雨量 MV（Backlog）。
 
 ## 相關文件
 
