@@ -212,4 +212,4 @@ LEFT JOIN reference.counties rc ON rc.slug = t.county
 
 - `SPEC.md` — ViewB design brief（給設計師）
 - `../../taipei-gis-analytics/docs/topic-research/water-overview/kpi-data-status.md` — 後端就緒度（ViewA 角度）
-- `../../mini-taiwan-info/_CYCLE_water_viewa.md` — ViewA 重寫 cycle 紀錄
+- `../../mini-taiwan-info/docs/archive/_CYCLE_water_viewa.md` — ViewA 重寫 cycle 紀錄

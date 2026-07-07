@@ -100,3 +100,6 @@ coverage/
 
 # agent-browser 驗證截圖（不進 repo）
 .claude/screenshots/
+
+# Claude session 工作檔（prompt/queue/中間產物，可丟）
+.claude/tmp/

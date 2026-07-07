@@ -593,3 +593,22 @@ migration 編號以 gis-platform 當下為準（最新 114，上表 115 起示�
 ```
 
 依 handoff §2，批次 1 三項皆現成資料/低風險、彼此獨立 → 可平行派 Agent 寫 pipeline、主 agent 跑+fix。
+
+---
+
+# 🧹 狀態校正 + 技術債清理（2026-07-07）
+
+## 校正（對齊 git log 實況）
+
+- 🏥 **medical 主題已全量上線**（commit `247f5f7`）— 真實資料 + 3 種地圖點位，0 mock。
+- 🌲🐟 **forestry + fishery 兩主題已 commit**（commit `c55e9a0`，含 20 GeoJSON）— 但**線上部署落後**，zeabur 尚未 redeploy 含其 GeoJSON。
+- 本次 session 開工項目：manifest validator / theme registry / 會員系統移植 / 安全加固。
+
+## 技術債清理（本日）
+
+- 依賴 semver 內更新：`pnpm audit` 5 筆（1 high/2 moderate/2 low）→ 0 筆（vite 6.4.3 / js-yaml 4.3.0 / mapbox-gl 3.25.0 等）。
+- Mapbox CSS 改由 npm bundle（移除 index.html 的 v3.9.0 CDN link，版本與 mapbox-gl 3.25 對齊）。
+- nginx.conf 加 5 個安全 header（nosniff / SAMEORIGIN / Referrer-Policy / Permissions-Policy / HSTS）；CSP 留註解草稿待線上驗證。
+- root `public/`（9.4MB 誤置）清理：4 檔與 `frontend/public/about/` 重複已刪、3 檔 root-only 搬 `designs/about-assets/`。
+- 死碼 `frontend/src/lib/mock-medical.ts` 刪除（0 import）。
+- 過期 docs 歸檔至 `docs/archive/`：`_CYCLE_water_viewa.md` / `_FIRE_IMPL_STATUS.md` / `HANDOFF_NEXT_SESSION.md`。
