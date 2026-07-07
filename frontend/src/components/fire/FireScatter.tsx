@@ -68,17 +68,17 @@ export function FireScatter({ points, highlightCode, onPointClick }: FireScatter
         {/* 警示象限 */}
         <rect
           x={warnX1}
-          y={warnY2}
+          y={warnY1}
           width={warnX2 - warnX1}
-          height={warnY1 - warnY2}
+          height={warnY2 - warnY1}
           fill="var(--accent-fire, #DC2626)"
           opacity={0.07}
         />
         <rect
           x={warnX1}
-          y={warnY2}
+          y={warnY1}
           width={warnX2 - warnX1}
-          height={warnY1 - warnY2}
+          height={warnY2 - warnY1}
           fill="none"
           stroke="var(--accent-fire, #DC2626)"
           strokeWidth={1}
