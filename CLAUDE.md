@@ -215,7 +215,8 @@ mini-taiwan-info/
 
 | Skill | 觸發詞 | 用途 |
 |---|---|---|
-| `/theme-loop` | `/theme-loop` / `/water-loop`（alias）/ 跑下一輪 / 迭代 / 接下個資料 / 下個 cycle / 修一輪 P0 / **補 mock 換真實** | 通用主題（水/消防/未來新主題）資料-視覺迭代循環 SOP。5 階段 + 4 checkpoint：Discovery（並行 4 agent，含 schema 預檢 + 多寬度截圖）→ Plan（user 拍板 + 資料缺口處置）→ Execute（4 Mode：P/D/V/S）→ Verify（typecheck + multi-viewport + codex review 三閘）→ Commit/Push（atomic + secret scanning fallback）|
+| `/theme-bootstrap` | `/theme-bootstrap`、「開新主題」「設計 {主題} 主題」「汙染主題怎麼開」「新主題需要哪些表 / KPI / 圖表」 | 新主題設計討論 SOP（theme-loop 上游）。5 階段 + 1 checkpoint：資料盤點（候選源 + DATA_TIERING 分級 + 缺口分流）→ 指標設計（口徑 / SSOT / 期別 / 重疊檢查）→ 視覺化選型（資料形狀 × pattern 對照表）→ IA 拍板（user 決策 tabs / v1 vs backlog / 待補處置）→ 產出交棒（manifest 草稿過 `pnpm validate:themes` + `docs/themes/{theme}.md` 詳規 → /theme-loop）|
+| `/theme-loop` | `/theme-loop` / `/water-loop`（alias）/ 跑下一輪 / 迭代 / 接下個資料 / 下個 cycle / 修一輪 P0 / **補 mock 換真實** | 通用主題（水/消防/未來新主題）資料-視覺迭代循環 SOP。5 階段 + 4 checkpoint：Discovery（並行 4 agent，含 schema 預檢 + 多寬度截圖）→ Plan（user 拍板 + 資料缺口處置）→ Execute（4 Mode：P/D/V/S）→ Verify（typecheck + multi-viewport + codex review 三閘）→ Commit/Push（atomic + secret scanning fallback）（上游設計階段見 /theme-bootstrap）|
 | `/wrap-up` | `/wrap-up`、收工、收尾、session 結束 | 收尾 + 更新 9 個 memory 檔 + atomic commit + **Stage 6 harness audit**（skill 使用率 / hook 健康度 / permission 增量 / memory 健康 / 新模式提取）|
 
 ### 輔助 Skills（被 theme-loop 與 wrap-up 自動呼叫，也可獨立）
