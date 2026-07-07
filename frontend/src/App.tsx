@@ -2,7 +2,8 @@
  * App — 根組件 + 路由 state machine
  *
  * 對應 prototype app.jsx：管理 view (A/B/C) / theme / county / about 狀態。
- * 把 manifest + mock data 餵給 ViewA。
+ * 主題相關的 hook / 著色 / 點位層 / 專屬 view 全部由 theme-registry 宣告驅動 —
+ * 加新主題只需在 theme-registry.tsx 加 entry，本檔零修改。
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -11,86 +12,26 @@ import type { AppView, CountyCode3, ThemeManifest } from "@/lib/types";
 import { TopBar } from "@/components/chrome/TopBar";
 import { ThemeSwitcher } from "@/components/chrome/ThemeSwitcher";
 import type { CrumbItem } from "@/components/chrome/Breadcrumb";
-import { MapView, type PortPointFeature, type RailStationPointFeature, type MedicalPointFeature } from "@/components/map/MapView";
+import { MapView, type GenericMapPointLayer, type SpecialMapProps } from "@/components/map/MapView";
 import { MapLegend } from "@/components/map/MapLegend";
 import { COLOR_RAMPS } from "@/lib/mapbox";
 import { TwoSectionLayers, type PointLayerToggle, METRIC_NONE } from "@/components/map/TwoSectionLayers";
 import { ViewA } from "@/components/views/ViewA";
-import { ViewAFire } from "@/components/views/ViewAFire";
-import { ViewAWater } from "@/components/views/ViewAWater";
-import { ViewAHome } from "@/components/views/ViewAHome";
-import { ViewBHomeBasics } from "@/components/views/ViewBHomeBasics";
 import { ViewB } from "@/components/views/ViewB";
-import { ViewBFire } from "@/components/views/ViewBFire";
 import { ViewC } from "@/components/views/ViewC";
 import { AboutView } from "@/components/views/AboutView";
 import { getMockMetricValue } from "@/lib/mock-data";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { useWaterKpis } from "@/hooks/useWaterKpis";
-import { useRiverWaterLevel } from "@/hooks/useRiverWaterLevel";
-import { useFireData } from "@/hooks/useFireData";
-import { useDemographicsData } from "@/hooks/useDemographicsData";
-import { useRailData } from "@/hooks/useRailData";
-import { useMaritimeData } from "@/hooks/useMaritimeData";
-import { ViewADemographics } from "@/components/views/ViewADemographics";
-import { ViewARail } from "@/components/views/ViewARail";
-import { ViewAMaritime } from "@/components/views/ViewAMaritime";
-import { ViewBDemographics } from "@/components/views/ViewBDemographics";
-import { ViewBRail } from "@/components/views/ViewBRail";
-import { ViewBMaritime } from "@/components/views/ViewBMaritime";
-import { ViewAMedical } from "@/components/views/ViewAMedical";
-import { ViewBMedical } from "@/components/views/ViewBMedical";
-import { useMedicalData } from "@/hooks/useMedicalData";
-import { codeConvert, normalizeCountyName, COUNTIES, byCode3, byIdMoi } from "@/lib/counties";
-import { getNearestCounty } from "@/lib/reverseGeocode";
-import { FIRE_MOCK_BY_COUNTY } from "@/lib/mock-fire";
-
-// 主題色映射（與 manifest theme.color_accent 對齊）
-// key 必須對齊 theme state 值（= manifest theme.id），否則 THEME_ACCENT_VARS[theme]
-// 會 miss 而 fallback 到 water — home-basics 之前就因 key 寫 "home" 而整片變水藍。
-const THEME_ACCENT_VARS: Record<string, { accent: string; deep: string; soft: string }> = {
-  water:         { accent: "#0EA5E9", deep: "#0369A1", soft: "#E0F2FE" },
-  fire:          { accent: "#DC2626", deep: "#991B1B", soft: "#FEF2F2" },
-  "home-basics": { accent: "#475569", deep: "#1E293B", soft: "#F1F5F9" },
-  demographics:  { accent: "#7C3AED", deep: "#5B21B6", soft: "#F3E8FF" },
-  rail:          { accent: "#4F46E5", deep: "#3730A3", soft: "#E0E7FF" },
-  maritime:      { accent: "#0D9488", deep: "#115E59", soft: "#CCFBF1" },
-  medical:       { accent: "#10B981", deep: "#047857", soft: "#D1FAE5" },
-};
-
-// Phase 0b+ A-2: 水主題點位圖層定義（reservoir 已 LIVE，其他 Phase 1+ 規劃）
-function buildPointLayers(
-  on: Record<string, boolean>,
-  reservoirCount: number,
-  riverStationCount: number
-): PointLayerToggle[] {
-  return [
-    { id: "reservoir",  label: "主要水庫",  count: reservoirCount,    color: "#0EA5E9", shape: "ring",   enabled: true,  on: on.reservoir },
-    { id: "rainGauge",  label: "雨量站",    count: 1306,              color: "#10B981", shape: "dot",    enabled: false, on: on.rainGauge },
-    { id: "waterQC",    label: "水質測站",  count: 2269,              color: "#A855F7", shape: "small",  enabled: false, on: on.waterQC },
-    { id: "riverLevel", label: "河川水位站", count: riverStationCount, color: "#F59E0B", shape: "dot",    enabled: true,  on: on.riverLevel },
-    { id: "polluter",   label: "列管事業",  count: 8420,              color: "#EF4444", shape: "small",  enabled: false, on: on.polluter },
-    { id: "wwtp",       label: "汙水處理廠", count: 82,               color: "#64748B", shape: "square", enabled: false, on: on.wwtp },
-  ];
-}
-
-// fire 主題點位圖層定義（hotspots / stations 已接通真實；hydrants 限高雄、forest 全國、ems 仍缺）
-function buildFirePointLayers(
-  on: Record<string, boolean>,
-  stationCount: number,
-  hotspotCount: number,
-  hydrantCount: number,
-  forestRiskCount: number,
-  shelterCount: number
-): PointLayerToggle[] {
-  return [
-    { id: "hotspots",    label: "火災熱點",          count: hotspotCount,  color: "#DC2626", shape: "small",  enabled: true,  on: on.hotspots },
-    { id: "stations",    label: "消防分隊",          count: stationCount,  color: "#DC2626", shape: "dot",    enabled: true,  on: on.stations },
-    { id: "hydrants",    label: "消防栓（部分縣市）",  count: hydrantCount,  color: "#0EA5E9", shape: "small",  enabled: false, on: on.hydrants },
-    { id: "forestRisk",  label: "林火風險點",        count: forestRiskCount, color: "#84CC16", shape: "ring",   enabled: false, on: on.forestRisk },
-    { id: "emsHospital", label: "避難收容所",        count: shelterCount,  color: "#10B981", shape: "square", enabled: false, on: on.emsHospital },
-  ];
-}
+import {
+  getThemeEntry,
+  useThemeRegistryData,
+  resolveThemeData,
+  buildDefaultLayerToggles,
+  type ThemeViewContext,
+} from "@/lib/theme-registry";
+import { byCode3 } from "@/lib/counties";
+import { useMemberGate, signInWithGoogle } from "@/lib/auth";
+import { loadLayerGates, useLayerGates, isLayerLocked, type GateContext } from "@/lib/layerGates";
 
 export default function App() {
   // 載入所有 manifest（startup-time，static glob import）
@@ -118,6 +59,22 @@ export default function App() {
 
   const manifest: ThemeManifest | null = manifests[theme] ?? null;
 
+  // 主題 registry entry（無 entry 的 draft 主題 → generic fallback，見下方 DEV warn）
+  const entry = useMemo(() => getThemeEntry(theme), [theme]);
+
+  // 會員閘門：user/tier（useMemberGate 全 App 只呼叫這一次）+ 動態鎖層清單。
+  // migration 281 apply 前 gates 無 info_medical_ltc 列 → 該層照舊公開。
+  const { user, tier } = useMemberGate();
+  const gates = useLayerGates();
+  useEffect(() => {
+    void loadLayerGates();
+  }, []);
+  const gateCtx = useMemo<GateContext>(() => ({ tier, gates }), [tier, gates]);
+
+  // 所有主題 hooks（registry 迴圈呼叫，順序穩定 — 見 useThemeRegistryData 註解）
+  const themeDataMap = useThemeRegistryData(theme, gateCtx);
+  const data = resolveThemeData(themeDataMap, entry);
+
   // 預設 choropleth 指標：用 manifest 的設定
   const defaultMetric = manifest?.overview.default_choropleth_metric ?? "lpcd";
   const [metric, setMetric] = useState<string>(defaultMetric);
@@ -128,390 +85,138 @@ export default function App() {
   // 主題色 apply 到 :root CSS var
   // 對應 prototype app.jsx：除了 accent/deep/soft，還要 rebind 7 階 --accent-ramp-*，
   // 否則 dashboard 圖表（人口金字塔 / ranking bar / vs-bar）會殘留 :root 預設的水藍 ramp。
-  // 三色 + ramp 都跟 manifest 同一 SSOT：THEME_ACCENT_VARS 有精準品牌色就用，沒有
-  // （如 socioeconomic）就從 manifest.theme.color_accent + color_ramp 推導，避免 miss-key
-  // fallback 成水藍（home-basics / socioeconomic 之前就因此整片變水藍）。
+  // accent 單一 SSOT = manifest.theme.color_accent（去雙 SSOT）；deep/soft 用 registry
+  // 手選品牌色，缺 entry / 缺 override → 從 color_ramp 推導 + DEV 提示，
+  // 防舊坑「THEME_ACCENT_VARS miss key → 整片變水藍」（home-basics 曾中獎）。
   useEffect(() => {
     if (!manifest) return;
     const root = document.documentElement;
     const ramp = COLOR_RAMPS[manifest.theme.color_ramp] ?? COLOR_RAMPS.blues;
-    const preset = THEME_ACCENT_VARS[theme] ?? {
-      accent: manifest.theme.color_accent,
-      deep: ramp[ramp.length - 1],
-      soft: ramp[1],
-    };
-    root.style.setProperty("--accent", preset.accent);
-    root.style.setProperty("--accent-deep", preset.deep);
-    root.style.setProperty("--accent-soft", preset.soft);
+    const accent = manifest.theme.color_accent;
+    const deep = entry?.accentOverride?.deep ?? ramp[ramp.length - 1];
+    const soft = entry?.accentOverride?.soft ?? ramp[1];
+    if (import.meta.env.DEV && !entry?.accentOverride) {
+      // eslint-disable-next-line no-console
+      console.warn(`[App] theme "${theme}" 無 accentOverride — deep/soft 從 color_ramp 推導`);
+    }
+    root.style.setProperty("--accent", accent);
+    root.style.setProperty("--accent-deep", deep);
+    root.style.setProperty("--accent-soft", soft);
     ramp.forEach((c, i) => root.style.setProperty(`--accent-ramp-${i}`, c));
-  }, [theme, manifest]);
+  }, [theme, manifest, entry]);
 
   // 從 manifest 找當前 metric 的設定
   const colorMetric = manifest?.overview.color_metrics.find((m) => m.id === metric) ?? null;
 
-  // 真實 Supabase KPI（只在 water 主題啟用）
-  const water = useWaterKpis();
-  const river = useRiverWaterLevel();
-  const useRealData = theme === "water";
-
-  // 消防主題 Supabase 資料（只在 fire 主題啟用，省 RPC quota）
-  const fire = useFireData({ enabled: theme === "fire" });
-  const useFireRealData = theme === "fire";
-
-  // 三新主題 Supabase 資料（依 theme enable，省往返）
-  // home-basics 也需要 demographics 資料（SSOT：aging history + 地圖染色）
-  const demographics = useDemographicsData({ enabled: theme === "demographics" || theme === "home-basics" });
-  const rail = useRailData({ enabled: theme === "rail" });
-  const maritime = useMaritimeData({ enabled: theme === "maritime" });
-  const medical = useMedicalData({ enabled: theme === "medical" });
-
-  // 把雨量站（中文 county）聚合成 22 縣市平均 24hr 雨量 → code3
-  const rain24ByCode3 = useMemo(() => {
-    if (!useRealData) return {} as Record<CountyCode3, number>;
-    const buckets = new Map<CountyCode3, number[]>();
-    for (const s of water.rainStations) {
-      const idMoi = normalizeCountyName(s.county || "");
-      if (!idMoi) continue;
-      const code = codeConvert.idMoiToCode3(idMoi);
-      if (!code) continue;
-      const v = s.precipitation_24hr;
-      if (v == null) continue;
-      const list = buckets.get(code as CountyCode3) ?? [];
-      list.push(v);
-      buckets.set(code as CountyCode3, list);
-    }
-    const out = {} as Record<CountyCode3, number>;
-    for (const [k, vs] of buckets) {
-      out[k] = vs.reduce((s, v) => s + v, 0) / vs.length;
-    }
-    return out;
-  }, [useRealData, water.rainStations]);
-
   // 無染色模式：metric === METRIC_NONE → 不算 metricValues、MapView 渲染灰底
   const neutralChoropleth = metric === METRIC_NONE;
 
-  // demographics / home-basics 縣市聚合 Map（O(1) 查詢用）
-  const demoAggByCode3 = useMemo(() => {
-    const m = new Map<CountyCode3, (typeof demographics.countyAggregates)[0]>();
-    for (const a of demographics.countyAggregates) m.set(a.code3 as CountyCode3, a);
-    return m;
-  }, [demographics.countyAggregates]);
-  const useDemoRealData =
-    (theme === "demographics" || theme === "home-basics") && demoAggByCode3.size > 0;
+  // 鐵則 1 地雷顯式化：無 registry entry（或 entry 缺專屬 ViewA）的主題會 fallback 到
+  // generic ViewA + 水 mock metric fallback。draft 主題（forestry/fishery）可暫時如此，
+  // 但正式主題必須有 entry + 真 view。
+  const hasThemeViewA = !!entry?.renderViewA;
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!entry) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[App] theme "${theme}" 無 theme-registry entry — 落到 generic ViewA（內含水主題 mock 版位）` +
+          ` + 水 mock choropleth fallback。鐵則 1：正式上線前必須加 registry entry + 真實 view。`
+      );
+    } else if (!hasThemeViewA) {
+      // eslint-disable-next-line no-console
+      console.warn(`[App] theme "${theme}" 的 registry entry 缺 renderViewA — 落到 generic ViewA（水 mock 版位）`);
+    }
+  }, [theme, entry, hasThemeViewA]);
 
-  // rail / maritime 縣市聚合 Map（X-1：choropleth 著色用，原本無分支永遠灰底）
-  const railAggByCode3 = useMemo(() => {
-    const m = new Map<CountyCode3, (typeof rail.countyAggregates)[0]>();
-    for (const a of rail.countyAggregates) m.set(a.code3 as CountyCode3, a);
-    return m;
-  }, [rail.countyAggregates]);
-  const useRailRealData = theme === "rail" && railAggByCode3.size > 0;
-
-  const maritimeAggByCode3 = useMemo(() => {
-    const m = new Map<CountyCode3, (typeof maritime.countyAggregates)[0]>();
-    for (const a of maritime.countyAggregates) m.set(a.code3 as CountyCode3, a);
-    return m;
-  }, [maritime.countyAggregates]);
-  const useMaritimeRealData = theme === "maritime" && maritimeAggByCode3.size > 0;
-
-  // 計算 22 縣市 metric values — 真實資料優先，缺則 mock
+  // 計算 22 縣市 metric values — registry metricResolver 出真實值，
+  // 缺值時僅 mockMetricFallback（water）或無 entry 主題會 fallback 水 mock（沿舊行為）
   const metricValues = useMemo(() => {
     const out: Record<CountyCode3, number | null> = {} as never;
     if (neutralChoropleth) return out; // 無染色模式不需計算
-
-    // 把 governance.{lpcd|sewage}_by_county（key=id_moi）轉成 code3
-    const lpcdByCode3: Record<CountyCode3, number> = {} as never;
-    const sewageByCode3: Record<CountyCode3, number> = {} as never;
-    if (water.governance) {
-      for (const [idMoi, v] of Object.entries(water.governance.lpcd_by_county)) {
-        const code = codeConvert.idMoiToCode3(idMoi);
-        if (code) lpcdByCode3[code as CountyCode3] = v;
-      }
-      for (const [idMoi, v] of Object.entries(water.governance.sewage_by_county)) {
-        const code = codeConvert.idMoiToCode3(idMoi);
-        if (code) sewageByCode3[code as CountyCode3] = v;
-      }
-    }
-
-    // Fire choropleth：火災密度 / 分隊密度 / 栓密度 真實；5min 圈外仍 mock
-    const fireDensityByCode3 = new Map<CountyCode3, number>();
-    const stationsPerWanByCode3 = new Map<CountyCode3, number>();
-    const hydrantsByCode3 = new Map<CountyCode3, number>();
-    if (useFireRealData) {
-      for (const a of fire.countyAggregates) {
-        const c = COUNTIES.find((x) => x.id_moi === a.county_id);
-        if (c && c.pop_2024_wan > 0) {
-          fireDensityByCode3.set(
-            c.code3 as CountyCode3,
-            a.incidents / c.pop_2024_wan
-          );
-        }
-      }
-      // 真實分隊密度：fire.stations groupBy county_id
-      const stationsByCounty = new Map<string, number>();
-      for (const s of fire.stations) {
-        stationsByCounty.set(s.county_id, (stationsByCounty.get(s.county_id) ?? 0) + 1);
-      }
-      for (const c of COUNTIES) {
-        const cnt = stationsByCounty.get(c.id_moi) ?? 0;
-        if (c.pop_2024_wan > 0) {
-          stationsPerWanByCode3.set(c.code3 as CountyCode3, cnt / c.pop_2024_wan);
-        }
-      }
-      // 真實栓密度（Batch3 F-2：per-county，台北/高雄/新北有值；屏東零星視為無資料不著色）
-      for (const h of fire.hydrantCounts) {
-        if (h.coverage === "sparse") continue;     // 屏東 3 個視為無資料
-        const c = COUNTIES.find((x) => x.id_moi === h.county_id);
-        if (c && h.hydrant_count > 0 && c.area_km2 > 0) {
-          hydrantsByCode3.set(c.code3 as CountyCode3, h.hydrant_count / c.area_km2);
-        }
-      }
-    }
-
+    const resolved =
+      entry?.metricResolver && data != null ? entry.metricResolver(data, metric) : {};
+    const useMockFallback = entry ? !!entry.mockMetricFallback : true;
     for (const code of Object.keys(byCode3) as CountyCode3[]) {
-      let value: number | null = null;
-      if (useRealData) {
-        if (metric === "lpcd" && lpcdByCode3[code] != null) {
-          value = lpcdByCode3[code];
-        } else if (metric === "sewage_coverage" && sewageByCode3[code] != null) {
-          value = sewageByCode3[code];
-        } else if (metric === "rain_24hr" && rain24ByCode3[code] != null) {
-          value = rain24ByCode3[code];
-        } else if (metric === "river_alert_pct") {
-          value = river.byCode3[code]?.alert_pct ?? 0;
-        }
-      } else if (useFireRealData) {
-        const mock = FIRE_MOCK_BY_COUNTY[code];
-        if (metric === "fire_density_per_wan") {
-          value = fireDensityByCode3.get(code) ?? null;
-        } else if (metric === "station_density_per_wan") {
-          value = stationsPerWanByCode3.get(code) ?? null;
-        } else if (metric === "out_of_5min_pct") {
-          value = mock?.outOf5MinPct ?? null;
-        } else if (metric === "hydrant_density_per_km2") {
-          value = hydrantsByCode3.get(code) ?? null;
-        }
-      } else if (useDemoRealData) {
-        // demographics / home-basics — 真實縣市聚合資料
-        const agg = demoAggByCode3.get(code);
-        if (agg) {
-          if (metric === "aging_index")        value = agg.agingIndex;
-          else if (metric === "population")    value = agg.pop;
-          else if (metric === "population_density") value = agg.density;
-          else if (metric === "growth_10y_pct") value = agg.growth10y;
-          else if (metric === "area_km2") {
-            const c = byCode3[code];
-            value = c?.area_km2 ?? null;
-          }
-        }
-      } else if (useRailRealData) {
-        // rail — 真實縣市聚合（對應 rail.yaml color_metrics）
-        const agg = railAggByCode3.get(code);
-        if (agg) {
-          if (metric === "station_count") value = agg.stations;        // 0 站為真實值（無軌道縣市）
-          else if (metric === "rail_length_km") value = agg.km;        // 0 km 為真實值
-          else if (metric === "daily_trips_per_station")
-            value = agg.stations > 0 ? Math.round(agg.dailyTrips / agg.stations) : null;
-          else if (metric === "ridership_per_capita") value = null;    // Sprint 0 待補（站級運量 join 縣市）
-        }
-      } else if (useMaritimeRealData) {
-        // maritime — 真實縣市聚合（對應 maritime.yaml color_metrics）
-        const agg = maritimeAggByCode3.get(code);
-        if (agg) {
-          if (metric === "port_count") value = agg.ports;              // 0 港為真實值（內陸縣市）
-          else if (metric === "fishing_port_count") value = agg.fishing;
-          else if (metric === "fishery_value_billion")
-            value = agg.fisheryValue > 0 ? agg.fisheryValue : null;    // coverage 不全 → 缺值 null
-          else if (metric === "port_calls_yearly")
-            value = agg.shipTraffic > 0 ? agg.shipTraffic : null;      // 僅商港縣市有 → 缺值 null
-        }
-      }
-      // medical — real choropleth from useMedicalData
-      if (value == null && theme === "medical" && medical.countyAggregates.length > 0) {
-        const ma = medical.countyAggregates.find((a) => a.code3 === code);
-        if (ma) {
-          const c = byCode3[code];
-          const pop = c?.pop_2024_wan ?? 1;
-          if (metric === "med_hosp_per_wan") value = +(ma.hosp / pop).toFixed(3);
-          else if (metric === "med_aed") value = ma.aed;
-          else if (metric === "med_ltc") value = ma.ltc;
-          else if (metric === "med_desert") value = null; // 等時圈計算待跑
-          else if (metric === "med_flu") value = ma.flu;
-        }
-      }
-      // fallback to mock（僅 water 有 mock；fire/demo/rail/maritime 無資料保持 null）
-      if (value == null && !useFireRealData && !useDemoRealData && !useRailRealData && !useMaritimeRealData && theme !== "medical")
-        value = getMockMetricValue(metric, code);
+      let value: number | null = resolved[code] ?? null;
+      if (value == null && useMockFallback) value = getMockMetricValue(metric, code);
       out[code] = value;
     }
     return out;
-  }, [metric, neutralChoropleth, useRealData, useFireRealData, useDemoRealData, useRailRealData, useMaritimeRealData, water.governance, rain24ByCode3, river.byCode3, fire.countyAggregates, demoAggByCode3, railAggByCode3, maritimeAggByCode3, theme, medical.countyAggregates]);
+  }, [entry, data, metric, neutralChoropleth]);
 
-  // Phase 0b+ A-2: 點位圖層 toggle state（目前只 reservoir 有資料，其他 placeholder）
-  const [pointLayersOn, setPointLayersOn] = useState<Record<string, boolean>>({
-    reservoir: true,
-    rainGauge: false,
-    waterQC: false,
-    riverLevel: false,
-    polluter: false,
-    wwtp: false,
-  });
+  // 點位圖層 toggle state：{ themeId: { layerId: on } }，初始值來自 registry defaultOn。
+  // 各主題各自保留 toggle 狀態（切主題再切回不重設 — 沿舊行為）。
+  const [layerToggles, setLayerToggles] = useState<Record<string, Record<string, boolean>>>(
+    () => buildDefaultLayerToggles()
+  );
   const togglePointLayer = (id: string) =>
-    setPointLayersOn((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  // B045：fire 主題點位圖層 toggle state（hotspots / stations 預設 on，其他待 Sprint 2-4 ETL）
-  const [pointLayersOnFire, setPointLayersOnFire] = useState<Record<string, boolean>>({
-    hotspots: true,
-    stations: false,
-    hydrants: false,
-    forestRisk: false,
-    emsHospital: false,
-  });
-  const togglePointLayerFire = (id: string) =>
-    setPointLayersOnFire((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const [pointLayersOnMaritime, setPointLayersOnMaritime] = useState<Record<string, boolean>>({ ports: true });
-  const togglePointLayerMaritime = (id: string) =>
-    setPointLayersOnMaritime((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const [pointLayersOnRail, setPointLayersOnRail] = useState<Record<string, boolean>>({ stations: true });
-  const togglePointLayerRail = (id: string) =>
-    setPointLayersOnRail((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const [pointLayersOnMedical, setPointLayersOnMedical] = useState<Record<string, boolean>>({
-    emergency: true, aed: true, ltc: false,
-  });
-  const togglePointLayerMedical = (id: string) =>
-    setPointLayersOnMedical((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  // 40 水庫真實點位（給 MapView）
-  // View A: 全部 37 座；View B/C: 只顯示該縣市 + 鄰縣（聚焦上下文）
-  const reservoirPointsForMap = useMemo(() => {
-    if (!useRealData || !water.reservoirs.length) return [];
-    const all = water.reservoirs.map((r) => ({
-      id: r.reservoir_id,
-      name: r.name,
-      rate: r.storage_ratio_pct,
-      capacity: Number(r.effective_capacity_wan) || 0,
-      lat: r.lat,
-      lng: r.lng,
+    setLayerToggles((prev) => ({
+      ...prev,
+      [theme]: { ...(prev[theme] ?? {}), [id]: !prev[theme]?.[id] },
     }));
-    // 縣市 view 過濾：只該縣市
-    if ((view === "B" || view === "C") && county) {
-      return all.filter((p) => p.lat != null && p.lng != null && getNearestCounty(p.lng, p.lat) === county);
-    }
-    return all;
-  }, [useRealData, water.reservoirs, view, county]);
+  const layerOn = layerToggles[theme] ?? {};
 
-  // B045：fire heatmap 點位（113 年單年 ~12k 件，已 filter lat/lng != null）
-  // View A 顯示全國，View B 才篩該縣市（fire ViewB 未實作，預留）
-  const fireIncidentPointsForMap = useMemo(() => {
-    if (!useFireRealData || !fire.incidentPoints.length) return [];
-    const all = fire.incidentPoints
-      .filter((p) => p.lat != null && p.lng != null)
-      .map((p) => ({ lat: p.lat as number, lng: p.lng as number }));
-    if (view === "B" && county) {
-      const idMoi = byCode3[county]?.id_moi;
-      if (!idMoi) return all;
-      // listIncidents 已附 county_id，但 fireIncidentPointsForMap 已脫光 → 重抓
-      return fire.incidentPoints
-        .filter((p) => p.county_id === idMoi && p.lat != null && p.lng != null)
-        .map((p) => ({ lat: p.lat as number, lng: p.lng as number }));
-    }
-    return all;
-  }, [useFireRealData, fire.incidentPoints, view, county]);
+  // TwoSectionLayers 的點位層清單（registry 宣告）；gateKey 層依 tier/gates 判定 locked
+  const pointToggles = useMemo((): PointLayerToggle[] => {
+    if (!entry?.pointLayers || data == null) return [];
+    return entry.pointLayers.map((L) => {
+      const locked = L.gateKey ? isLayerLocked(L.gateKey, tier, gates) : false;
+      return {
+        id: L.id,
+        label: L.label,
+        color: L.color,
+        shape: L.shape,
+        enabled: L.enabled,
+        on: !!layerOn[L.id],
+        count: L.count ? L.count(data) : L.staticCount,
+        locked,
+        requiredTier: locked ? gates?.get(L.gateKey!)?.required_tier ?? "member" : undefined,
+      };
+    });
+  }, [entry, data, layerOn, tier, gates]);
 
-  // B045：消防分隊真實點位（fire.stations 全 22 縣市，716 個）
-  const fireStationsForMap = useMemo(() => {
-    if (!useFireRealData || !fire.stations.length) return [];
-    // 過濾掉沒 lat/lng 的；轉成 MapView 期望的 shape
-    const all = fire.stations
-      .filter((s) => s.lat != null && s.lng != null)
-      .map((s) => ({
-        id: s.station_id,
-        name: s.name,
-        county_name: byIdMoi[s.county_id as keyof typeof byIdMoi]?.name_zh ?? s.county_id,
-        lat: s.lat as number,
-        lng: s.lng as number,
-      }));
-    if (view === "B" && county) {
-      const idMoi = codeConvert.code3ToIdMoi(county);
-      return all.filter((s) => fire.stations.find((st) => st.station_id === s.id)?.county_id === idMoi);
+  // 點擊 locked 層：未登入 → 引導 Google 登入；已登入 tier 不足 → 面板內提示
+  const [lockNotice, setLockNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!lockNotice) return;
+    const t = setTimeout(() => setLockNotice(null), 5000);
+    return () => clearTimeout(t);
+  }, [lockNotice]);
+  const handleLockedPoint = (id: string) => {
+    const L = entry?.pointLayers?.find((x) => x.id === id);
+    if (!L) return;
+    const required = (L.gateKey ? gates?.get(L.gateKey)?.required_tier : undefined) ?? "member";
+    if (!user) {
+      if (window.confirm(`「${L.label}」為會員限定圖層（${required} 以上），要使用 Google 帳號登入嗎？`)) {
+        void signInWithGoogle().catch((err) => console.warn("[auth] signIn failed", err));
+      }
+    } else {
+      setLockNotice(`「${L.label}」需 ${required} 以上會員（目前等級：${tier ?? "free"}）`);
     }
-    return all;
-  }, [useFireRealData, fire.stations, view, county]);
+  };
 
-  // Cycle E：河川水位站給 MapView
-  // View A: 全國；View B: 只該縣市
-  const riverStationsForMap = useMemo(() => {
-    if (!useRealData || !river.stations.length) return [];
-    const all = river.stations.map((s) => ({
-      id: s.station_id,
-      name: s.station_name,
-      river: s.river_name,
-      county: s.county_id_moi,
-      level_m: s.water_level_m,
-      alert_level: s.alert_level,
-      observed_at: s.observed_at,
-      lat: s.lat,
-      lng: s.lng,
-    }));
-    if ((view === "B" || view === "C") && county) {
-      return all.filter((p) => p.county != null && codeConvert.idMoiToCode3(p.county) === county);
-    }
-    return all;
-  }, [useRealData, river.stations, view, county]);
+  // MapView 泛用點位層（ports / rail / medical ...）；locked 層不渲染（資料也不 fetch）
+  const genericPointLayers = useMemo((): GenericMapPointLayer[] => {
+    if (!entry?.pointLayers || data == null) return [];
+    return entry.pointLayers
+      .filter((L) => L.map)
+      .map((L) => {
+        const locked = L.gateKey ? isLayerLocked(L.gateKey, tier, gates) : false;
+        return {
+          spec: L.map!.spec,
+          visible:
+            !locked && L.enabled && (L.map!.visibleWhen ?? ((on: boolean) => on))(!!layerOn[L.id], view),
+          points: locked ? [] : L.map!.getPoints(data, view, county),
+        };
+      });
+  }, [entry, data, layerOn, view, county, tier, gates]);
 
-  // 航運：港口點位給 MapView
-  const portPointsForMap = useMemo((): PortPointFeature[] => {
-    if (theme !== "maritime" || !maritime.ports.length) return [];
-    return maritime.ports
-      .filter((p) => p.lat != null && p.lng != null)
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        port_class_group: p.port_class_group,
-        lat: p.lat,
-        lng: p.lng,
-      }));
-  }, [theme, maritime.ports]);
-
-  // 軌道：車站點位給 MapView
-  const railStationPointsForMap = useMemo((): RailStationPointFeature[] => {
-    if (theme !== "rail" || !rail.stations.length) return [];
-    // View B/C：只顯示該縣市車站（聚焦上下文，比照水庫/港口）；View A 全國
-    const idMoi = county ? codeConvert.code3ToIdMoi(county) : null;
-    return rail.stations
-      .filter((s) => s.lat != null && s.lng != null)
-      .filter((s) => {
-        if ((view === "B" || view === "C") && idMoi) return s.county_id === idMoi;
-        return true;
-      })
-      .map((s) => ({
-        id: s.station_id,
-        name: s.name,
-        system_id: s.system_id,
-        color: s.color ?? "#4F46E5",
-        lat: s.lat,
-        lng: s.lng,
-      }));
-  }, [theme, rail.stations, view, county]);
-
-  // 醫療主題：3 種點位合併給 MapView
-  const medicalPointsForMap = useMemo((): MedicalPointFeature[] => {
-    if (theme !== "medical") return [];
-    const pts: MedicalPointFeature[] = [];
-    for (const p of medical.emergencyHospitalPoints) {
-      pts.push({ id: p.hospital_id, name: p.name, layer: "emergency_hospital", county: p.county_id, extra: p.level, lat: Number(p.lat), lng: Number(p.lng) });
-    }
-    for (const p of medical.aedPoints) {
-      pts.push({ id: p.place_id, name: p.place_name, layer: "aed", county: p.county, lat: Number(p.lat), lng: Number(p.lng) });
-    }
-    for (const p of medical.ltcPoints) {
-      pts.push({ id: p.org_code, name: p.name, layer: "ltc", county: p.county, extra: p.abc_type, lat: Number(p.lat), lng: Number(p.lng) });
-    }
-    return pts;
-  }, [theme, medical.emergencyHospitalPoints, medical.aedPoints, medical.ltcPoints]);
+  // MapView 特殊主題層（water 基底層 / fire heatmap — registry flag 驅動，MapView 內既有實作）
+  const specialMapProps = useMemo((): SpecialMapProps => {
+    if (!entry?.specialMapProps || data == null) return {};
+    return entry.specialMapProps(data, { on: layerOn, view, county });
+  }, [entry, data, layerOn, view, county]);
 
   // Breadcrumb
   const breadcrumb: CrumbItem[] = useMemo(() => {
@@ -533,9 +238,16 @@ export default function App() {
     setAboutOpen(false);
   };
   const goCity = (code: CountyCode3) => {
-    // B046: fire ViewB 已上線（migration 105 + ViewBFire 5 tabs + 雷達），點縣市進 ViewB
     setCounty(code);
     setView("B");
+  };
+  const drillReservoir = (id: string) => {
+    setReservoirId(id);
+    setView("C");
+  };
+  const backFromDetail = () => {
+    setReservoirId(null);
+    setView(county ? "B" : "A");
   };
 
   if (!manifest) {
@@ -554,6 +266,17 @@ export default function App() {
     );
   }
 
+  // 傳給 registry renderViewA/B/C 的 context
+  const viewCtx: ThemeViewContext = {
+    manifest,
+    county,
+    metric,
+    onMetricChange: setMetric,
+    onCountyClick: goCity,
+    onBack: goHome,
+    onDrillReservoir: drillReservoir,
+  };
+
   return (
     <div className="app">
       <TopBar
@@ -561,6 +284,7 @@ export default function App() {
         themeId={theme}
         year="2024"
         breadcrumb={breadcrumb}
+        tier={tier}
       />
 
       <div className="main">
@@ -593,24 +317,9 @@ export default function App() {
               selectedCounty={county}
               drillCounty={(view === "B" || view === "C") ? county : null}
               onCountyClick={goCity}
-              reservoirPoints={reservoirPointsForMap}
-              showReservoirs={useRealData && (view === "A" ? pointLayersOn.reservoir : true)}
-              riverStations={riverStationsForMap}
-              showRiverStations={useRealData && (view === "A" ? pointLayersOn.riverLevel : view === "B" || view === "C")}
-              showWaterBaseLayers={theme === "water"}
-              showFireHeatmap={theme === "fire" && pointLayersOnFire.hotspots}
-              showFireStations={theme === "fire" && pointLayersOnFire.stations}
-              fireIncidentPoints={fireIncidentPointsForMap}
-              fireStations={fireStationsForMap}
               neutralChoropleth={neutralChoropleth}
-              portPoints={portPointsForMap}
-              showPorts={theme === "maritime" && view === "A" && pointLayersOnMaritime.ports}
-              railStationPoints={railStationPointsForMap}
-              showRailStations={theme === "rail" && (view === "A" ? pointLayersOnRail.stations : view === "B" || view === "C")}
-              medicalPoints={medicalPointsForMap}
-              showMedicalEmergency={theme === "medical" && pointLayersOnMedical.emergency}
-              showMedicalAed={theme === "medical" && pointLayersOnMedical.aed}
-              showMedicalLtc={theme === "medical" && pointLayersOnMedical.ltc}
+              pointLayers={genericPointLayers}
+              {...specialMapProps}
             />
           </ErrorBoundary>
 
@@ -620,45 +329,10 @@ export default function App() {
               metric={metric}
               metricOptions={manifest.overview.color_metrics}
               onMetricChange={setMetric}
-              pointLayers={
-                theme === "water"
-                  ? buildPointLayers(pointLayersOn, water.reservoirs.length, river.stations.length)
-                  : theme === "fire"
-                    ? buildFirePointLayers(
-                        pointLayersOnFire,
-                        fireStationsForMap.length,
-                        fireIncidentPointsForMap.length,
-                        fire.hydrantCounts.reduce((s, h) => s + h.hydrant_count, 0),
-                        fire.forestRisk?.total ?? 0,
-                        fire.shelterNationalCount
-                      )
-                  : theme === "maritime"
-                    ? [{
-                        id: "ports", label: "港口", count: portPointsForMap.length,
-                        color: "#0D9488", shape: "dot" as const, enabled: true,
-                        on: pointLayersOnMaritime.ports,
-                      }]
-                  : theme === "rail"
-                    ? [{
-                        id: "stations", label: "車站", count: railStationPointsForMap.length,
-                        color: "#4F46E5", shape: "dot" as const, enabled: true,
-                        on: pointLayersOnRail.stations,
-                      }]
-                  : theme === "medical"
-                    ? [
-                        { id: "emergency", label: "急救醫院", count: medical.emergencyHospitalPoints.length, color: "#DC2626", shape: "dot" as const, enabled: true, on: pointLayersOnMedical.emergency },
-                        { id: "aed", label: "AED", count: medical.aedPoints.length, color: "#F59E0B", shape: "ring" as const, enabled: true, on: pointLayersOnMedical.aed },
-                        { id: "ltc", label: "長照據點", count: medical.ltcPoints.length, color: "#7C3AED", shape: "small" as const, enabled: true, on: pointLayersOnMedical.ltc },
-                      ]
-                  : []
-              }
-              onTogglePoint={
-                theme === "fire" ? togglePointLayerFire
-                : theme === "maritime" ? togglePointLayerMaritime
-                : theme === "rail" ? togglePointLayerRail
-                : theme === "medical" ? togglePointLayerMedical
-                : togglePointLayer
-              }
+              pointLayers={pointToggles}
+              onTogglePoint={togglePointLayer}
+              onLockedPoint={handleLockedPoint}
+              lockNotice={lockNotice}
             />
           )}
 
@@ -681,134 +355,53 @@ export default function App() {
         <div className="dashboard-pane">
           <ErrorBoundary label="儀錶板">
             {view === "A" ? (
-              theme === "fire" ? (
-                <ViewAFire
-                  data={fire}
-                  selectedCounty={county}
-                  onCountyClick={goCity}
-                />
-              ) : theme === "water" ? (
-                <ViewAWater
-                  water={water}
-                  river={river}
-                  selectedCounty={county}
-                  onCountyClick={goCity}
-                  onDrillReservoir={(id) => {
-                    setReservoirId(id);
-                    setView("C");
-                  }}
-                />
-              ) : theme === "home-basics" ? (
-                <ViewAHome
-                  selectedCounty={county}
-                  onCountyClick={goCity}
-                  demographics={demographics}
-                />
-              ) : theme === "demographics" ? (
-                <ViewADemographics
-                  data={demographics}
-                  selectedCounty={county}
-                  onCountyClick={goCity}
-                />
-              ) : theme === "rail" ? (
-                <ViewARail
-                  data={rail}
-                  selectedCounty={county}
-                  onCountyClick={goCity}
-                />
-              ) : theme === "maritime" ? (
-                <ViewAMaritime
-                  data={maritime}
-                  selectedCounty={county}
-                  onCountyClick={goCity}
-                />
-              ) : theme === "medical" ? (
-                <ViewAMedical
-                  data={medical}
-                  selectedCounty={county}
-                  onCountyClick={goCity}
-                />
+              entry?.renderViewA && data != null ? (
+                entry.renderViewA(data, viewCtx)
               ) : (
+                // generic fallback — 內含水主題 mock KPI 版位（鐵則 1 地雷，僅 draft 主題會走到；
+                // DEV console 已 warn，正式主題必須提供 registry entry + renderViewA）
                 <ViewA
                   manifest={manifest}
                   metric={metric}
                   onMetricChange={setMetric}
                   onCountyClick={goCity}
-                  onDrillReservoir={(id) => {
-                    setReservoirId(id);
-                    setView("C");
-                  }}
+                  onDrillReservoir={drillReservoir}
                   selectedCounty={county}
-                  realSummary={useRealData ? water.summary : null}
-                  realGovernance={useRealData ? water.governance : null}
-                  realRain24ByCode3={useRealData ? rain24ByCode3 : null}
-                  realReservoirs={useRealData ? water.reservoirs : []}
-                  realFloodPct={useRealData ? water.flood : null}
-                  realLoading={useRealData ? water.loading : false}
-                  realError={useRealData ? water.error : null}
+                  realSummary={null}
+                  realGovernance={null}
+                  realRain24ByCode3={null}
+                  realReservoirs={[]}
+                  realFloodPct={null}
+                  realLoading={false}
+                  realError={null}
                 />
               )
             ) : view === "C" && reservoirId ? (
-              <ViewC
-                reservoirId={reservoirId}
-                allReservoirs={useRealData ? water.reservoirs : []}
-                nationalAvg={useRealData ? water.summary?.reservoir_rate_avg ?? null : null}
-                onBack={() => {
-                  setReservoirId(null);
-                  setView(county ? "B" : "A");
-                }}
-              />
-            ) : view === "B" && county ? (
-              theme === "fire" ? (
-                <ViewBFire
-                  data={fire}
-                  county={county}
-                  onBack={goHome}
-                />
-              ) : theme === "demographics" ? (
-                <ViewBDemographics
-                  data={demographics}
-                  county={county}
-                  onBack={goHome}
-                />
-              ) : theme === "rail" ? (
-                <ViewBRail
-                  data={rail}
-                  county={county}
-                  onBack={goHome}
-                />
-              ) : theme === "maritime" ? (
-                <ViewBMaritime
-                  data={maritime}
-                  county={county}
-                  onBack={goHome}
-                />
-              ) : theme === "medical" ? (
-                <ViewBMedical
-                  data={medical}
-                  county={county}
-                  onBack={goHome}
-                />
-              ) : theme === "home-basics" ? (
-                <ViewBHomeBasics
-                  county={county}
-                  onBack={goHome}
-                  onCityClick={goCity}
-                />
+              entry?.renderViewC && data != null ? (
+                entry.renderViewC(data, { ...viewCtx, reservoirId, onBackFromDetail: backFromDetail })
               ) : (
+                <ViewC
+                  reservoirId={reservoirId}
+                  allReservoirs={[]}
+                  nationalAvg={null}
+                  onBack={backFromDetail}
+                />
+              )
+            ) : view === "B" && county ? (
+              entry?.renderViewB && data != null ? (
+                entry.renderViewB(data, viewCtx)
+              ) : (
+                // generic fallback（無 entry 的 draft 主題）— 水主題版 ViewB 空資料殼
                 <ViewB
                   manifest={manifest}
                   county={county}
-                  allReservoirs={useRealData ? water.reservoirs : []}
-                  nationalLpcd={useRealData ? water.governance?.lpcd_national_avg ?? null : null}
-                  nationalSewage={useRealData ? water.governance?.sewage_national_avg ?? null : null}
-                  lpcdByCountyId={useRealData ? water.governance?.lpcd_by_county ?? {} : {}}
-                  sewageByCountyId={useRealData ? water.governance?.sewage_by_county ?? {} : {}}
+                  allReservoirs={[]}
+                  nationalLpcd={null}
+                  nationalSewage={null}
+                  lpcdByCountyId={{}}
+                  sewageByCountyId={{}}
                   onBack={goHome}
-                  onDrillReservoir={(id) => {
-                    setReservoirId(id);
-                    setView("C");
-                  }}
+                  onDrillReservoir={drillReservoir}
                 />
               )
             ) : (
@@ -839,4 +432,3 @@ export default function App() {
     </div>
   );
 }
-

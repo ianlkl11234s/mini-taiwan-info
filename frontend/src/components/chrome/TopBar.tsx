@@ -5,6 +5,7 @@
 
 import { Droplet, Home, Settings, Info } from "lucide-react";
 import { Breadcrumb, type CrumbItem } from "./Breadcrumb";
+import { UserAvatar } from "@/components/auth/UserAvatar";
 
 interface TopBarProps {
   themeName: string;
@@ -12,6 +13,8 @@ interface TopBarProps {
   year: string;
   breadcrumb?: CrumbItem[];
   onCrumbClick?: (item: CrumbItem) => void;
+  /** 會員等級（App useMemberGate 下傳，顯示在 UserAvatar 下拉） */
+  tier?: string | null;
 }
 
 export function TopBar({
@@ -20,6 +23,7 @@ export function TopBar({
   year,
   breadcrumb,
   onCrumbClick,
+  tier,
 }: TopBarProps) {
   const Icon = themeId === "water" ? Droplet : Home;
   return (
@@ -54,6 +58,8 @@ export function TopBar({
       )}
 
       <div className="tb-spacer" />
+
+      <UserAvatar tier={tier} />
 
       <button className="tb-icon-btn" title="說明">
         <Info size={16} />
