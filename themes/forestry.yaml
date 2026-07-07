@@ -11,11 +11,11 @@ theme:
   emoji: 🌲
   icon: tree
   color_accent: "#16A34A"          # green-600
-  color_ramp: green
+  color_ramp: greens
   description: 保安林、森林遊樂區、林道、野生動物分布、自然教育中心 — 全島林業基礎設施
   tagline: 山林裡的法定線、面、點
   priority: 8
-  status: ingesting
+  status: draft
 
 overview:
   default_choropleth_metric: forest_reserve_area_ha
@@ -113,7 +113,7 @@ overview:
       label: 野生動物分布記錄
       unit: 筆
       source: wildlife_distribution_3rd
-      group: ecology
+      group: structural
       notes: 第三次森林資源調查
 
 datasets:
@@ -225,11 +225,11 @@ datasets:
 
 data_sources:
   - id: moa_data_platform
-    name: 農業部資料開放平臺
+    title: 農業部資料開放平臺
     url: https://data.moa.gov.tw
     note: 林務署/林業及自然保育署 SHP 主源
   - id: datagov
-    name: 政府資料開放平臺
+    title: 政府資料開放平臺
     url: https://data.gov.tw
     note: 多版本 SHP 索引（如保安林從 102→1151 共 9 版）
 

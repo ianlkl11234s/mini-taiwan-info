@@ -6,6 +6,7 @@
  */
 
 import yaml from "js-yaml";
+import { validateManifest } from "./manifest-validator";
 import type { ThemeManifest } from "./types";
 
 // Vite import.meta.glob: 取所有 themes/*.yaml 為 raw string
@@ -31,17 +32,33 @@ export function loadAllManifests(): Record<string, ThemeManifest> {
   for (const [path, raw] of Object.entries(yamlModules)) {
     const themeId = extractThemeId(path);
     if (themeId.startsWith("_")) continue; // skip _template.yaml / _schema.json
+    let parsed: ThemeManifest;
     try {
-      const parsed = yaml.load(raw) as ThemeManifest;
-      if (parsed?.theme?.id) {
-        out[parsed.theme.id] = applyManifestDefaults(parsed);
-      } else {
-        // eslint-disable-next-line no-console
-        console.warn(`[themes] ${path} 缺 theme.id，跳過`);
-      }
+      parsed = yaml.load(raw) as ThemeManifest;
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`[themes] 解析 ${path} 失敗`, err);
+      continue;
+    }
+
+    // runtime schema 驗證：DEV fail loud，production 只警告不擋渲染
+    const validationErrors = validateManifest(parsed, `${themeId}.yaml`);
+    if (validationErrors.length > 0) {
+      const msg =
+        `[themes] ${themeId}.yaml manifest 驗證失敗（${validationErrors.length} 項）:\n` +
+        validationErrors.join("\n");
+      if (import.meta.env.DEV) {
+        throw new Error(msg);
+      }
+      // eslint-disable-next-line no-console
+      console.warn(msg);
+    }
+
+    if (parsed?.theme?.id) {
+      out[parsed.theme.id] = applyManifestDefaults(parsed);
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(`[themes] ${path} 缺 theme.id，跳過`);
     }
   }
   return out;

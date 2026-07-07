@@ -111,7 +111,7 @@ overview:
       source: rail_station_daily_trips
       query: rail_daily_trips_total
       group: governance
-      format: { precision: 0, compare_to: previous_quarter, sentiment_when_up: neutral }
+      format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
       response_shape:
         value: number
         delta: number

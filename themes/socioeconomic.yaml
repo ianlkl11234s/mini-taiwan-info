@@ -23,7 +23,7 @@ overview:
       unit: 元
       source: datagov_144527
       query: aggregate_national_income_median
-      group: income
+      group: structural
       format: { precision: 0, compare_to: previous_year, compact: true }
       explode:
         - mode: dimension
@@ -37,7 +37,7 @@ overview:
       unit: 倍
       source: datagov_132285
       query: aggregate_national_quintile_ratio
-      group: income
+      group: structural
       format: { precision: 2 }
       explode:
         - mode: dimension
@@ -49,7 +49,7 @@ overview:
       unit: "%"
       source: datagov_160963
       query: aggregate_national_low_income
-      group: income
+      group: structural
       format: { precision: 2, compare_to: previous_year }
       explode:
         - mode: dimension
@@ -62,7 +62,7 @@ overview:
       unit: 萬元
       source: real_estate_transactions_grid
       query: aggregate_national_housing_median
-      group: housing_economy
+      group: structural
       format: { precision: 1 }
       explode:
         - mode: dimension
@@ -78,7 +78,7 @@ overview:
       unit: "%"
       source: dgbas_household
       query: aggregate_national_ownership
-      group: housing_economy
+      group: structural
       format: { precision: 1 }
       explode:
         - mode: dimension
@@ -90,7 +90,7 @@ overview:
       unit: 家
       source: datagov_173818
       query: aggregate_national_companies_per_10k
-      group: housing_economy
+      group: structural
       format: { precision: 0 }
       explode:
         - mode: dimension

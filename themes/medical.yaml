@@ -32,7 +32,7 @@ overview:
       label: 醫療沙漠比例
       unit: "%"
       domain: [0, 45]
-      ramp_direction: reversed
+      ramp_direction: reverse
       coverage_note: "估算值 · 等時圈計算待跑"
     - id: med_flu
       label: 類流感急診
@@ -85,14 +85,14 @@ county_dashboard:
 
 data_sources:
   - id: nhi
-    name: 健保署 NHI
+    title: 健保署 NHI
     url: https://data.nhi.gov.tw
   - id: mohw
-    name: 衛福部
+    title: 衛福部
     url: https://data.mohw.gov.tw
   - id: cdc
-    name: 疾管署
+    title: 疾管署
     url: https://nidss.cdc.gov.tw
   - id: moifd
-    name: 內政部消防署
+    title: 內政部消防署
     url: https://data.moi.gov.tw

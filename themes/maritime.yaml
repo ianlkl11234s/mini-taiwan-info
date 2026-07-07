@@ -504,11 +504,11 @@ meta:
       reason: "缺口 2：等 Sprint 0 主計處各縣市現有漁船數 ETL"
     - metric: port_calls_yearly
       affected_counties: []
-      mode: placeholder
+      mode: pending_geocode
       ui_treatment: placeholder
       reason: "缺口 3：等 Sprint 0 iMarine 進出港 ETL；全國級無座標，僅商港縣市可著色"
     - metric: container_teu_yearly
       affected_counties: []
-      mode: placeholder
+      mode: pending_geocode
       ui_treatment: placeholder
       reason: "缺口 3：等 Sprint 0 iMarine 貨櫃量 ETL"

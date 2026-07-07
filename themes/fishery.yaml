@@ -11,11 +11,11 @@ theme:
   emoji: 🐟
   icon: fish
   color_accent: "#0891B2"          # cyan-600
-  color_ramp: cyan
+  color_ramp: teal
   description: 養殖漁業生產區、海上箱網、漁港、漁業權、保育區 — 西部沿海與宜蘭的養殖海岸帶
   tagline: 從魚塭到箱網的全島漁業空間
   priority: 7
-  status: ingesting
+  status: draft
 
 # ─────────────────────────────────────────────────
 # overview：View A 全國概覽
@@ -209,14 +209,14 @@ datasets:
 # ─────────────────────────────────────────────────
 data_sources:
   - id: moa_data_platform
-    name: 農業部資料開放平臺
+    title: 農業部資料開放平臺
     url: https://data.moa.gov.tw
     note: A 套 UnitId + B 套 /api/v1，無金鑰；參見 docs/api-platforms/moa/
   - id: datagov
-    name: 政府資料開放平臺
+    title: 政府資料開放平臺
     url: https://data.gov.tw
     note: 漁業署/林務署 SHP/JSON 主要中繼
   - id: oca
-    name: 海委會 iOcean datahub
+    title: 海委會 iOcean datahub
     url: https://iocean.oca.gov.tw
     note: 白海豚棲息環境 GeoJSON 來源
