@@ -21,17 +21,27 @@ if (!url || !anonKey) {
   );
 }
 
+/**
+ * 主 client — 唯一 auth 來源。
+ * auth 走 supabase-js 預設（persistSession=localStorage + autoRefreshToken +
+ * detectSessionInUrl，OAuth 回跳自動接手 session）。
+ * tier-gated RPC（如 medical_ltc_points）一律必須走這個 client：
+ * 只有它會帶用戶 access token，withSchema clients 永遠只帶 anon key。
+ */
 export const supabase: SupabaseClient = createClient(
   url ?? "https://placeholder.supabase.co",
   anonKey ?? "placeholder",
   {
-    auth: { persistSession: false, autoRefreshToken: false },
     db: { schema: "public" },
   }
 );
 
 /**
  * 切換到 reference / realtime / metadata schema 取資料
+ *
+ * ⚠ 純資料 client：不建 auth session（persistSession=false + 隔離 storageKey），
+ * 避免多 GoTrueClient 撞同一 storage key 的警告 / 互踩主 client session。
+ * 這些 client 不帶用戶 access token —— tier-gated RPC 禁止走這裡。
  */
 export type SupabaseSchema =
   | "public"
@@ -50,7 +60,12 @@ export function withSchema(schema: SupabaseSchema) {
     url ?? "https://placeholder.supabase.co",
     anonKey ?? "placeholder",
     {
-      auth: { persistSession: false, autoRefreshToken: false },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        storageKey: `sb-noauth-${schema}`,
+      },
       db: { schema },
     }
   );

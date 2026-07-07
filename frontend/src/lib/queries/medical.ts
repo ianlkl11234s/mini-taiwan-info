@@ -11,6 +11,7 @@
  */
 
 import { supabase } from "../supabase";
+import { isAccessDenied } from "../layerGates";
 import { COUNTIES } from "../counties";
 import type { CountyCode3 } from "../types";
 
@@ -159,8 +160,18 @@ export interface LtcPointRow {
 }
 
 export async function fetchLtcPoints(): Promise<LtcPointRow[]> {
+  // tier-gated RPC（gated_layers: info_medical_ltc, member 以上）——
+  // 必須走主 client（唯一會帶用戶 access token；withSchema clients 只帶 anon key）。
   const { data, error } = await supabase.rpc("medical_ltc_points");
-  if (error) { console.error("[medical] ltc_points failed:", error); throw error; }
+  if (error) {
+    if (isAccessDenied(error)) {
+      // 未授權（anon 401/403 / tier 不足 42501）→ 靜默回空，不噴紅字
+      console.warn("[medical] ltc_points access denied（會員限定層）");
+      return [];
+    }
+    console.error("[medical] ltc_points failed:", error);
+    throw error;
+  }
   return (data ?? []) as LtcPointRow[];
 }
 

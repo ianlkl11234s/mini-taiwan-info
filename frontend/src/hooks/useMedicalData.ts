@@ -44,8 +44,13 @@ const EMPTY: MedicalDataState = {
   emergencyHospitalPoints: [],
 };
 
-export function useMedicalData(opts: { enabled?: boolean } = {}): MedicalDataState {
+export function useMedicalData(
+  opts: { enabled?: boolean; ltcEnabled?: boolean } = {}
+): MedicalDataState {
   const enabled = opts.enabled ?? true;
+  // 長照點位為 tier-gated 層（info_medical_ltc）：locked 時不 fetch（資料防漏），
+  // 解鎖（gates 載入判定公開 / tier 足夠）後才打 RPC。
+  const ltcEnabled = opts.ltcEnabled ?? true;
   const [state, setState] = useState<MedicalDataState>(EMPTY);
 
   useEffect(() => {
@@ -62,7 +67,9 @@ export function useMedicalData(opts: { enabled?: boolean } = {}): MedicalDataSta
         const [statsResult, aedResult, ltcResult, ehResult] = await Promise.allSettled([
           cachedFetch<MedicalCountyRow[]>("medical:county_stats", TTL_LONG, fetchMedicalCountyStats),
           cachedFetch<AedPointRow[]>("medical:aed_points", TTL_LONG, fetchAedPoints),
-          cachedFetch<LtcPointRow[]>("medical:ltc_points", TTL_LONG, fetchLtcPoints),
+          ltcEnabled
+            ? cachedFetch<LtcPointRow[]>("medical:ltc_points", TTL_LONG, fetchLtcPoints)
+            : Promise.resolve<LtcPointRow[]>([]),
           cachedFetch<EmergencyHospitalPointRow[]>("medical:eh_points", TTL_LONG, fetchEmergencyHospitalPoints),
         ]);
 
@@ -102,7 +109,7 @@ export function useMedicalData(opts: { enabled?: boolean } = {}): MedicalDataSta
     })();
 
     return () => { cancelled = true; };
-  }, [enabled]);
+  }, [enabled, ltcEnabled]);
 
   return state;
 }
