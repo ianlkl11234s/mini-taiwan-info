@@ -612,3 +612,34 @@ migration 編號以 gis-platform 當下為準（最新 114，上表 115 起示�
 - root `public/`（9.4MB 誤置）清理：4 檔與 `frontend/public/about/` 重複已刪、3 檔 root-only 搬 `designs/about-assets/`。
 - 死碼 `frontend/src/lib/mock-medical.ts` 刪除（0 import）。
 - 過期 docs 歸檔至 `docs/archive/`：`_CYCLE_water_viewa.md` / `_FIRE_IMPL_STATUS.md` / `HANDOFF_NEXT_SESSION.md`。
+
+# ✅ S13 完成快照（2026-07-08 清晨，已 commit 未 push）
+
+四包改造全數完成，三閘驗收全綠（typecheck / 4 寬度截圖 / codex 0 critical）：
+
+| 包 | 成果 | Commits |
+|---|---|---|
+| Manifest validator | 手刻 validator + `pnpm validate:themes` 閘門，首跑抓 24 項違規全修（10 manifest 全綠） | `5ab1a66` |
+| Theme registry | App.tsx 842→391 行、`theme===` 41→0；MapView 泛用 pointLayers；accent 從 manifest 衍生去雙 SSOT。**加新主題 = 自有檔案 + 1 registry entry，App/MapView 零修改** | `699801d` |
+| 會員系統 | pulse 整套移植（Google OAuth + 全域 tier free/member/insider/owner，兩站共用帳號池）；示範鎖層 `info_medical_ltc`（member、full 鎖、資料防漏、281 apply 前後雙態正確） | `998a2a2` |
+| 安全 + 債 | gis-platform migration 280 已 apply（anon DEFINER 收斂 + spatial_ref_sys trigger 擋寫）；audit 5→0；nginx header；FireScatter rect bug 修復 | `21cea37` `fa60d0e` |
+| /theme-bootstrap skill | 5 階段主題設計 SOP + 28 pattern × 12 資料形狀對照表（theme-loop 上游） | `e0338ad` |
+
+gis-platform 另有 2 commits（`d4a0095` 280 已 apply、`96aaf0c` 281 **未 apply**）。
+
+## ⚠️ 上線待辦（順序不能亂）
+
+1. **[user]** Zeabur → info service → `VITE_MAPBOX_TOKEN` 換成已設 URL 限制那顆（Mapbox 帳號有三顆：線上 `…n-DiOiAQ` 無限制、本地+pulse 共用 `…KlH6m3lg` 無限制、已設 3 URL 限制的是第三顆）
+2. **[Claude]** push info（7 commits）+ gis-platform（2 commits）→ Zeabur 自動 rebuild（順帶補上線上缺的 forestry/fishery GeoJSON）
+3. **[Claude]** 部署完成後 psql apply migration 281（**先 apply 線上長照點位會 403！**）
+4. **[user]** 真 Google 帳號登入 e2e、pulse 後台把自己 tier 調 member+ 驗長照鎖層解鎖
+5. **[user]** Mapbox dashboard 刪除舊線上 token `…n-DiOiAQ`；pulse 的 token 之後比照設限
+- Supabase Auth Redirect URLs：user 已加 ✅
+- 本地 dev `Cannot find module vite@6.4.2`：舊 dev server 殘留，重跑 `pnpm dev` 即好（已驗證 6.4.3 正常）
+
+## Backlog 新增（S13 診斷出、刻意未動）
+
+- **SSOT 雙軌**：急救醫院 fire（`safety_emergency_hospitals`）/ medical（`medical_emergency_hospital_points`）兩條 query；「每萬人」指標分母用 counties.yaml 2024 靜態人口，與 demographics 主題不一致 → 下輪 /theme-loop 收斂
+- 小 UI：圖例 3 位數刻度黏連、home-basics 圖例「老化指數 ()」空括號、footer 主題切換器可捲無提示、choropleth 首載 6-12s 白圖
+- nginx CSP 草稿已備（註解中），待 staging Report-Only 驗證
+- forestry/fishery 仍 draft：啟用前必須給專屬 view（generic ViewA 落水 mock 地雷，已加 DEV warning）
