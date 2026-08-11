@@ -212,31 +212,31 @@
 | 長照 ABC | `data/processed/poi/long_term_care/long_term_care_20260524.geojson` | 30,764 | Tab C 點位 |
 | 急救醫院 | `data/processed/emergency_response/hospitals/` | 252 | Tab B 點位 |
 | 等時圈 | mini-taiwan-pulse PMTiles | 36,852 grids | Tab B 底圖 |
-| 護理機構 | `data/raw/medical/nursing_institutions/115950_*.csv` | 1,499 | Tab C 點位（含座標） |
-| 縣市統計彙總 | `data/raw/medical/county_medical_summary.csv` | 22 | 全 Tab KPI |
+| 護理機構 | `data/raw/poi/medical_mohw/nursing_institutions/115950_*.csv` | 1,499 | Tab C 點位（含座標） |
+| 縣市統計彙總 | `data/raw/poi/medical_mohw/county_medical_summary.csv` | 22 | 全 Tab KPI |
 
 ### 已撈取（待整合）
 
 | 資料 | 路徑 | 筆數 | 用途 |
 |------|------|------|------|
-| 類流感監測 | `data/raw/medical/epidemic_surveillance/14584_*.csv` | 436 | Tab D |
-| 腸病毒監測 | `data/raw/medical/epidemic_surveillance/14587_*.csv` | 435 | Tab D |
-| 急性腹瀉 | `data/raw/medical/epidemic_surveillance/14586_*.csv` | 436 | Tab D |
-| 紅眼症 | `data/raw/medical/epidemic_surveillance/14585_*.csv` | 436 | Tab D |
-| 救護出勤 | `data/raw/medical/ems_statistics/12096_*.csv` | 150 | Tab B |
-| 急救處置 | `data/raw/medical/ems_statistics/12097_*.csv` | 396 | Tab B |
-| 檢傷分級品質 | `data/raw/medical/er_quality/79577-79579_*.csv` | 各 500 | Tab B |
-| 急診暫留 >48hr | `data/raw/medical/er_quality/18611_*.csv` | 17,459 | Tab B |
-| 保險病床比率 | `data/raw/medical/hospital_beds/9402_*.csv` | 413 | Tab A |
-| 慢病管理院所 | `data/raw/medical/chronic_disease_programs/` | ~6,100 | Tab A 補充 |
-| 健保納保人數 | `data/raw/medical/health_insurance_stats/37276_*.csv` | 12,513 | 分母 |
+| 類流感監測 | `data/raw/poi/medical_mohw/epidemic_surveillance/14584_*.csv` | 436 | Tab D |
+| 腸病毒監測 | `data/raw/poi/medical_mohw/epidemic_surveillance/14587_*.csv` | 435 | Tab D |
+| 急性腹瀉 | `data/raw/poi/medical_mohw/epidemic_surveillance/14586_*.csv` | 436 | Tab D |
+| 紅眼症 | `data/raw/poi/medical_mohw/epidemic_surveillance/14585_*.csv` | 436 | Tab D |
+| 救護出勤 | `data/raw/poi/medical_mohw/ems_statistics/12096_*.csv` | 150 | Tab B |
+| 急救處置 | `data/raw/poi/medical_mohw/ems_statistics/12097_*.csv` | 396 | Tab B |
+| 檢傷分級品質 | `data/raw/poi/medical_mohw/er_quality/79577-79579_*.csv` | 各 500 | Tab B |
+| 急診暫留 >48hr | `data/raw/poi/medical_mohw/er_quality/18611_*.csv` | 17,459 | Tab B |
+| 保險病床比率 | `data/raw/poi/medical_mohw/hospital_beds/9402_*.csv` | 413 | Tab A |
+| 慢病管理院所 | `data/raw/poi/medical_mohw/chronic_disease_programs/` | ~6,100 | Tab A 補充 |
+| 健保納保人數 | `data/raw/poi/medical_mohw/health_insurance_stats/37276_*.csv` | 12,513 | 分母 |
 
 ### 已補完
 
 | 資料 | 路徑 | 說明 |
 |------|------|------|
-| 醫院病床統計 | `data/raw/medical/hospital_beds/6473_beds_{2012-2024}.csv` | 13 年 × 38 欄（28 種病床類型） |
-| 醫院人力統計 | `data/raw/medical/hospital_personnel/6474_personnel_{2012-2024}.csv` | 13 年 × 34 欄（20+ 種醫事人員） |
+| 醫院病床統計 | `data/raw/poi/medical_mohw/hospital_beds/6473_beds_{2012-2024}.csv` | 13 年 × 38 欄（28 種病床類型） |
+| 醫院人力統計 | `data/raw/poi/medical_mohw/hospital_personnel/6474_personnel_{2012-2024}.csv` | 13 年 × 34 欄（20+ 種醫事人員） |
 
 ### 待補（可選擴充）
 
