@@ -57,7 +57,7 @@ overview:
     - id: aquaculture_total_area
       label: 養殖總面積
       unit: 公頃
-      source: aquaculture_release_survey_G70
+      source: aquaculture_release_survey_g70
       query: fishery_aquaculture_area_total
       group: structural
       format: { precision: 0, compare_to: none, sentiment_when_up: neutral }
@@ -143,10 +143,10 @@ datasets:
     notes: 海上箱網養殖區位（與生產區互補）
     style: { fillColor: "#06B6D4", fillOpacity: 0.4, color: "#0891B2" }
 
-  - id: fishery_port_fishing_zones_class1
+  - id: fishery_port_zones_class1
     label: 第一類漁港開放垂釣區
     type: polygon
-    file: /data/fishery/fishery_port_fishing_zones_class1.geojson
+    file: /data/fishery/fishery_port_zones_class1.geojson
     records: 6
     coverage: national
     notes: 從 4 角點 X1-X4 POS 構成 polygon
@@ -174,10 +174,10 @@ datasets:
     notes: 待 polygon 化（目前為 wrapper JSON）
 
   # Stats reshape → point (county centroid)
-  - id: aquaculture_release_survey_G70
+  - id: aquaculture_release_survey_g70
     label: 養殖放養量（縣市×魚種）
     type: stats_point
-    file: /data/fishery/aquaculture_release_survey_G70.geojson
+    file: /data/fishery/aquaculture_release_survey_g70.geojson
     records: 79
     notes: 9 魚種 × 13 縣市，含魚塭面積/口數/放養量/養殖戶 = choropleth + bubble dual-mode
 
