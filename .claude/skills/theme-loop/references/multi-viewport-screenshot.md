@@ -15,6 +15,8 @@ mini-taiwan-info 是「左地圖 60% / 右 dashboard 40%」split-view，所以 *
 
 只截 1 寬度（headless agent-browser 預設 1186px）會漏掉 **爆版 + 響應式破洞 + mobile 顧不到** 三類問題。
 
+> 註：檢測寬度需覆蓋 `.claude/memory/PRINCIPLES.md` 定義的四個斷點區間（>1500 / 1100–1500 / 900–1100 / <900），斷點 SSOT 在該檔。
+
 ## 標準 4 步驟
 
 ### Step 1: 確認 dev server 起來

@@ -79,7 +79,7 @@
 
 | Pattern | 實作 | 已用主題 | 適用 | 不適用 |
 |---|---|---|---|---|
-| 線 + 面底圖層（河網 / 流域） | `map/MapView.tsx`（`river-lines-line` / `river-basins-line`，`showWaterBaseLayers` prop 控） | water | 主題專屬地理脈絡層 | ⚠️ **必加 `showXxxBaseLayers` prop** — 新主題加層前先 grep MapView.tsx 找寫死層，避免污染他主題（CLAUDE.md must-check #3） |
+| 線 + 面底圖層（河網 / 流域） | `map/MapView.tsx`（`river-lines-line` / `river-basins-line`，`showWaterBaseLayers` prop 控） | water | 主題專屬地理脈絡層 | ⚠️ **必加 `showXxxBaseLayers` prop** — 新主題加層前先 grep MapView.tsx 找寫死層，避免污染他主題（新主題加層前必檢，事故見 `.claude/memory/INCIDENTS.md` 2026-05-15） |
 
 ## 10. 無資料 / 佔位（鐵則 1 必用）
 

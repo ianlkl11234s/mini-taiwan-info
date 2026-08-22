@@ -167,6 +167,7 @@ User 拍板才進 Stage 5。
 ## 參考資源
 
 - **5 階段完整 SOP + Mode 細節**：`references/stages.md`
+- **線性 11 步檢核表**（開新 view / theme / KPI，2026-07 自專案 CLAUDE.md 遷入）：`references/stages.md` 檔首
 - **多寬度截圖 SOP**：`references/multi-viewport-screenshot.md`
 - **資料缺口處置決策樹**：`references/data-gap-triage.md`
 - **Push 失敗 fallback**：`references/push-fallbacks.md`

@@ -2,6 +2,27 @@
 
 > /theme-loop SKILL.md 的詳細展開。SKILL.md 是骨架，本檔是肉。
 
+## 線性 11 步檢核表（開新 view / theme / KPI）
+
+> 線性 11 步檢核表——配合 SKILL.md 的 Mode 矩陣（P/D/V/S）使用；來源：專案 CLAUDE.md 2026-07 遷入。
+> 每步附 verify：先定義可驗證的完成條件再動手，做完逐步勾。
+
+```
+1. 改 themes/{theme}.yaml        → verify: yaml lint 過 + manifest schema 符合
+2. 改 docs/themes/{theme}.md     → verify:（可選詳規，無 verify）
+3. 確認 schema 已 expose         → verify: /check-schema-exposed 不報錯
+4. 改 gis-platform/migrations/  → verify: supabase db push + select pg_get_function_result 簽名對
+5. 改 frontend/src/lib/queries/  → verify: dev server fetch 200 + 回值 shape 符合 yaml
+6. 改 frontend/src/hooks/        → verify: 在 view 內 console.log 看 data 非 undefined
+7. 改 components/views/          → verify: 畫面有渲染、loading state 正常
+8. pnpm typecheck                → verify: 0 error（PostToolUse hook 已自動跑）
+9. agent-browser 截圖驗證        → verify: 4 寬度（>1500/1100-1500/900-1100/<900）皆不爆版
+10. codex review                 → verify: 0 critical bug
+11. atomic commit                → verify: feat(scope): xxx + secret scanning 過
+```
+
+---
+
 ## Stage 1: Discovery（自動，並行 4 agent）
 
 ### 並行 4 個 Task agent — 標準 prompts
