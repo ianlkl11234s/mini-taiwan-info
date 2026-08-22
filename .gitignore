@@ -103,3 +103,6 @@ coverage/
 
 # Claude session 工作檔（prompt/queue/中間產物，可丟）
 .claude/tmp/
+
+# 218MB 超過 GitHub 100MB 上限，2026-08-22 從歷史移除；資料請走 CDN/S3 部署
+frontend/public/data/forestry/national_forest_compartments.geojson
