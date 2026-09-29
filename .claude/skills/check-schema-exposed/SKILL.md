@@ -1,6 +1,8 @@
 ---
 name: check-schema-exposed
-description: Supabase 新 schema 接入前的 PostgREST exposed-schemas 預檢 + public wrapper 產生指引。當使用者準備寫第一個 cross-schema query（withSchema("xxx")）、新增非 public schema 主題（fire/demographics/safety/realtime ...）、或撞到 "Invalid schema: xxx" 錯誤時觸發。也可在 `/theme-loop` Stage 1 Discovery 階段主動呼叫。主動更新時機：發現新的 schema 陷阱（如 RLS 邏輯與 wrapper 衝突）時更新「常見陷阱」章節；Supabase / PostgREST 規格有變化時更新「why」章節。
+description: >-
+  檢查非 public schema 的 PostgREST 可見性；用於新增 cross-schema query 或處理
+  `Invalid schema` 錯誤，並產出 public wrapper 的需求依據。
 user_invocable: true
 ---
 

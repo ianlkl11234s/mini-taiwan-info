@@ -15,17 +15,17 @@
 5. 改 frontend/src/lib/queries/  → verify: dev server fetch 200 + 回值 shape 符合 yaml
 6. 改 frontend/src/hooks/        → verify: 在 view 內 console.log 看 data 非 undefined
 7. 改 components/views/          → verify: 畫面有渲染、loading state 正常
-8. pnpm typecheck                → verify: 0 error（PostToolUse hook 已自動跑）
-9. agent-browser 截圖驗證        → verify: 4 寬度（>1500/1100-1500/900-1100/<900）皆不爆版
-10. codex review                 → verify: 0 critical bug
+8. pnpm typecheck                → verify: 0 error；已有可核對的同版本 hook 結果才可免重跑
+9. 瀏覽器截圖驗證                → verify: 依受影響版面選桌機與窄版斷點，皆不爆版
+10. code review                  → verify: 使用當前可用 review 工具或聚焦人工檢查，無 critical bug
 11. atomic commit                → verify: feat(scope): xxx + secret scanning 過
 ```
 
 ---
 
-## Stage 1: Discovery（自動，並行 4 agent）
+## Stage 1: Discovery（按需）
 
-### 並行 4 個 Task agent — 標準 prompts
+### 可分派的查核工作
 
 ```
 Agent A (Screenshot multi-viewport, general-purpose subagent):
@@ -52,12 +52,7 @@ Agent D (Schema pre-check, Explore subagent):
 列 wrapper 簽名 drift（用 pg_get_function_result 對比）。"
 ```
 
-### 並行同一訊息發
-
-```
-Task A + Task B + Task C + Task D 一次發 4 個 Agent tool call。
-等四個回再彙整成 Discovery 報告。
-```
+只分派彼此獨立且會影響本輪決策的查核。以目前平台的可用子 agent 和剩餘 slots 為準，主 agent 保留一個 slot，最多同時 3 個 worker；否則依序完成。上述 prompts 是內容範例，不假設 `Task`、特定 agent 類型或 `agent-browser` 可用。
 
 ### 防 fetch 時序假象（Cycle 1 學到）
 
@@ -96,7 +91,7 @@ agent-browser headless 截圖時 SPA 可能還沒 hydrate：
 
 ## Stage 2: Plan（Checkpoint 0）
 
-### AskUserQuestion 三題
+### 需要決策時的三題
 
 依 Discovery 報告，列：
 
@@ -118,9 +113,9 @@ agent-browser headless 截圖時 SPA 可能還沒 hydrate：
    - zero-touch 純前端（僅 Mode P）
 ```
 
-### 建立 TaskList
+### 記錄工作
 
-User 拍板後立刻建任務群：
+取得必要決策或沿用本 task 已有授權後，以當前可用的任務追蹤方式記錄：
 - `cycle Na`: 主任務 1
 - `cycle Nb`: 主任務 2
 - `cycle N verify`: typecheck + multi-viewport screenshot + codex
@@ -135,7 +130,7 @@ User 拍板後立刻建任務群：
 ```
 1. Read 涉及檔（每個 ≤ 2000 line，多檔並行 Read）
 2. Edit / Write 改檔
-3. PostToolUse hook 自動跑 typecheck（settings.json 已設）
+3. 若 hook 有可核對的同版本結果則記錄；否則跑必要 typecheck
 4. typecheck pass → Stage 4
 5. typecheck fail → 修
 ```
@@ -215,7 +210,7 @@ User 拍板才 apply。
 4. 改 component import：mock → real
 5. 留 mock 不刪（fallback / 緊急回退）
 6. UI 上 「待ETL」label 拿掉
-7. PostToolUse hook 自動 typecheck
+7. 依實際 hook 結果或改動範圍跑必要 typecheck
 ```
 
 ---
@@ -224,20 +219,9 @@ User 拍板才 apply。
 
 並行跑：
 
-1. **typecheck** final confirm（PostToolUse hook 已先跑）
-2. **multi-viewport screenshot** — 詳見 `references/multi-viewport-screenshot.md`
-3. **codex review** — 派 codex:rescue background：
-   ```
-   subagent_type: "codex:codex-rescue"
-   prompt: "Review {N} files modified in cycle {X}: {file list}. Check:
-     (1) supabase RPC alignment vs migrations
-     (2) TS type safety
-     (3) mock data labeling clarity
-     (4) accessibility
-     (5) design fidelity per SPEC.
-     Report critical / improvement / confirmed correct. Max 400 words."
-   run_in_background: true
-   ```
+1. **typecheck**：若沒有可核對的同版本 hook 結果，跑 final check。
+2. **multi-viewport screenshot**：layout／互動變更才依受影響斷點驗證；詳見 `references/multi-viewport-screenshot.md`。
+3. **code review**：使用目前可用的 review 工具或有界 reviewer，聚焦 RPC 對 migration、TS、mock 標示、accessibility 與設計契約；不可用時由主 agent 聚焦檢查並記錄缺口。
 
 收到回報後分類：
 - **Critical** → 退回 Stage 3 修
@@ -250,18 +234,18 @@ User 拍板才 apply。
 
 ### Checkpoint C: commit 顆粒度
 
-`AskUserQuestion`：
+未獲授權時，以當前可用的使用者輸入工具確認：
 1. N 個 atomic commit（推薦，分 feat/fix/docs prefix）
 2. 1 個包裝 commit（懶人用）
 3. 不 commit 留 worktree
 
-執行（用 `git restore + redo Edit per commit` 拆 hunk，Cycle 1 學到比 git add -p 穩）。
+已授權 commit 時，使用可回復的 staged hunk 切分；不還原、覆寫或處理其他 session 的 dirty 變更。
 
 ### Checkpoint D: 跨 3 repo push 策略
 
 **先呼叫 `/cross-repo-status`** 看三 repo divergence。
 
-`AskUserQuestion`：
+未獲授權時，以當前可用的使用者輸入工具確認：
 - 不 push（保守）
 - push 本 repo only
 - 3 repo 全 push（推薦，若都 ahead）
@@ -273,7 +257,7 @@ User 拍板才 apply。
 
 ### 收尾提示
 
-push 完跳 `AskUserQuestion`：
+push 已獲授權且完成後，才詢問：
 - 跑 `/wrap-up` 嗎？（推薦 — 更新 memory + CROSS_REPO）
 - 跑 `schema-drift-auditor` agent 確認沒漏接 wrapper 嗎？
 

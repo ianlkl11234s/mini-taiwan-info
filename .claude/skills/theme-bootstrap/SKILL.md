@@ -1,6 +1,6 @@
 ---
 name: theme-bootstrap
-description: mini-taiwan-info 新主題設計討論 SOP（/theme-loop 的上游）。當使用者說 /theme-bootstrap、「開新主題」「設計 {主題} 主題」「汙染主題怎麼開」「下個主題要做什麼」「新主題需要哪些表 / KPI / 圖表」「幫我規劃 {主題}」時觸發。5 階段 + 1 checkpoint：資料盤點（範圍界定 + 候選資料源 + DATA_TIERING 分級 + 缺口標記接 cross-repo onboard）→ 指標設計（候選 KPI 表：定義 / 分子分母口徑 / SSOT 來源 / 期別欄位 / 與既有主題重疊檢查）→ 視覺化選型（references/data-shape-viz-patterns.md 對照表逐 KPI 選 pattern + 地圖互動設計）→ IA 拍板（checkpoint：tabs 結構 / ViewA ViewB 佈局 / 第一版 vs backlog / 待補資料 PendingDataCard 處置）→ 產出交棒（manifest 草稿過 pnpm validate:themes + docs/themes/{theme}.md 詳規模板終結覆蓋斷崖 + 交棒 /theme-loop）。內建專案鐵則檢查（mock 標示 / SSOT 重疊 / 期別標註 / LIVE 用詞 / 響應式預想）。主動更新時機：前端長出新視覺化 pattern（新 chart 元件 / 新地圖層型態）→ 更新 references/data-shape-viz-patterns.md；docs/04 manifest spec 升版 → 對齊 Stage 5 草稿欄位；新主題 bootstrap 跑完一輪 → 檢視 5 階段是否漏抓。
+description: 為 mini-taiwan-info 規劃新主題，產出有來源與資料語意的 KPI、視覺與 manifest 草稿；在尚未開始實作或需要重新定義主題範圍時使用。
 user_invocable: true
 ---
 
@@ -38,10 +38,10 @@ user_invocable: true
 
 ## 5 階段流程
 
-### Stage 1: 資料盤點（自動，可並行 agent）
+### Stage 1: 資料盤點（按需，可並行）
 
 1. **主題範圍界定**：跟 user 確認主題一句話定位 + 2-3 個敘事支柱假說（參考 water「南北分裂的島嶼水帳」、fire「5 分鐘命運線」）。範圍太大先切（例：「汙染」= 空氣 / 水 / 土壤 / 噪音 / 廢棄物，第一版收哪幾塊？）。
-2. **候選資料源搜集**（三路並行，可派 Task agent）：
+2. **候選資料源搜集**（可分派獨立查核）：
    - **政府開放資料**：data.gov.tw + 主管部會 open data 平台（環境部 / 衛福部 / ...）
    - **Supabase 既有表**：含 `public.{schema}_*` wrapper；可派 `schema-drift-auditor` 列 coverage
    - **既有 pipeline**：`../taipei-gis-analytics/pipelines/` 有沒有已寫好只是沒上的
@@ -82,7 +82,7 @@ user_invocable: true
 
 ### Stage 4: IA 拍板（Checkpoint：user 決策）
 
-彙整 Stage 1-3 → `AskUserQuestion` 給 user 拍板四件事：
+彙整 Stage 1-3；只有尚未授權且會實質改變範圍的決策，才用當前可用的使用者輸入工具確認四件事：
 
 1. **tabs 結構**：ViewB 的 tab 清單（每 tab：id / label / kpis / charts / layers），default_tab 是哪個
 2. **ViewA 佈局**：KPI 卡分組（`group: realtime|governance|safety|structural`）、point_profile 要不要開、ranking metrics 選哪些、hook_rules 敘事方向
