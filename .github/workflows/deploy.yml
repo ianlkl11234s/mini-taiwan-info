@@ -54,6 +54,14 @@ jobs:
           VITE_GA_ID: ${{ secrets.VITE_GA_ID }}
           VITE_DEFAULT_THEME: ${{ secrets.VITE_DEFAULT_THEME }}
 
+      - name: Upload big file to R2
+        # 大檔超過 Workers 靜態資產 25MiB 上限，放 R2 bucket site-assets，由 worker/index.ts 提供；每次部署都傳，保持與 main 同步
+        # 需要 CLOUDFLARE_API_TOKEN 具 R2 寫入權限（Workers R2 Storage: Edit）
+        run: pnpm exec wrangler r2 object put site-assets/mini-tw-info/data/forestry/forest_reserve.geojson --file public/data/forestry/forest_reserve.geojson --remote --content-type application/geo+json
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: d104f32eafd7b294ba1f74b731ffd1e0
+
       - name: Deploy
         run: pnpm exec wrangler deploy
         env:

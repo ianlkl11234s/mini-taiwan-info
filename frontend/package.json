@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Mini Taiwan Info — 縣市開放資料儀錶板（前端 SPA）",
   "scripts": {
+    "r2:upload": "wrangler r2 object put site-assets/mini-tw-info/data/forestry/forest_reserve.geojson --file public/data/forestry/forest_reserve.geojson --remote --content-type application/geo+json",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
