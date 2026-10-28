@@ -1,0 +1,4 @@
+# wrangler 部署時略過的檔案（Workers 靜態資產單檔上限 25MiB）
+# forest_reserve.geojson 約 44.6MiB，改由 worker/index.ts 從 R2 bucket site-assets 提供（key mini-tw-info/data/forestry/forest_reserve.geojson；上傳 pnpm r2:upload）
+# 日後也可考慮轉 PMTiles（themes/forestry.yaml 已標 pmtiles_recommended）
+data/forestry/forest_reserve.geojson

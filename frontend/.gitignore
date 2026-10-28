@@ -41,3 +41,6 @@ vite.config.d.ts
 
 # agent-browser 驗證截圖
 .claude/
+
+# Cloudflare wrangler 本機暫存
+.wrangler/
