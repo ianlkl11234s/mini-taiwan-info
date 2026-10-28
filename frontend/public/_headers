@@ -1,0 +1,25 @@
+# Cloudflare Workers 靜態資產的 header（對應原 frontend/nginx.conf）
+# HTML 不另設 Cache-Control：Cloudflare 預設 public, max-age=0, must-revalidate，與 nginx 的 index.html 相同
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=()
+  Strict-Transport-Security: max-age=31536000
+
+# Vite 產出的 hash 檔名：永久快取
+/assets/*
+  Cache-Control: public, immutable, max-age=31536000
+
+# /data 靜態圖資：1 小時；*.geo.json 邊界檔：1 天（nginx 的 geo.json 規則優先於 /data 規則）
+/data/*
+  Cache-Control: public, max-age=3600
+/data/tw-counties.geo.json
+  ! Cache-Control
+  Cache-Control: public, max-age=86400
+/data/river-lines.geo.json
+  ! Cache-Control
+  Cache-Control: public, max-age=86400
+/data/river-basins.geo.json
+  ! Cache-Control
+  Cache-Control: public, max-age=86400
