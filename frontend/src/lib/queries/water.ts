@@ -7,6 +7,7 @@
  */
 
 import { supabase } from "../supabase";
+import { fetchFrozen } from "./frozen";
 
 // ─────────────────────────────────────────────────
 // 1. 全國水庫水情（RPC: get_reservoir_status_latest）
@@ -403,36 +404,40 @@ export async function fetchWaterQualityByCounty(
   days = 365,
   stationType?: WaterStationType
 ): Promise<WaterQualityCountySummary[]> {
-  const { data, error } = await supabase.rpc("get_water_quality_county_summary", {
-    p_param: param,
-    p_days: days,
-    p_station_type: stationType ?? null,
-  });
-  if (error) {
+  // 2026-11-09 起讀凍結快照（water_quality_readings 已搬出 Supabase；觀測停在 2026-08-24）。
+  // 快照是 11-09 當天 get_water_quality_county_summary(param, 365, type) 的結果，只有 days=365。
+  if (days !== 365) {
     // eslint-disable-next-line no-console
-    console.warn("[query] water_quality_county not available:", error.message);
+    console.warn(`[query] water_quality_county: 快照只有 365 天版本（收到 days=${days}）`);
+  }
+  try {
+    const snap = await fetchFrozen<Record<string, WaterQualityCountySummary[]>>("water_quality_county_summary");
+    return snap[`${param}:${stationType ?? "all"}`] ?? [];
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn("[query] water_quality_county not available:", e instanceof Error ? e.message : e);
     return [];
   }
-  return (data ?? []) as WaterQualityCountySummary[];
 }
 
 /**
  * 測站清單 + 最新一筆 reading（給 map layer + drill）
+ * 2026-11-09 起讀凍結快照（全部測站一份，這裡依類型與縣市篩；順序同原 RPC：縣市、站名）。
  */
 export async function fetchWaterQualityStations(
   stationType?: WaterStationType,
   countyId?: string
 ): Promise<WaterQualityStation[]> {
-  const { data, error } = await supabase.rpc("get_water_quality_station_latest", {
-    p_station_type: stationType ?? null,
-    p_county_id: countyId ?? null,
-  });
-  if (error) {
+  try {
+    const all = await fetchFrozen<WaterQualityStation[]>("water_quality_stations_latest");
+    return all.filter(
+      (s) => (!stationType || s.station_type === stationType) && (!countyId || s.county_id === countyId)
+    );
+  } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn("[query] water_quality_stations RPC failed:", error.message);
+    console.warn("[query] water_quality_stations RPC failed:", e instanceof Error ? e.message : e);
     return [];
   }
-  return (data ?? []) as WaterQualityStation[];
 }
 
 // ─────────────────────────────────────────────────
