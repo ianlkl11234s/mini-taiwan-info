@@ -17,6 +17,7 @@
  */
 
 import { supabase } from "../supabase";
+import { fetchFrozen } from "./frozen";
 
 // Fire schema 不在 PostgREST 預設 exposed list；改用 public.fire_* wrapper views/RPCs
 // （見 gis-platform/migrations/104_fire_public_wrappers.sql）
@@ -928,23 +929,24 @@ export interface DisasterIncidentRow {
   data_source: string;
 }
 
+/**
+ * 2026-11-09 起讀凍結快照（fire.disaster_incidents 已搬出 Supabase；資料 2022-09～2024-11 不再更新）。
+ * 快照只存原本會查到的部分：全國依 occurred_date 新到舊前 2000 筆、各縣市前 50 筆；
+ * limit 超過時回傳快照內全部。orderDesc 參數保留相容，快照一律新到舊。
+ */
 export async function fetchDisasterIncidents(opts: {
   county?: string | null;
   limit?: number;
   orderDesc?: boolean;
 } = {}): Promise<DisasterIncidentRow[]> {
-  let q = db
-    .from("fire_disaster_incidents")
-    .select("incident_id,disaster_name,occurred_at,occurred_date,county_id,county_name_raw,town,incident_type,deaths,injuries,data_source");
-  if (opts.county) q = q.eq("county_id", opts.county);
-  q = q.order("occurred_date", { ascending: !opts.orderDesc });
-  if (opts.limit) q = q.limit(opts.limit);
-  const { data, error } = await q;
-  if (error) {
-    console.error("[fire] fetchDisasterIncidents failed:", error);
-    throw error;
-  }
-  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+  const snap = await fetchFrozen<{
+    national: DisasterIncidentRow[];
+    by_county: Record<string, DisasterIncidentRow[]>;
+  }>("disaster_incidents_latest");
+  // 快照只有「新到舊」一種排序（現有呼叫端都是 orderDesc: true）
+  let rows = opts.county ? snap.by_county[opts.county] ?? [] : snap.national;
+  if (opts.limit) rows = rows.slice(0, opts.limit);
+  return rows.map((r) => ({
     incident_id: String(r.incident_id),
     disaster_name: String(r.disaster_name),
     occurred_at: String(r.occurred_at),
@@ -963,36 +965,6 @@ export async function fetchDisasterIncidents(opts: {
 // 13. 山林火災風險點 (fire.forest_fire_risk_snapshot)
 // ─────────────────────────────────────────────────
 
-export interface ForestFireRiskRow {
-  snapshot_id: number;
-  region: string;
-  risk_level: number | null;          // 1=安全 ... 5=最危險
-  risk_level_chinese: string | null;
-  snapshot_date: string | null;
-  lat: number | null;
-  lng: number | null;
-}
-
-export async function fetchForestFireRisk(opts: { minRiskLevel?: number; limit?: number } = {}): Promise<ForestFireRiskRow[]> {
-  let q = db.from("fire_forest_fire_risk_snapshot").select("snapshot_id,region,risk_level,risk_level_chinese,snapshot_date,lat,lng");
-  if (opts.minRiskLevel != null) q = q.gte("risk_level", opts.minRiskLevel);
-  if (opts.limit) q = q.limit(opts.limit);
-  const { data, error } = await q;
-  if (error) {
-    console.error("[fire] fetchForestFireRisk failed:", error);
-    throw error;
-  }
-  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
-    snapshot_id: Number(r.snapshot_id),
-    region: String(r.region),
-    risk_level: r.risk_level == null ? null : Number(r.risk_level),
-    risk_level_chinese: r.risk_level_chinese == null ? null : String(r.risk_level_chinese),
-    snapshot_date: r.snapshot_date == null ? null : String(r.snapshot_date),
-    lat: r.lat == null ? null : Number(r.lat),
-    lng: r.lng == null ? null : Number(r.lng),
-  }));
-}
-
 /** 全國 forest_fire_risk 風險等級分布 */
 export interface ForestFireRiskSummary {
   total: number;
@@ -1000,22 +972,9 @@ export interface ForestFireRiskSummary {
   high_risk_count: number;              // risk_level >= 3 (警告+危險+最危險)
 }
 
+/** 2026-11-09 起讀凍結快照（fire.forest_fire_risk_snapshot 是單次快照，已搬出 Supabase）。 */
 export async function fetchForestFireRiskSummary(): Promise<ForestFireRiskSummary> {
-  const { data, error } = await db.from("fire_forest_fire_risk_snapshot").select("risk_level,risk_level_chinese");
-  if (error) {
-    console.error("[fire] fetchForestFireRiskSummary failed:", error);
-    throw error;
-  }
-  const byLevel: Record<string, number> = {};
-  let total = 0;
-  let high = 0;
-  for (const r of (data ?? []) as Array<{ risk_level: number | null; risk_level_chinese: string | null }>) {
-    total += 1;
-    const lvl = r.risk_level_chinese ?? "未知";
-    byLevel[lvl] = (byLevel[lvl] ?? 0) + 1;
-    if (r.risk_level != null && Number(r.risk_level) >= 3) high += 1;
-  }
-  return { total, by_level: byLevel, high_risk_count: high };
+  return fetchFrozen<ForestFireRiskSummary>("forest_fire_risk_summary");
 }
 
 // ─────────────────────────────────────────────────

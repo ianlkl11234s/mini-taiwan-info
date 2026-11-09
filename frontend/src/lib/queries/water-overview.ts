@@ -14,6 +14,7 @@
  *   - twc_customer_yearly
  */
 import { supabase } from "../supabase";
+import { fetchFrozen } from "./frozen";
 
 // ─────────────────────────────────────────────────
 // 章 1 · 現況 — 6 stat tiles
@@ -463,19 +464,12 @@ export async function fetchStormDrainByCountyIdMoi(
   if (!idMoi) return null;
   const slug = STORM_DRAIN_COUNTY_BY_IDMOI[idMoi];
   if (!slug) return null;
-  const [mh, pp] = await Promise.all([
-    supabase
-      .from("storm_drainage_manholes")
-      .select("*", { count: "exact", head: true })
-      .eq("county", slug),
-    supabase
-      .from("storm_drainage_pipes")
-      .select("*", { count: "exact", head: true })
-      .eq("county", slug),
-  ]);
+  // 2026-11-09 起讀凍結快照（storm_drainage_manholes／_pipes 已搬出 Supabase）
+  const counts = await fetchFrozen<Record<string, StormDrainCountySummary>>("storm_drain_counts");
+  const row = counts[slug];
   return {
-    manholes: mh.count ?? 0,
-    pipes: pp.count ?? 0,
+    manholes: row?.manholes ?? 0,
+    pipes: row?.pipes ?? 0,
   };
 }
 
