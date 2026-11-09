@@ -366,67 +366,19 @@ export interface SubsidenceCountyRow {
 
 /**
  * 地層下陷近 2 年平均下沉 top 5 縣市。
- * 用 land_subsidence_stations + readings JOIN，分組計算。
- *
- * 因 PostgREST JOIN 限制，先撈 stations 取得 county → id 對應，再撈 readings AVG（兩階段）。
- * 對 ~104 站、~276k readings：兩個 query OK，但若慢可改 RPC。
+ * 2026-11-10 起讀凍結快照 subsidence_top_counties.json（land_subsidence_readings 搬出 Supabase，ADR-0026）：
+ * 以全量資料計算（舊版前端查詢被 PostgREST 2 萬列上限截斷、數字每天漂移；使用者決定改用正確全量值）。
+ * 產生：scripts/freeze-supabase-snapshots.py subsidence_top_counties。
  */
 export async function fetchSubsidenceTopCounties(limit = 5): Promise<SubsidenceCountyRow[]> {
-  // 1. 撈所有站 (id, county)
-  const { data: stationsData, error: e1 } = await supabase
-    .from("land_subsidence_stations")
-    .select("id, county");
-  if (e1 || !stationsData) {
+  try {
+    const rows = await fetchFrozen<SubsidenceCountyRow[]>("subsidence_top_counties");
+    return rows.slice(0, limit);
+  } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn("[water-overview] land_subsidence_stations not available:", e1?.message);
+    console.warn("[water-overview] subsidence snapshot not available:", e);
     return [];
   }
-  const stations = stationsData as { id: number | string; county: string | null }[];
-  const stationsByCounty = new Map<string, (number | string)[]>();
-  for (const s of stations) {
-    if (!s.county) continue;
-    const list = stationsByCounty.get(s.county) ?? [];
-    list.push(s.id);
-    stationsByCounty.set(s.county, list);
-  }
-  // 2. 撈近 2 年 readings，前端 GROUP BY station_id → county
-  const twoYearsAgo = new Date();
-  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-  const { data: readingsData, error: e2 } = await supabase
-    .from("land_subsidence_readings")
-    .select("station_id, subsidence_mm")
-    .gte("observed_at", twoYearsAgo.toISOString())
-    .not("subsidence_mm", "is", null)
-    .limit(100000);
-  if (e2 || !readingsData) {
-    // eslint-disable-next-line no-console
-    console.warn("[water-overview] land_subsidence_readings not available:", e2?.message);
-    return [];
-  }
-  const stationIdToCounty = new Map<string | number, string>();
-  for (const [county, ids] of stationsByCounty) for (const id of ids) stationIdToCounty.set(id, county);
-  // 聚合
-  const byCounty = new Map<string, { sum: number; n: number; max: number }>();
-  for (const r of readingsData as { station_id: number | string; subsidence_mm: number | null }[]) {
-    const county = stationIdToCounty.get(r.station_id);
-    if (!county || r.subsidence_mm == null) continue;
-    const cur = byCounty.get(county) ?? { sum: 0, n: 0, max: -Infinity };
-    cur.sum += r.subsidence_mm;
-    cur.n += 1;
-    if (r.subsidence_mm > cur.max) cur.max = r.subsidence_mm;
-    byCounty.set(county, cur);
-  }
-  const out: SubsidenceCountyRow[] = [];
-  for (const [county, v] of byCounty) {
-    out.push({
-      county,
-      stations: stationsByCounty.get(county)?.length ?? 0,
-      avg_mm: v.n > 0 ? v.sum / v.n : null,
-      max_mm: v.max > -Infinity ? v.max : null,
-    });
-  }
-  out.sort((a, b) => (b.avg_mm ?? 0) - (a.avg_mm ?? 0));
-  return out.slice(0, limit);
 }
 
 // ─────────────────────────────────────────────────

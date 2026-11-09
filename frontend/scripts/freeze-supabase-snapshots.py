@@ -11,6 +11,7 @@ JSON 格式照 PostgREST（json_agg，TimeZone=UTC），所以 query 函式回�
 | disaster_incidents_latest.json | fire_disaster_incidents 依 occurred_date 新到舊：全國前 2000 筆、各縣市前 50 筆 | fire.disaster_incidents |
 | forest_fire_risk_summary.json | fire_forest_fire_risk_snapshot 風險等級分布 | fire.forest_fire_risk_snapshot |
 | water_quality_county_summary.json | get_water_quality_county_summary(param, 365, type)：10 參數 × 4 種測站類型 | public.water_quality_readings |
+| subsidence_top_counties.json | 地層下陷近 2 年各縣市平均／最大下沉量（land_subsidence_stations × readings，**全量**計算；2026-11-10 凍結，使用者決定改用正確全量值，舊前端查詢被 PostgREST 2 萬列上限截斷）| public.land_subsidence_readings |
 | water_quality_stations_latest.json | get_water_quality_station_latest(NULL, NULL)：全部測站＋最新一筆，前端再篩類型與縣市 | public.water_quality_readings |
 
 水質「近 365 天」凍結的是 2026-11-09 當天的結果；資料本身已停更（最新 2026-08-24），
@@ -34,6 +35,8 @@ DIS_COLS = ("incident_id,disaster_name,occurred_at,occurred_date,county_id,count
 DIS_ORDER = "occurred_date DESC"
 WQ_PARAMS = ["DO", "BOD", "pH", "COD", "TOC", "EC", "SS", "NH3N", "RPI", "CTSI"]
 WQ_TYPES = ["river", "reservoir", "groundwater", None]
+# 凍結日期（預設 2026-11-09；之後補凍的檔各自記）
+GENERATED_AT = {"subsidence_top_counties": "2026-11-10"}
 
 JOBS = {
     "storm_drain_counts": """
@@ -50,6 +53,14 @@ JOBS = {
               SELECT coalesce(risk_level_chinese, '未知') AS lvl, count(*) AS n
               FROM public.fire_forest_fire_risk_snapshot GROUP BY 1) l),
           'high_risk_count', (SELECT count(*) FROM public.fire_forest_fire_risk_snapshot WHERE risk_level >= 3))""",
+    "subsidence_top_counties": """
+        SELECT json_agg(t ORDER BY t.avg_mm DESC NULLS LAST) FROM (
+          SELECT s.county,
+                 (SELECT count(*) FROM public.land_subsidence_stations s2 WHERE s2.county = s.county)::int AS stations,
+                 avg(r.subsidence_mm)::float8 AS avg_mm, max(r.subsidence_mm)::float8 AS max_mm
+          FROM public.land_subsidence_readings r JOIN public.land_subsidence_stations s ON s.id = r.station_id
+          WHERE r.observed_at >= now() - interval '2 years' AND r.subsidence_mm IS NOT NULL AND s.county IS NOT NULL
+          GROUP BY s.county) t""",
     "water_quality_stations_latest": """
         SELECT coalesce(json_agg(t), '[]'::json) FROM public.get_water_quality_station_latest(NULL, NULL) t""",
 }
@@ -99,7 +110,7 @@ def main():
             cur.execute(JOBS[name])
             data = cur.fetchone()[0]
         path = OUT / f"{name}.json"
-        path.write_text(json.dumps({"generated_at": "2026-11-09", "data": data}, ensure_ascii=False,
+        path.write_text(json.dumps({"generated_at": GENERATED_AT.get(name, "2026-11-09"), "data": data}, ensure_ascii=False,
                                    separators=(",", ":")) + "\n")
         print(f"{name}: {path.stat().st_size / 1024:.0f} KB")
     cur.execute("ROLLBACK")
